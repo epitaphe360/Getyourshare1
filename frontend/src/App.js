@@ -12,6 +12,7 @@ import Marketplace from './pages/Marketplace';
 import TrackingLinks from './pages/TrackingLinks';
 import Integrations from './pages/Integrations';
 import LandingPage from './pages/LandingPage';
+import AIMarketing from './pages/AIMarketing';
 
 // Advertisers
 import AdvertisersList from './pages/advertisers/AdvertisersList';
