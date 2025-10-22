@@ -271,6 +271,26 @@ function App() {
             }
           />
 
+          {/* Tracking Links */}
+          <Route
+            path="/tracking-links"
+            element={
+              <ProtectedRoute>
+                <TrackingLinks />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Integrations */}
+          <Route
+            path="/integrations"
+            element={
+              <ProtectedRoute>
+                <Integrations />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Settings Routes */}
           <Route
             path="/settings/personal"
