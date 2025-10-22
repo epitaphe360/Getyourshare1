@@ -139,6 +139,7 @@ const Sidebar = () => {
         { title: 'Utilisateurs', path: '/settings/users' },
         { title: 'SMTP', path: '/settings/smtp' },
         { title: 'Emails', path: '/settings/emails' },
+        { title: 'White Label', path: '/settings/white-label' },
       ],
     },
   ];
