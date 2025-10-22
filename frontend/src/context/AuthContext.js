@@ -21,6 +21,18 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     try {
       const response = await api.post('/api/auth/login', { email, password });
+      
+      // Check if 2FA is required
+      if (response.data.requires_2fa) {
+        return {
+          success: false,
+          requires2FA: true,
+          tempToken: response.data.temp_token,
+          message: response.data.message || 'Code 2FA envoyé'
+        };
+      }
+      
+      // No 2FA required, login directly
       const { access_token, user: userData } = response.data;
       
       localStorage.setItem('token', access_token);
@@ -31,7 +43,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || 'Login failed'
+        error: error.response?.data?.detail || 'Connexion échouée'
       };
     }
   };
