@@ -108,6 +108,23 @@ MOCK_USERS = [
         "is_active": True,
         "last_login": datetime.now().isoformat(),
         "created_at": "2024-03-01T00:00:00Z"
+    },
+    # Test user without 2FA
+    {
+        "id": "user_test_no2fa",
+        "email": "test@example.com",
+        "password": "test123",
+        "role": "influencer",
+        "first_name": "Test",
+        "last_name": "User",
+        "phone": "+33600000000",
+        "phone_verified": True,
+        "two_fa_enabled": False,
+        "country": "FR",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Test",
+        "is_active": True,
+        "last_login": datetime.now().isoformat(),
+        "created_at": "2024-03-01T00:00:00Z"
     }
 ]
 
