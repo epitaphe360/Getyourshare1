@@ -15,7 +15,9 @@ import {
   ChevronDown,
   ChevronRight,
   Menu,
-  X
+  X,
+  Link as LinkIcon,
+  Zap
 } from 'lucide-react';
 
 const Sidebar = () => {
