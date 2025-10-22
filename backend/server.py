@@ -64,30 +64,58 @@ async def root():
     return {"message": "ShareYourSales API - v1.0.0", "status": "running"}
 
 # Authentication Endpoints
-@app.post("/api/auth/login", response_model=LoginResponse)
-async def login(request: LoginRequest):
-    # Find user in mock data
-    user = next((u for u in MOCK_USERS if u["email"] == request.email and u["password"] == request.password), None)
+@app.post("/api/auth/login")
+async def login(login_data: LoginRequest):
+    # Find user
+    user = next((u for u in MOCK_USERS if u["email"] == login_data.email), None)
     
-    if not user:
+    if not user or user["password"] != login_data.password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
+            detail="Email ou mot de passe incorrect"
         )
     
-    # Create access token
+    # Check if account is active
+    if not user.get("is_active", True):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Compte désactivé"
+        )
+    
+    # Si 2FA activé, générer code et retourner temp_token
+    if user.get("two_fa_enabled", False):
+        # Générer code 2FA (mock)
+        code = MOCK_2FA_CODES.get(user["email"], "123456")
+        
+        # Créer temp token pour la vérification 2FA
+        temp_token = create_access_token(
+            {"sub": user["id"], "temp": True},
+            expires_delta=timedelta(minutes=5)
+        )
+        
+        # En production, envoyer le code par SMS ici
+        print(f"📱 Code 2FA pour {user['email']}: {code}")
+        
+        return {
+            "requires_2fa": True,
+            "temp_token": temp_token,
+            "token_type": "bearer",
+            "message": f"Code 2FA envoyé au {user.get('phone', 'téléphone')}"
+        }
+    
+    # Si pas de 2FA, connexion directe
     access_token = create_access_token({
         "sub": user["id"],
         "email": user["email"],
         "role": user["role"]
     })
     
-    # Remove password from response
     user_data = {k: v for k, v in user.items() if k != "password"}
     
     return {
         "access_token": access_token,
         "token_type": "bearer",
+        "requires_2fa": False,
         "user": user_data
     }
 
