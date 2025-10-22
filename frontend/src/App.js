@@ -380,6 +380,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/settings/white-label"
+            element={
+              <ProtectedRoute>
+                <WhiteLabel />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Default Route */}
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
