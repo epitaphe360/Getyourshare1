@@ -50,6 +50,7 @@ import Permissions from './pages/settings/Permissions';
 import Users from './pages/settings/Users';
 import SMTP from './pages/settings/SMTP';
 import Emails from './pages/settings/Emails';
+import WhiteLabel from './pages/settings/WhiteLabel';
 
 import './App.css';
 
