@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 import jwt
 from mock_data import *
 
-app = FastAPI(title="Tracknow API")
+app = FastAPI(title="ShareYourSales API")
 
 # CORS configuration
 app.add_middleware(
