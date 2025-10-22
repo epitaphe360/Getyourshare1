@@ -114,6 +114,16 @@ const Sidebar = () => {
       path: '/marketplace',
     },
     {
+      title: 'Liens de Tracking',
+      icon: <LinkIcon size={20} />,
+      path: '/tracking-links',
+    },
+    {
+      title: 'Intégrations',
+      icon: <Zap size={20} />,
+      path: '/integrations',
+    },
+    {
       title: 'Paramètres',
       icon: <Settings size={20} />,
       submenu: 'settings',
