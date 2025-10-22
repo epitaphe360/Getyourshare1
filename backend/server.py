@@ -263,42 +263,45 @@ async def verify_2fa(data: dict):
     code = data.get("code")
     temp_token = data.get("temp_token")
     
+    # Vérifier temp_token
     try:
-        # Vérifier temp_token
         payload = jwt.decode(temp_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        
-        # Trouver l'utilisateur
-        user = next((u for u in MOCK_USERS if u["id"] == payload["sub"]), None)
-        if not user:
-            raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
-        
-        # Vérifier le code 2FA (mock - accepter 123456 pour tous)
-        expected_code = MOCK_2FA_CODES.get(user["email"], "123456")
-        if code != expected_code:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Code 2FA incorrect"
-            )
-        
-        # Code correct, créer le vrai token
-        access_token = create_access_token({
-            "sub": user["id"],
-            "email": user["email"],
-            "role": user["role"]
-        })
-        
-        user_data = {k: v for k, v in user.items() if k != "password"}
-        
-        return {
-            "access_token": access_token,
-            "token_type": "bearer",
-            "user": user_data
-        }
-        
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=400, detail="Code expiré, veuillez vous reconnecter")
-    except jwt.InvalidTokenError:
+    except Exception:
         raise HTTPException(status_code=400, detail="Token invalide")
+    
+    # Vérifier que c'est un temp token
+    if not payload.get("temp"):
+        raise HTTPException(status_code=400, detail="Token invalide")
+    
+    # Trouver l'utilisateur
+    user = next((u for u in MOCK_USERS if u["id"] == payload["sub"]), None)
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    
+    # Vérifier le code 2FA (mock - accepter 123456 pour tous)
+    expected_code = MOCK_2FA_CODES.get(user["email"], "123456")
+    if code != expected_code:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Code 2FA incorrect"
+        )
+    
+    # Code correct, créer le vrai token
+    access_token = create_access_token({
+        "sub": user["id"],
+        "email": user["email"],
+        "role": user["role"]
+    })
+    
+    user_data = {k: v for k, v in user.items() if k != "password"}
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": user_data
+    }
 
 # Merchants Routes (ShareYourSales)
 @app.get("/api/merchants")
