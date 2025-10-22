@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import Layout from './components/layout/Layout';
 import Login from './pages/Login';
+import Register from './pages/Register';
+import Pricing from './pages/Pricing';
 import Dashboard from './pages/Dashboard';
 import GettingStarted from './pages/GettingStarted';
 import News from './pages/News';
