@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 import jwt
 import os
-from mock_data_shareyoursales import *
+from mock_data import *
 
 # Initialize FastAPI app
 app = FastAPI(
