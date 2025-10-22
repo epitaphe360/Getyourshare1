@@ -1,13 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import api from '../utils/api';
-import StatCard from '../components/common/StatCard';
-import Card from '../components/common/Card';
-import { TrendingUp, Users, DollarSign, Target, UserCheck, MousePointer } from 'lucide-react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import React from 'react';
+import { useAuth } from '../context/AuthContext';
+import AdminDashboard from './dashboards/AdminDashboard';
+import MerchantDashboard from './dashboards/MerchantDashboard';
+import InfluencerDashboard from './dashboards/InfluencerDashboard';
 
 const Dashboard = () => {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchDashboardStats();
