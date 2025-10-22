@@ -10,7 +10,7 @@ MOCK_USERS = [
     {
         "id": "user_admin_1",
         "email": "admin@shareyoursales.com",
-        "password": "admin123",
+        "password": "$2b$12$f19klH3itoqd..dxoRL0zuMA57VzhlzkB3TdEsns8NPySv6VDIX7W",  # admin123 (hashed)
         "role": "admin",
         "first_name": "Sophie",
         "last_name": "Admin",
@@ -29,7 +29,7 @@ MOCK_USERS = [
     {
         "id": "user_merchant_1",
         "email": "contact@techstyle.fr",
-        "password": "merchant123",
+        "password": "$2b$12$XDH/0kAWJdNCRcm3yFXsXeBtobKN1mkZKEcRxj5taoYPZARTGpDpW",  # merchant123 (hashed)
         "role": "merchant",
         "first_name": "Jean",
         "last_name": "Dupont",
@@ -47,7 +47,7 @@ MOCK_USERS = [
     {
         "id": "user_merchant_2",
         "email": "hello@beautypro.com",
-        "password": "merchant123",
+        "password": "$2b$12$XDH/0kAWJdNCRcm3yFXsXeBtobKN1mkZKEcRxj5taoYPZARTGpDpW",  # merchant123 (hashed)
         "role": "merchant",
         "first_name": "Marie",
         "last_name": "Laurent",
@@ -64,7 +64,7 @@ MOCK_USERS = [
     {
         "id": "user_influencer_1",
         "email": "emma.style@instagram.com",
-        "password": "influencer123",
+        "password": "$2b$12$2SolTi1T4Kr.yPE7hQkvD.mMd1uidM8DsVjo1ZmiU7gSKYgruXnC6",  # influencer123 (hashed)
         "role": "influencer",
         "first_name": "Emma",
         "last_name": "Style",
@@ -80,7 +80,7 @@ MOCK_USERS = [
     {
         "id": "user_influencer_2",
         "email": "lucas.tech@youtube.com",
-        "password": "influencer123",
+        "password": "$2b$12$2SolTi1T4Kr.yPE7hQkvD.mMd1uidM8DsVjo1ZmiU7gSKYgruXnC6",  # influencer123 (hashed)
         "role": "influencer",
         "first_name": "Lucas",
         "last_name": "Tech",
@@ -96,7 +96,7 @@ MOCK_USERS = [
     {
         "id": "user_influencer_3",
         "email": "julie.beauty@tiktok.com",
-        "password": "influencer123",
+        "password": "$2b$12$2SolTi1T4Kr.yPE7hQkvD.mMd1uidM8DsVjo1ZmiU7gSKYgruXnC6",  # influencer123 (hashed)
         "role": "influencer",
         "first_name": "Julie",
         "last_name": "Beauty",
