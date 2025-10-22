@@ -58,8 +58,8 @@ const Login = () => {
         // Stocker le token et l'utilisateur
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        navigate('/dashboard');
-        window.location.reload(); // Reload pour mettre à jour le context
+        // Utiliser window.location.href pour un rechargement propre
+        window.location.href = '/dashboard';
       } else {
         setError(data.detail || 'Code 2FA incorrect');
       }
