@@ -9,6 +9,7 @@ import News from './pages/News';
 import Marketplace from './pages/Marketplace';
 import TrackingLinks from './pages/TrackingLinks';
 import Integrations from './pages/Integrations';
+import LandingPage from './pages/LandingPage';
 
 // Advertisers
 import AdvertisersList from './pages/advertisers/AdvertisersList';
