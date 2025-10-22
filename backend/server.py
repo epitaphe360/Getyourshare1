@@ -58,7 +58,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
 # Root endpoint
 @app.get("/")
 async def root():
-    return {"message": "Tracknow API - Mock Version", "status": "running"}
+    return {"message": "ShareYourSales API - v1.0.0", "status": "running"}
 
 # Authentication Endpoints
 @app.post("/api/auth/login", response_model=LoginResponse)
