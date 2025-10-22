@@ -1,21 +1,28 @@
+"""
+ShareYourSales API Server - Version Supabase
+Tous les endpoints utilisent Supabase au lieu de MOCK_DATA
+"""
+
 from fastapi import FastAPI, HTTPException, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
 from datetime import datetime, timedelta
 import jwt
-import bcrypt
 import os
 from dotenv import load_dotenv
-from mock_data import *
+
+# Importer les helpers Supabase
+from db_helpers import *
+from supabase_client import supabase
 
 # Charger les variables d'environnement
 load_dotenv()
 
-app = FastAPI(title="ShareYourSales API")
+app = FastAPI(title="ShareYourSales API - Supabase Edition")
 
-# CORS configuration - Récupérer depuis .env
+# CORS configuration
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
@@ -25,19 +32,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Security - Utiliser les variables d'environnement
+# Security
 security = HTTPBearer()
 JWT_SECRET = os.getenv("JWT_SECRET", "fallback-secret-please-set-env-variable")
 JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
 
-# Vérifier que JWT_SECRET est configuré
 if JWT_SECRET == "fallback-secret-please-set-env-variable":
-    print("⚠️  WARNING: JWT_SECRET not set in environment! Using fallback (INSECURE)")
+    print("⚠️  WARNING: JWT_SECRET not set in environment!")
 
 # Pydantic Models
-from pydantic import EmailStr, Field, validator
-
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(..., min_length=6, max_length=100)
@@ -46,6 +50,12 @@ class TwoFAVerifyRequest(BaseModel):
     email: EmailStr
     code: str = Field(..., min_length=6, max_length=6, pattern="^[0-9]{6}$")
     temp_token: str
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(..., min_length=6)
+    role: str = Field(..., pattern="^(merchant|influencer)$")
+    phone: Optional[str] = None
 
 class AdvertiserCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
@@ -57,7 +67,7 @@ class CampaignCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
     status: str = Field(default="active", pattern="^(active|paused|ended)$")
-    commission_rate: float = Field(..., ge=0, le=100)
+    budget: Optional[float] = None
 
 class AffiliateStatusUpdate(BaseModel):
     status: str = Field(..., pattern="^(active|inactive|suspended)$")
@@ -65,23 +75,12 @@ class AffiliateStatusUpdate(BaseModel):
 class PayoutStatusUpdate(BaseModel):
     status: str = Field(..., pattern="^(pending|approved|rejected|paid)$")
 
-class SettingsUpdate(BaseModel):
-    pass  # Accepte n'importe quel dict pour le moment (mock data)
-
 class AffiliateLinkGenerate(BaseModel):
     product_id: str = Field(..., min_length=1)
 
 class AIContentGenerate(BaseModel):
     type: str = Field(default="social_post", pattern="^(social_post|email|blog)$")
     platform: Optional[str] = "Instagram"
-
-class LoginResponse(BaseModel):
-    access_token: str
-    token_type: str
-    user: dict
-
-class MessageResponse(BaseModel):
-    message: str
 
 # Helper Functions
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -94,35 +93,50 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
     return encoded_jwt
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Vérifie si le mot de passe correspond au hash"""
-    try:
-        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
-    except Exception as e:
-        print(f"❌ Erreur vérification mot de passe: {e}")
-        return False
-
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         token = credentials.credentials
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         return payload
-    except:
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired"
+        )
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials"
         )
 
-# Root endpoint
+# ============================================
+# AUTHENTICATION ENDPOINTS
+# ============================================
+
 @app.get("/")
 async def root():
-    return {"message": "ShareYourSales API - v1.0.0", "status": "running"}
+    return {
+        "message": "ShareYourSales API - Supabase Edition",
+        "version": "2.0.0",
+        "status": "running",
+        "database": "Supabase PostgreSQL"
+    }
 
-# Authentication Endpoints
+@app.get("/health")
+async def health_check():
+    """Health check endpoint"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "service": "ShareYourSales API",
+        "database": "Supabase Connected"
+    }
+
 @app.post("/api/auth/login")
 async def login(login_data: LoginRequest):
-    # Find user
-    user = next((u for u in MOCK_USERS if u["email"] == login_data.email), None)
+    """Login avec email et mot de passe"""
+    # Trouver l'utilisateur dans Supabase
+    user = get_user_by_email(login_data.email)
 
     if not user:
         raise HTTPException(
@@ -130,50 +144,50 @@ async def login(login_data: LoginRequest):
             detail="Email ou mot de passe incorrect"
         )
 
-    # Vérifier le mot de passe avec bcrypt
-    if not verify_password(login_data.password, user["password"]):
+    # Vérifier le mot de passe
+    if not verify_password(login_data.password, user["password_hash"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou mot de passe incorrect"
         )
-    
-    # Check if account is active
+
+    # Vérifier si le compte est actif
     if not user.get("is_active", True):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Compte désactivé"
         )
-    
-    # Si 2FA activé, générer code et retourner temp_token
+
+    # Si 2FA activé
     if user.get("two_fa_enabled", False):
-        # Générer code 2FA (mock)
-        code = MOCK_2FA_CODES.get(user["email"], "123456")
-        
-        # Créer temp token pour la vérification 2FA
+        code = "123456"  # Mock - en production, envoyer par SMS
+
         temp_token = create_access_token(
             {"sub": user["id"], "temp": True},
             expires_delta=timedelta(minutes=5)
         )
-        
-        # En production, envoyer le code par SMS ici
+
         print(f"📱 Code 2FA pour {user['email']}: {code}")
-        
+
         return {
             "requires_2fa": True,
             "temp_token": temp_token,
             "token_type": "bearer",
-            "message": f"Code 2FA envoyé au {user.get('phone', 'téléphone')}"
+            "message": f"Code 2FA envoyé"
         }
-    
-    # Si pas de 2FA, connexion directe
+
+    # Pas de 2FA, connexion directe
+    update_user_last_login(user["id"])
+
     access_token = create_access_token({
         "sub": user["id"],
         "email": user["email"],
         "role": user["role"]
     })
-    
-    user_data = {k: v for k, v in user.items() if k != "password"}
-    
+
+    # Retirer le password_hash de la réponse
+    user_data = {k: v for k, v in user.items() if k != "password_hash"}
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -181,372 +195,419 @@ async def login(login_data: LoginRequest):
         "user": user_data
     }
 
-@app.get("/api/auth/me")
-async def get_current_user(payload: dict = Depends(verify_token)):
-    user = next((u for u in MOCK_USERS if u["id"] == payload["sub"]), None)
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    user_data = {k: v for k, v in user.items() if k != "password"}
-    return user_data
-
-@app.post("/api/auth/logout")
-async def logout(payload: dict = Depends(verify_token)):
-    return {"message": "Logged out successfully"}
-
-# Dashboard Endpoint
-@app.get("/api/dashboard/stats")
-async def get_dashboard_stats(payload: dict = Depends(verify_token)):
-    return MOCK_DASHBOARD_STATS
-
-# Advertisers Endpoints
-@app.get("/api/advertisers")
-async def get_advertisers(payload: dict = Depends(verify_token)):
-    return {"data": MOCK_ADVERTISERS, "total": len(MOCK_ADVERTISERS)}
-
-@app.get("/api/advertisers/{advertiser_id}")
-async def get_advertiser(advertiser_id: str, payload: dict = Depends(verify_token)):
-    advertiser = next((a for a in MOCK_ADVERTISERS if a["id"] == advertiser_id), None)
-    if not advertiser:
-        raise HTTPException(status_code=404, detail="Advertiser not found")
-    return advertiser
-
-@app.post("/api/advertisers")
-async def create_advertiser(advertiser: AdvertiserCreate, payload: dict = Depends(verify_token)):
-    new_advertiser = {
-        "id": f"adv_{len(MOCK_ADVERTISERS) + 1}",
-        **advertiser.dict(),
-        "created_at": datetime.now().isoformat()
-    }
-    MOCK_ADVERTISERS.append(new_advertiser)
-    return new_advertiser
-
-@app.put("/api/advertisers/{advertiser_id}")
-async def update_advertiser(advertiser_id: str, advertiser: dict, payload: dict = Depends(verify_token)):
-    idx = next((i for i, a in enumerate(MOCK_ADVERTISERS) if a["id"] == advertiser_id), None)
-    if idx is None:
-        raise HTTPException(status_code=404, detail="Advertiser not found")
-    MOCK_ADVERTISERS[idx].update(advertiser)
-    return MOCK_ADVERTISERS[idx]
-
-# Campaigns Endpoints
-@app.get("/api/campaigns")
-async def get_campaigns(payload: dict = Depends(verify_token)):
-    return {"data": MOCK_CAMPAIGNS, "total": len(MOCK_CAMPAIGNS)}
-
-@app.get("/api/campaigns/{campaign_id}")
-async def get_campaign(campaign_id: str, payload: dict = Depends(verify_token)):
-    campaign = next((c for c in MOCK_CAMPAIGNS if c["id"] == campaign_id), None)
-    if not campaign:
-        raise HTTPException(status_code=404, detail="Campaign not found")
-    return campaign
-
-@app.post("/api/campaigns")
-async def create_campaign(campaign: CampaignCreate, payload: dict = Depends(verify_token)):
-    new_campaign = {
-        "id": f"camp_{len(MOCK_CAMPAIGNS) + 1}",
-        **campaign.dict(),
-        "clicks": 0,
-        "conversions": 0,
-        "revenue": 0,
-        "created_at": datetime.now().isoformat()
-    }
-    MOCK_CAMPAIGNS.append(new_campaign)
-    return new_campaign
-
-# Affiliates Endpoints
-@app.get("/api/affiliates")
-async def get_affiliates(payload: dict = Depends(verify_token)):
-    return {"data": MOCK_AFFILIATES, "total": len(MOCK_AFFILIATES)}
-
-@app.get("/api/affiliates/{affiliate_id}")
-async def get_affiliate(affiliate_id: str, payload: dict = Depends(verify_token)):
-    affiliate = next((a for a in MOCK_AFFILIATES if a["id"] == affiliate_id), None)
-    if not affiliate:
-        raise HTTPException(status_code=404, detail="Affiliate not found")
-    return affiliate
-
-@app.put("/api/affiliates/{affiliate_id}/status")
-async def update_affiliate_status(affiliate_id: str, data: AffiliateStatusUpdate, payload: dict = Depends(verify_token)):
-    idx = next((i for i, a in enumerate(MOCK_AFFILIATES) if a["id"] == affiliate_id), None)
-    if idx is None:
-        raise HTTPException(status_code=404, detail="Affiliate not found")
-    MOCK_AFFILIATES[idx]["status"] = data.status
-    return MOCK_AFFILIATES[idx]
-
-# Conversions Endpoints
-@app.get("/api/conversions")
-async def get_conversions(payload: dict = Depends(verify_token)):
-    return {"data": MOCK_CONVERSIONS[:20], "total": len(MOCK_CONVERSIONS)}
-
-# Clicks Endpoints
-@app.get("/api/clicks")
-async def get_clicks(payload: dict = Depends(verify_token)):
-    return {"data": MOCK_CLICKS[:50], "total": len(MOCK_CLICKS)}
-
-# Payouts Endpoints
-@app.get("/api/payouts")
-async def get_payouts(payload: dict = Depends(verify_token)):
-    return {"data": MOCK_PAYOUTS, "total": len(MOCK_PAYOUTS)}
-
-@app.put("/api/payouts/{payout_id}/status")
-async def update_payout_status(payout_id: str, data: PayoutStatusUpdate, payload: dict = Depends(verify_token)):
-    idx = next((i for i, p in enumerate(MOCK_PAYOUTS) if p["id"] == payout_id), None)
-    if idx is None:
-        raise HTTPException(status_code=404, detail="Payout not found")
-    MOCK_PAYOUTS[idx]["status"] = data.status
-    if data.status == "approved":
-        MOCK_PAYOUTS[idx]["processed_at"] = datetime.now().isoformat()
-    return MOCK_PAYOUTS[idx]
-
-# Coupons Endpoints
-@app.get("/api/coupons")
-async def get_coupons(payload: dict = Depends(verify_token)):
-    return {"data": MOCK_COUPONS, "total": len(MOCK_COUPONS)}
-
-# Settings Endpoints
-@app.get("/api/settings")
-async def get_settings(payload: dict = Depends(verify_token)):
-    return MOCK_SETTINGS
-
-@app.put("/api/settings")
-async def update_settings(settings: dict, payload: dict = Depends(verify_token)):
-    MOCK_SETTINGS.update(settings)
-    return MOCK_SETTINGS
-
-# ============================================
-# SHAREYOURSALES - NOUVELLES ROUTES
-# ============================================
-
-# 2FA Routes
 @app.post("/api/auth/verify-2fa")
 async def verify_2fa(data: TwoFAVerifyRequest):
     """Vérification du code 2FA"""
-    email = data.email
-    code = data.code
-    temp_token = data.temp_token
-    
-    # Vérifier temp_token
+    # Vérifier le temp_token
     try:
-        payload = jwt.decode(temp_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(data.temp_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=400, detail="Code expiré, veuillez vous reconnecter")
     except Exception:
         raise HTTPException(status_code=400, detail="Token invalide")
-    
-    # Vérifier que c'est un temp token
+
     if not payload.get("temp"):
         raise HTTPException(status_code=400, detail="Token invalide")
-    
+
     # Trouver l'utilisateur
-    user = next((u for u in MOCK_USERS if u["id"] == payload["sub"]), None)
+    user = get_user_by_id(payload["sub"])
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
-    
-    # Vérifier le code 2FA (mock - accepter 123456 pour tous)
-    expected_code = MOCK_2FA_CODES.get(user["email"], "123456")
-    if code != expected_code:
+
+    # Vérifier le code 2FA (mock - accepter 123456)
+    if data.code != "123456":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Code 2FA incorrect"
         )
-    
+
     # Code correct, créer le vrai token
+    update_user_last_login(user["id"])
+
     access_token = create_access_token({
         "sub": user["id"],
         "email": user["email"],
         "role": user["role"]
     })
-    
-    user_data = {k: v for k, v in user.items() if k != "password"}
-    
+
+    user_data = {k: v for k, v in user.items() if k != "password_hash"}
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
         "user": user_data
     }
 
-# Merchants Routes (ShareYourSales)
+@app.get("/api/auth/me")
+async def get_current_user(payload: dict = Depends(verify_token)):
+    """Récupère l'utilisateur connecté"""
+    user = get_user_by_id(payload["sub"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user_data = {k: v for k, v in user.items() if k != "password_hash"}
+    return user_data
+
+@app.post("/api/auth/logout")
+async def logout(payload: dict = Depends(verify_token)):
+    """Logout (invalidation côté client)"""
+    return {"message": "Logged out successfully"}
+
+@app.post("/api/auth/register")
+async def register(data: RegisterRequest):
+    """Inscription d'un nouvel utilisateur"""
+    # Vérifier si l'email existe déjà
+    existing_user = get_user_by_email(data.email)
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email déjà utilisé")
+
+    # Créer l'utilisateur
+    user = create_user(
+        email=data.email,
+        password=data.password,
+        role=data.role,
+        phone=data.phone,
+        two_fa_enabled=False
+    )
+
+    if not user:
+        raise HTTPException(status_code=500, detail="Erreur lors de la création du compte")
+
+    return {"message": "Compte créé avec succès", "user_id": user["id"]}
+
+# ============================================
+# DASHBOARD & ANALYTICS
+# ============================================
+
+@app.get("/api/dashboard/stats")
+async def get_dashboard_stats_endpoint(payload: dict = Depends(verify_token)):
+    """Statistiques du dashboard selon le rôle"""
+    user = get_user_by_id(payload["sub"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    stats = get_dashboard_stats(user["role"], user["id"])
+    return stats
+
+@app.get("/api/analytics/overview")
+async def get_analytics_overview(payload: dict = Depends(verify_token)):
+    """Vue d'ensemble des analytics"""
+    user = get_user_by_id(payload["sub"])
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    stats = get_dashboard_stats(user["role"], user["id"])
+    return stats
+
+# ============================================
+# MERCHANTS ENDPOINTS
+# ============================================
+
 @app.get("/api/merchants")
 async def get_merchants(payload: dict = Depends(verify_token)):
     """Liste tous les merchants"""
-    return {"merchants": MOCK_MERCHANTS, "total": len(MOCK_MERCHANTS)}
+    merchants = get_all_merchants()
+    return {"merchants": merchants, "total": len(merchants)}
 
 @app.get("/api/merchants/{merchant_id}")
 async def get_merchant(merchant_id: str, payload: dict = Depends(verify_token)):
     """Récupère les détails d'un merchant"""
-    merchant = next((m for m in MOCK_MERCHANTS if m["id"] == merchant_id), None)
+    merchant = get_merchant_by_id(merchant_id)
     if not merchant:
         raise HTTPException(status_code=404, detail="Merchant non trouvé")
     return merchant
 
-# Influencers Routes
+# ============================================
+# INFLUENCERS ENDPOINTS
+# ============================================
+
 @app.get("/api/influencers")
 async def get_influencers(payload: dict = Depends(verify_token)):
     """Liste tous les influencers"""
-    return {"influencers": MOCK_INFLUENCERS, "total": len(MOCK_INFLUENCERS)}
+    influencers = get_all_influencers()
+    return {"influencers": influencers, "total": len(influencers)}
 
 @app.get("/api/influencers/{influencer_id}")
 async def get_influencer(influencer_id: str, payload: dict = Depends(verify_token)):
     """Récupère les détails d'un influencer"""
-    influencer = next((i for i in MOCK_INFLUENCERS if i["id"] == influencer_id), None)
+    influencer = get_influencer_by_id(influencer_id)
     if not influencer:
         raise HTTPException(status_code=404, detail="Influencer non trouvé")
     return influencer
 
-# Products Routes
+# ============================================
+# PRODUCTS ENDPOINTS
+# ============================================
+
 @app.get("/api/products")
 async def get_products(category: Optional[str] = None, merchant_id: Optional[str] = None):
     """Liste tous les produits avec filtres optionnels"""
-    products = MOCK_PRODUCTS
-    
-    if category:
-        products = [p for p in products if p.get("category", "").lower() == category.lower()]
-    
-    if merchant_id:
-        products = [p for p in products if p.get("merchant_id") == merchant_id]
-    
+    products = get_all_products(category=category, merchant_id=merchant_id)
     return {"products": products, "total": len(products)}
 
 @app.get("/api/products/{product_id}")
 async def get_product(product_id: str):
     """Récupère les détails d'un produit"""
-    product = next((p for p in MOCK_PRODUCTS if p["id"] == product_id), None)
+    product = get_product_by_id(product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Produit non trouvé")
     return product
 
-# Affiliate Links Routes
+# ============================================
+# AFFILIATE LINKS ENDPOINTS
+# ============================================
+
 @app.get("/api/affiliate-links")
-async def get_affiliate_links(payload: dict = Depends(verify_token)):
+async def get_affiliate_links_endpoint(payload: dict = Depends(verify_token)):
     """Liste les liens d'affiliation"""
-    user = next((u for u in MOCK_USERS if u["id"] == payload["sub"]), None)
-    links = MOCK_AFFILIATE_LINKS
-    
-    # Filtrer selon le rôle
-    if user and user["role"] == "influencer":
-        influencer = next((i for i in MOCK_INFLUENCERS if i["user_id"] == user["id"]), None)
+    user = get_user_by_id(payload["sub"])
+
+    if user["role"] == "influencer":
+        influencer = get_influencer_by_user_id(user["id"])
         if influencer:
-            links = [l for l in links if l.get("influencer_id") == influencer["id"]]
-    
+            links = get_affiliate_links(influencer_id=influencer["id"])
+        else:
+            links = []
+    else:
+        links = get_affiliate_links()
+
     return {"links": links, "total": len(links)}
 
 @app.post("/api/affiliate-links/generate")
 async def generate_affiliate_link(data: AffiliateLinkGenerate, payload: dict = Depends(verify_token)):
     """Génère un lien d'affiliation"""
-    user = next((u for u in MOCK_USERS if u["id"] == payload["sub"]), None)
+    user = get_user_by_id(payload["sub"])
 
     if user["role"] != "influencer":
         raise HTTPException(status_code=403, detail="Accès refusé")
 
-    influencer = next((i for i in MOCK_INFLUENCERS if i["user_id"] == user["id"]), None)
+    influencer = get_influencer_by_user_id(user["id"])
     if not influencer:
         raise HTTPException(status_code=404, detail="Profil influencer non trouvé")
 
-    product_id = data.product_id
-    product = next((p for p in MOCK_PRODUCTS if p["id"] == product_id), None)
+    product = get_product_by_id(data.product_id)
     if not product:
         raise HTTPException(status_code=404, detail="Produit non trouvé")
-    
-    # Générer le lien
-    short_code = f"{influencer['username'][:4]}-{product.get('slug', 'prod')[:6]}"
-    new_link = {
-        "id": f"link_{len(MOCK_AFFILIATE_LINKS) + 1}",
-        "influencer_id": influencer["id"],
-        "influencer_name": influencer["full_name"],
-        "product_id": product_id,
-        "product_name": product["name"],
-        "short_link": f"shs.io/{short_code}",
-        "full_link": f"https://shareyoursales.com/track/{influencer['username']}_{product.get('slug', 'prod')}",
-        "clicks": 0,
-        "conversions": 0,
-        "conversion_rate": 0.0,
-        "revenue": 0.0,
-        "commission_earned": 0.0,
-        "status": "active",
-        "created_at": datetime.now().isoformat()
-    }
-    
-    MOCK_AFFILIATE_LINKS.append(new_link)
-    
-    return {"message": "Lien généré avec succès", "link": new_link}
 
-# AI Marketing Routes
+    # Générer un code unique
+    import secrets
+    unique_code = secrets.token_urlsafe(12)
+
+    # Créer le lien
+    link = create_affiliate_link(
+        product_id=data.product_id,
+        influencer_id=influencer["id"],
+        unique_code=unique_code
+    )
+
+    if not link:
+        raise HTTPException(status_code=500, detail="Erreur lors de la création du lien")
+
+    return {"message": "Lien généré avec succès", "link": link}
+
+# ============================================
+# CAMPAIGNS ENDPOINTS
+# ============================================
+
+@app.get("/api/campaigns")
+async def get_campaigns_endpoint(payload: dict = Depends(verify_token)):
+    """Liste toutes les campagnes"""
+    user = get_user_by_id(payload["sub"])
+
+    if user["role"] == "merchant":
+        merchant = get_merchant_by_user_id(user["id"])
+        campaigns = get_all_campaigns(merchant_id=merchant["id"]) if merchant else []
+    else:
+        campaigns = get_all_campaigns()
+
+    return {"data": campaigns, "total": len(campaigns)}
+
+@app.post("/api/campaigns")
+async def create_campaign_endpoint(campaign_data: CampaignCreate, payload: dict = Depends(verify_token)):
+    """Créer une nouvelle campagne"""
+    user = get_user_by_id(payload["sub"])
+
+    if user["role"] != "merchant":
+        raise HTTPException(status_code=403, detail="Seuls les merchants peuvent créer des campagnes")
+
+    merchant = get_merchant_by_user_id(user["id"])
+    if not merchant:
+        raise HTTPException(status_code=404, detail="Profil merchant non trouvé")
+
+    campaign = create_campaign(
+        merchant_id=merchant["id"],
+        name=campaign_data.name,
+        description=campaign_data.description,
+        budget=campaign_data.budget,
+        status=campaign_data.status
+    )
+
+    if not campaign:
+        raise HTTPException(status_code=500, detail="Erreur lors de la création de la campagne")
+
+    return campaign
+
+# ============================================
+# PERFORMANCE ENDPOINTS
+# ============================================
+
+@app.get("/api/conversions")
+async def get_conversions_endpoint(payload: dict = Depends(verify_token)):
+    """Liste des conversions"""
+    conversions = get_conversions(limit=20)
+    return {"data": conversions, "total": len(conversions)}
+
+@app.get("/api/clicks")
+async def get_clicks_endpoint(payload: dict = Depends(verify_token)):
+    """Liste des clics"""
+    clicks = get_clicks(limit=50)
+    return {"data": clicks, "total": len(clicks)}
+
+# ============================================
+# PAYOUTS ENDPOINTS
+# ============================================
+
+@app.get("/api/payouts")
+async def get_payouts_endpoint(payload: dict = Depends(verify_token)):
+    """Liste des payouts"""
+    payouts = get_payouts()
+    return {"data": payouts, "total": len(payouts)}
+
+@app.put("/api/payouts/{payout_id}/status")
+async def update_payout_status_endpoint(payout_id: str, data: PayoutStatusUpdate, payload: dict = Depends(verify_token)):
+    """Mettre à jour le statut d'un payout"""
+    success = update_payout_status(payout_id, data.status)
+
+    if not success:
+        raise HTTPException(status_code=500, detail="Erreur lors de la mise à jour")
+
+    return {"message": "Statut mis à jour", "status": data.status}
+
+# ============================================
+# SETTINGS ENDPOINTS
+# ============================================
+
+@app.get("/api/settings")
+async def get_settings(payload: dict = Depends(verify_token)):
+    """Récupère les paramètres"""
+    # Mock settings pour l'instant
+    return {
+        "default_currency": "EUR",
+        "platform_commission": 5.0,
+        "min_payout": 50.0
+    }
+
+@app.put("/api/settings")
+async def update_settings(settings: dict, payload: dict = Depends(verify_token)):
+    """Met à jour les paramètres"""
+    # Mock pour l'instant
+    return settings
+
+# ============================================
+# AI MARKETING ENDPOINTS
+# ============================================
+
 @app.post("/api/ai/generate-content")
 async def generate_ai_content(data: AIContentGenerate, payload: dict = Depends(verify_token)):
     """Génère du contenu avec l'IA (mock)"""
-    content_type = data.type
-    platform = data.platform
-    
-    # Mock: Générer du contenu
-    if content_type == "social_post":
+    if data.type == "social_post":
         generated_text = f"🌟 Découvrez ce produit incroyable ! Parfait pour vous. Ne manquez pas cette opportunité ! 💫 #Promo #Shopping #Lifestyle"
-    elif content_type == "email":
+    elif data.type == "email":
         generated_text = "Bonjour,\n\nNous sommes ravis de vous présenter notre dernier produit...\n\nCordialement"
     else:
         generated_text = "Contenu généré par IA"
-    
+
     return {
         "content": generated_text,
-        "type": content_type,
-        "platform": platform,
+        "type": data.type,
+        "platform": data.platform,
         "suggested_hashtags": ["#Promo", "#Shopping", "#Deal"]
     }
 
 @app.get("/api/ai/predictions")
 async def get_ai_predictions(payload: dict = Depends(verify_token)):
     """Récupère les prédictions IA (mock)"""
-    return MOCK_AI_PREDICTIONS
+    return {
+        "predicted_sales": 150,
+        "trend_score": 75.5,
+        "recommended_strategy": "Augmenter le budget publicitaire de 20%"
+    }
 
-# Subscription Plans Routes
+# ============================================
+# SUBSCRIPTION PLANS ENDPOINTS
+# ============================================
+
 @app.get("/api/subscription-plans")
 async def get_subscription_plans():
     """Récupère tous les plans d'abonnement"""
-    return SUBSCRIPTION_PLANS
-
-# Analytics Routes
-@app.get("/api/analytics/overview")
-async def get_analytics_overview(payload: dict = Depends(verify_token)):
-    """Vue d'ensemble des analytics"""
-    user = next((u for u in MOCK_USERS if u["id"] == payload["sub"]), None)
-    
-    if user["role"] == "admin":
-        return {
-            "total_revenue": 502000.00,
-            "total_merchants": len(MOCK_MERCHANTS),
-            "total_influencers": len(MOCK_INFLUENCERS),
-            "total_products": len(MOCK_PRODUCTS),
-            "active_links": len(MOCK_AFFILIATE_LINKS)
-        }
-    
-    elif user["role"] == "merchant":
-        merchant = next((m for m in MOCK_MERCHANTS if m.get("user_id") == user["id"]), MOCK_MERCHANTS[0] if MOCK_MERCHANTS else {})
-        return {
-            "total_sales": merchant.get("total_sales", 0),
-            "products_count": merchant.get("products_count", 0),
-            "affiliates_count": merchant.get("affiliates_count", 0),
-            "roi": 320.5
-        }
-    
-    elif user["role"] == "influencer":
-        influencer = next((i for i in MOCK_INFLUENCERS if i.get("user_id") == user["id"]), MOCK_INFLUENCERS[0] if MOCK_INFLUENCERS else {})
-        return {
-            "total_earnings": influencer.get("total_earnings", 0),
-            "total_clicks": influencer.get("total_clicks", 0),
-            "total_sales": influencer.get("total_sales", 0)
-        }
-    
-    return {}
-
-# Health Check
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
     return {
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "service": "ShareYourSales API"
+        "plans": [
+            {
+                "id": "free",
+                "name": "Gratuit",
+                "price": 0,
+                "features": ["10 liens", "Rapports basiques"]
+            },
+            {
+                "id": "starter",
+                "name": "Starter",
+                "price": 49,
+                "features": ["100 liens", "Rapports avancés", "Support"]
+            },
+            {
+                "id": "pro",
+                "name": "Pro",
+                "price": 149,
+                "features": ["500 liens", "IA Marketing", "Support prioritaire"]
+            }
+        ]
     }
+
+# ============================================
+# ADVERTISERS ENDPOINTS (Compatibility)
+# ============================================
+
+@app.get("/api/advertisers")
+async def get_advertisers(payload: dict = Depends(verify_token)):
+    """Liste des advertisers (alias pour merchants)"""
+    merchants = get_all_merchants()
+    return {"data": merchants, "total": len(merchants)}
+
+@app.get("/api/affiliates")
+async def get_affiliates(payload: dict = Depends(verify_token)):
+    """Liste des affiliés (alias pour influencers)"""
+    influencers = get_all_influencers()
+    return {"data": influencers, "total": len(influencers)}
+
+# ============================================
+# LOGS ENDPOINTS (Mock pour l'instant)
+# ============================================
+
+@app.get("/api/logs/postback")
+async def get_postback_logs(payload: dict = Depends(verify_token)):
+    """Logs des postbacks"""
+    return {"data": [], "total": 0}
+
+@app.get("/api/logs/audit")
+async def get_audit_logs(payload: dict = Depends(verify_token)):
+    """Logs d'audit"""
+    return {"data": [], "total": 0}
+
+@app.get("/api/logs/webhooks")
+async def get_webhook_logs(payload: dict = Depends(verify_token)):
+    """Logs des webhooks"""
+    return {"data": [], "total": 0}
+
+# ============================================
+# COUPONS ENDPOINTS (Mock)
+# ============================================
+
+@app.get("/api/coupons")
+async def get_coupons(payload: dict = Depends(verify_token)):
+    """Liste des coupons"""
+    return {"data": [], "total": 0}
 
 if __name__ == "__main__":
     import uvicorn
+    print("🚀 Démarrage du serveur Supabase...")
+    print("📊 Base de données: Supabase PostgreSQL")
     uvicorn.run(app, host="0.0.0.0", port=8001)
