@@ -7,6 +7,8 @@ import Dashboard from './pages/Dashboard';
 import GettingStarted from './pages/GettingStarted';
 import News from './pages/News';
 import Marketplace from './pages/Marketplace';
+import TrackingLinks from './pages/TrackingLinks';
+import Integrations from './pages/Integrations';
 
 // Advertisers
 import AdvertisersList from './pages/advertisers/AdvertisersList';
