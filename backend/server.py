@@ -297,7 +297,7 @@ async def verify_2fa(data: dict):
         
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=400, detail="Code expiré, veuillez vous reconnecter")
-    except jwt.JWTError:
+    except jwt.InvalidTokenError:
         raise HTTPException(status_code=400, detail="Token invalide")
 
 # Merchants Routes (ShareYourSales)
