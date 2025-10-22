@@ -278,6 +278,16 @@ function App() {
             }
           />
 
+          {/* AI Marketing */}
+          <Route
+            path="/ai-marketing"
+            element={
+              <ProtectedRoute>
+                <AIMarketing />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Tracking Links */}
           <Route
             path="/tracking-links"
