@@ -5,28 +5,75 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timedelta
 import jwt
+import bcrypt
+import os
+from dotenv import load_dotenv
 from mock_data import *
+
+# Charger les variables d'environnement
+load_dotenv()
 
 app = FastAPI(title="ShareYourSales API")
 
-# CORS configuration
+# CORS configuration - Récupérer depuis .env
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Security
+# Security - Utiliser les variables d'environnement
 security = HTTPBearer()
-JWT_SECRET = "your-secret-key-change-this-in-production-12345"
-JWT_ALGORITHM = "HS256"
+JWT_SECRET = os.getenv("JWT_SECRET", "fallback-secret-please-set-env-variable")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
+
+# Vérifier que JWT_SECRET est configuré
+if JWT_SECRET == "fallback-secret-please-set-env-variable":
+    print("⚠️  WARNING: JWT_SECRET not set in environment! Using fallback (INSECURE)")
 
 # Pydantic Models
+from pydantic import EmailStr, Field, validator
+
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: EmailStr
+    password: str = Field(..., min_length=6, max_length=100)
+
+class TwoFAVerifyRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(..., min_length=6, max_length=6, pattern="^[0-9]{6}$")
+    temp_token: str
+
+class AdvertiserCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    email: EmailStr
+    country: str = Field(..., min_length=2, max_length=2)
+    status: Optional[str] = "active"
+
+class CampaignCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    status: str = Field(default="active", pattern="^(active|paused|ended)$")
+    commission_rate: float = Field(..., ge=0, le=100)
+
+class AffiliateStatusUpdate(BaseModel):
+    status: str = Field(..., pattern="^(active|inactive|suspended)$")
+
+class PayoutStatusUpdate(BaseModel):
+    status: str = Field(..., pattern="^(pending|approved|rejected|paid)$")
+
+class SettingsUpdate(BaseModel):
+    pass  # Accepte n'importe quel dict pour le moment (mock data)
+
+class AffiliateLinkGenerate(BaseModel):
+    product_id: str = Field(..., min_length=1)
+
+class AIContentGenerate(BaseModel):
+    type: str = Field(default="social_post", pattern="^(social_post|email|blog)$")
+    platform: Optional[str] = "Instagram"
 
 class LoginResponse(BaseModel):
     access_token: str
@@ -42,10 +89,18 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(hours=24)
+        expire = datetime.utcnow() + timedelta(hours=JWT_EXPIRATION_HOURS)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=JWT_ALGORITHM)
     return encoded_jwt
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Vérifie si le mot de passe correspond au hash"""
+    try:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+    except Exception as e:
+        print(f"❌ Erreur vérification mot de passe: {e}")
+        return False
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
@@ -68,8 +123,15 @@ async def root():
 async def login(login_data: LoginRequest):
     # Find user
     user = next((u for u in MOCK_USERS if u["email"] == login_data.email), None)
-    
-    if not user or user["password"] != login_data.password:
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email ou mot de passe incorrect"
+        )
+
+    # Vérifier le mot de passe avec bcrypt
+    if not verify_password(login_data.password, user["password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou mot de passe incorrect"
@@ -149,10 +211,10 @@ async def get_advertiser(advertiser_id: str, payload: dict = Depends(verify_toke
     return advertiser
 
 @app.post("/api/advertisers")
-async def create_advertiser(advertiser: dict, payload: dict = Depends(verify_token)):
+async def create_advertiser(advertiser: AdvertiserCreate, payload: dict = Depends(verify_token)):
     new_advertiser = {
         "id": f"adv_{len(MOCK_ADVERTISERS) + 1}",
-        **advertiser,
+        **advertiser.dict(),
         "created_at": datetime.now().isoformat()
     }
     MOCK_ADVERTISERS.append(new_advertiser)
@@ -179,10 +241,10 @@ async def get_campaign(campaign_id: str, payload: dict = Depends(verify_token)):
     return campaign
 
 @app.post("/api/campaigns")
-async def create_campaign(campaign: dict, payload: dict = Depends(verify_token)):
+async def create_campaign(campaign: CampaignCreate, payload: dict = Depends(verify_token)):
     new_campaign = {
         "id": f"camp_{len(MOCK_CAMPAIGNS) + 1}",
-        **campaign,
+        **campaign.dict(),
         "clicks": 0,
         "conversions": 0,
         "revenue": 0,
@@ -204,11 +266,11 @@ async def get_affiliate(affiliate_id: str, payload: dict = Depends(verify_token)
     return affiliate
 
 @app.put("/api/affiliates/{affiliate_id}/status")
-async def update_affiliate_status(affiliate_id: str, data: dict, payload: dict = Depends(verify_token)):
+async def update_affiliate_status(affiliate_id: str, data: AffiliateStatusUpdate, payload: dict = Depends(verify_token)):
     idx = next((i for i, a in enumerate(MOCK_AFFILIATES) if a["id"] == affiliate_id), None)
     if idx is None:
         raise HTTPException(status_code=404, detail="Affiliate not found")
-    MOCK_AFFILIATES[idx]["status"] = data["status"]
+    MOCK_AFFILIATES[idx]["status"] = data.status
     return MOCK_AFFILIATES[idx]
 
 # Conversions Endpoints
@@ -227,12 +289,12 @@ async def get_payouts(payload: dict = Depends(verify_token)):
     return {"data": MOCK_PAYOUTS, "total": len(MOCK_PAYOUTS)}
 
 @app.put("/api/payouts/{payout_id}/status")
-async def update_payout_status(payout_id: str, data: dict, payload: dict = Depends(verify_token)):
+async def update_payout_status(payout_id: str, data: PayoutStatusUpdate, payload: dict = Depends(verify_token)):
     idx = next((i for i, p in enumerate(MOCK_PAYOUTS) if p["id"] == payout_id), None)
     if idx is None:
         raise HTTPException(status_code=404, detail="Payout not found")
-    MOCK_PAYOUTS[idx]["status"] = data["status"]
-    if data["status"] == "approved":
+    MOCK_PAYOUTS[idx]["status"] = data.status
+    if data.status == "approved":
         MOCK_PAYOUTS[idx]["processed_at"] = datetime.now().isoformat()
     return MOCK_PAYOUTS[idx]
 
@@ -257,11 +319,11 @@ async def update_settings(settings: dict, payload: dict = Depends(verify_token))
 
 # 2FA Routes
 @app.post("/api/auth/verify-2fa")
-async def verify_2fa(data: dict):
+async def verify_2fa(data: TwoFAVerifyRequest):
     """Vérification du code 2FA"""
-    email = data.get("email")
-    code = data.get("code")
-    temp_token = data.get("temp_token")
+    email = data.email
+    code = data.code
+    temp_token = data.temp_token
     
     # Vérifier temp_token
     try:
@@ -369,18 +431,18 @@ async def get_affiliate_links(payload: dict = Depends(verify_token)):
     return {"links": links, "total": len(links)}
 
 @app.post("/api/affiliate-links/generate")
-async def generate_affiliate_link(data: dict, payload: dict = Depends(verify_token)):
+async def generate_affiliate_link(data: AffiliateLinkGenerate, payload: dict = Depends(verify_token)):
     """Génère un lien d'affiliation"""
     user = next((u for u in MOCK_USERS if u["id"] == payload["sub"]), None)
-    
+
     if user["role"] != "influencer":
         raise HTTPException(status_code=403, detail="Accès refusé")
-    
+
     influencer = next((i for i in MOCK_INFLUENCERS if i["user_id"] == user["id"]), None)
     if not influencer:
         raise HTTPException(status_code=404, detail="Profil influencer non trouvé")
-    
-    product_id = data.get("product_id")
+
+    product_id = data.product_id
     product = next((p for p in MOCK_PRODUCTS if p["id"] == product_id), None)
     if not product:
         raise HTTPException(status_code=404, detail="Produit non trouvé")
@@ -410,10 +472,10 @@ async def generate_affiliate_link(data: dict, payload: dict = Depends(verify_tok
 
 # AI Marketing Routes
 @app.post("/api/ai/generate-content")
-async def generate_ai_content(data: dict, payload: dict = Depends(verify_token)):
+async def generate_ai_content(data: AIContentGenerate, payload: dict = Depends(verify_token)):
     """Génère du contenu avec l'IA (mock)"""
-    content_type = data.get("type", "social_post")
-    platform = data.get("platform", "Instagram")
+    content_type = data.type
+    platform = data.platform
     
     # Mock: Générer du contenu
     if content_type == "social_post":
