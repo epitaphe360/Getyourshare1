@@ -141,7 +141,7 @@ const LandingPage = () => {
               <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
                 <TrendingUp className="text-white" size={24} />
               </div>
-              <span className="text-2xl font-bold text-gray-900">Tracknow</span>
+              <span className="text-2xl font-bold text-gray-900">ShareYourSales</span>
             </div>
 
             {/* Desktop Menu */}
@@ -250,7 +250,7 @@ const LandingPage = () => {
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-4xl font-bold mb-6">Pourquoi Choisir Tracknow?</h2>
+              <h2 className="text-4xl font-bold mb-6">Pourquoi Choisir ShareYourSales?</h2>
               <div className="space-y-4">
                 {benefits.map((benefit, index) => (
                   <div key={index} className="flex items-start space-x-3">
@@ -336,7 +336,7 @@ const LandingPage = () => {
             Prêt à Transformer Votre Programme d'Affiliation?
           </h2>
           <p className="text-xl mb-8 text-blue-100">
-            Rejoignez des centaines d'entreprises qui font confiance à Tracknow pour gérer leurs affiliés
+            Rejoignez des centaines d'entreprises qui font confiance à ShareYourSales pour gérer leurs affiliés
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" variant="secondary" className="text-lg px-8 py-4" onClick={() => navigate('/login')}>
@@ -358,7 +358,7 @@ const LandingPage = () => {
                 <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center">
                   <TrendingUp className="text-white" size={24} />
                 </div>
-                <span className="text-xl font-bold text-white">Tracknow</span>
+                <span className="text-xl font-bold text-white">ShareYourSales</span>
               </div>
               <p className="text-sm">
                 La plateforme de gestion d'affiliation la plus puissante du marché.
@@ -393,7 +393,7 @@ const LandingPage = () => {
             </div>
           </div>
           <div className="border-t border-gray-800 pt-8 text-center text-sm">
-            <p>© 2024 Tracknow. Tous droits réservés.</p>
+            <p>© 2024 ShareYourSales. Tous droits réservés.</p>
           </div>
         </div>
       </footer>
