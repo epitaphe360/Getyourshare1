@@ -152,6 +152,26 @@ function App() {
             }
           />
 
+          {/* Merchants Routes */}
+          <Route
+            path="/merchants"
+            element={
+              <ProtectedRoute>
+                <MerchantsList />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Influencers Routes */}
+          <Route
+            path="/influencers"
+            element={
+              <ProtectedRoute>
+                <InfluencersList />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Affiliates Routes */}
           <Route
             path="/affiliates"
