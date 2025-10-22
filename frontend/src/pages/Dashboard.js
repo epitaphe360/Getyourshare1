@@ -7,20 +7,23 @@ import InfluencerDashboard from './dashboards/InfluencerDashboard';
 const Dashboard = () => {
   const { user } = useAuth();
 
-  useEffect(() => {
-    fetchDashboardStats();
-  }, []);
+  // Route vers le bon dashboard selon le rôle
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-xl">Chargement...</div>
+      </div>
+    );
+  }
 
-  const fetchDashboardStats = async () => {
-    try {
-      const response = await api.get('/api/dashboard/stats');
-      setStats(response.data);
-    } catch (error) {
-      console.error('Error fetching dashboard stats:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Redirection selon le rôle
+  if (user.role === 'admin') {
+    return <AdminDashboard />;
+  } else if (user.role === 'merchant') {
+    return <MerchantDashboard />;
+  } else if (user.role === 'influencer') {
+    return <InfluencerDashboard />;
+  }
 
   // Mock chart data
   const revenueData = [
