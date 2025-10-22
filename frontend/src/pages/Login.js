@@ -24,10 +24,50 @@ const Login = () => {
     
     if (result.success) {
       navigate('/dashboard');
+    } else if (result.requires2FA) {
+      // 2FA requis
+      setRequires2FA(true);
+      setTempToken(result.tempToken);
+      setError('');
     } else {
       setError(result.error);
     }
     setLoading(false);
+  };
+
+  const handleVerify2FA = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+      const response = await fetch(`${API_URL}/api/auth/verify-2fa`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          code: twoFACode,
+          temp_token: tempToken
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Stocker le token et l'utilisateur
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        navigate('/dashboard');
+        window.location.reload(); // Reload pour mettre à jour le context
+      } else {
+        setError(data.detail || 'Code 2FA incorrect');
+      }
+    } catch (err) {
+      setError('Erreur lors de la vérification du code');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
