@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
+import SkeletonDashboard from '../../components/common/SkeletonLoader';
 import { 
   DollarSign, ShoppingBag, Users, TrendingUp, 
   Package, Eye, Target, Award, Plus, Search 
