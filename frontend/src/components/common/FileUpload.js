@@ -87,7 +87,7 @@ const FileUpload = ({
       }
     } catch (error) {
       console.error('Upload error:', error);
-      alert(error.response?.data?.detail || 'Erreur lors de l\'upload');
+      toast.error(error.response?.data?.detail || 'Erreur lors de l\'upload');
     } finally {
       setUploading(false);
     }
