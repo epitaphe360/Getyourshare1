@@ -48,20 +48,37 @@ const MarketplaceNew = () => {
   ];
 
   const handleGenerateLink = async (productId) => {
+    console.log('Generate link called for product:', productId);
+    console.log('User role:', user?.role);
+    
     if (user?.role !== 'influencer') {
       alert('Vous devez être un influenceur pour générer des liens');
       return;
     }
 
     try {
+      console.log('Sending API request...');
       const response = await api.post('/api/affiliate-links/generate', { product_id: productId });
+      console.log('API Response:', response.data);
+      
       if (response.data.link) {
-        alert('Lien généré avec succès ! ' + response.data.link.short_link);
-        navigate('/tracking-links');
+        const linkUrl = response.data.link.short_url || response.data.link.full_url;
+        alert(`✅ Lien généré avec succès !\n\n${linkUrl}\n\nLe lien a été copié dans votre presse-papier.`);
+        
+        // Copy to clipboard
+        if (navigator.clipboard) {
+          navigator.clipboard.writeText(linkUrl);
+        }
+        
+        // Redirect to tracking links page
+        setTimeout(() => {
+          navigate('/tracking-links');
+        }, 1500);
       }
     } catch (error) {
       console.error('Error generating link:', error);
-      alert('Erreur lors de la génération du lien');
+      console.error('Error details:', error.response?.data);
+      alert(`❌ Erreur lors de la génération du lien:\n${error.response?.data?.detail || error.message}`);
     }
   };
 
