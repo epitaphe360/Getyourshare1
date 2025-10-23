@@ -1402,6 +1402,8 @@ async def get_platform_metrics(payload: dict = Depends(verify_token)):
         }
 
 # ============================================
+# INTÉGRATION DES ENDPOINTS AVANCÉS
+# ============================================
 try:
     from advanced_endpoints import integrate_all_endpoints
     integrate_all_endpoints(app, verify_token)
@@ -1411,8 +1413,30 @@ except ImportError as e:
 except Exception as e:
     print(f"⚠️  Erreur lors du chargement des endpoints avancés: {e}")
 
+# ============================================
+# INTÉGRATION DU SYSTÈME D'ABONNEMENT SaaS
+# ============================================
+try:
+    from subscription_endpoints import router as subscription_router
+    app.include_router(subscription_router)
+    print("✅ Système d'abonnement SaaS chargé avec succès")
+    print("   📦 Plans d'abonnement disponibles")
+    print("   💳 Paiements récurrents activés")
+    print("   📄 Facturation automatique configurée")
+except ImportError as e:
+    print(f"⚠️  Le système d'abonnement n'a pas pu être chargé: {e}")
+except Exception as e:
+    print(f"⚠️  Erreur lors du chargement du système d'abonnement: {e}")
+
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Démarrage du serveur Supabase...")
+    print("\n" + "="*60)
+    print("🚀 Démarrage du serveur ShareYourSales API")
+    print("="*60)
     print("📊 Base de données: Supabase PostgreSQL")
+    print("🔐 Authentification: JWT + 2FA")
+    print("💰 Système d'abonnement SaaS: Activé")
+    print("🌐 API disponible sur: http://localhost:8001")
+    print("📖 Documentation: http://localhost:8001/docs")
+    print("="*60 + "\n")
     uvicorn.run(app, host="0.0.0.0", port=8001)
