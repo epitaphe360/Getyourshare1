@@ -3,33 +3,33 @@
 
 -- Table invitations pour le système d'invitation marchant->influenceur
 CREATE TABLE IF NOT EXISTS invitations (
-    id SERIAL PRIMARY KEY,
-    merchant_id INTEGER REFERENCES users(id),
-    influencer_id INTEGER REFERENCES users(id),
-    campaign_id INTEGER REFERENCES campaigns(id),
-    status VARCHAR(20) DEFAULT 'pending',
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    merchant_id UUID REFERENCES users(id),
+    influencer_id UUID REFERENCES users(id),
+    campaign_id UUID REFERENCES campaigns(id),
+    status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'expired')),
     message TEXT,
     commission_rate DECIMAL(5,2),
-    created_at TIMESTAMP DEFAULT NOW(),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     responded_at TIMESTAMP
 );
 
 -- Table settings pour les paramètres de la plateforme
 CREATE TABLE IF NOT EXISTS settings (
-    id SERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     key VARCHAR(100) UNIQUE NOT NULL,
     value TEXT,
     description TEXT,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- Table junction campaign_products pour relier campagnes et produits
 CREATE TABLE IF NOT EXISTS campaign_products (
-    id SERIAL PRIMARY KEY,
-    campaign_id INTEGER REFERENCES campaigns(id) ON DELETE CASCADE,
-    product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT NOW(),
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    campaign_id UUID REFERENCES campaigns(id) ON DELETE CASCADE,
+    product_id UUID REFERENCES products(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(campaign_id, product_id)
 );
 
