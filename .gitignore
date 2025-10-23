@@ -49,3 +49,7 @@ logs/
 # Database
 *.sqlite
 *.db
+-e 
+# Environment files
+*.env
+*.env.*
