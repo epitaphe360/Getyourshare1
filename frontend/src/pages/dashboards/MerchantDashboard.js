@@ -49,11 +49,7 @@ const MerchantDashboard = () => {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-xl">Chargement...</div>
-      </div>
-    );
+    return <SkeletonDashboard />;
   }
 
   return (
