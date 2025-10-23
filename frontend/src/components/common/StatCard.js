@@ -17,10 +17,10 @@ const StatCard = ({ title, value, icon, trend, isCurrency = false, suffix = '' }
   }
   
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover-lift">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow duration-200">
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600">{title}</p>
+          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
           <p className="mt-2 text-3xl font-bold text-gray-900">{displayValue}</p>
           {trend && (
             <p className={`mt-2 text-sm ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
