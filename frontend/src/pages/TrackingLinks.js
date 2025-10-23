@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useToast } from '../context/ToastContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import Table from '../components/common/Table';
@@ -6,6 +7,7 @@ import Modal from '../components/common/Modal';
 import { Plus, Copy, Link as LinkIcon, ExternalLink } from 'lucide-react';
 
 const TrackingLinks = () => {
+  const toast = useToast();
   const [links, setLinks] = useState([
     {
       id: 'link_1',
