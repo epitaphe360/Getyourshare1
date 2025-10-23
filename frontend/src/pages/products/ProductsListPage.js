@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -16,6 +17,7 @@ import {
 const ProductsListPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
