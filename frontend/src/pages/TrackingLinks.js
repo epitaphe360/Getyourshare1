@@ -41,9 +41,13 @@ const TrackingLinks = () => {
     destination_url: '',
   });
 
-  const handleCopy = (link) => {
-    navigator.clipboard.writeText(link);
-    alert('Lien copié dans le presse-papier!');
+  const handleCopy = async (link) => {
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success('Lien copié dans le presse-papier!');
+    } catch (error) {
+      toast.error('Erreur lors de la copie du lien');
+    }
   };
 
   const handleGenerate = () => {
