@@ -236,7 +236,9 @@ const AdminDashboard = () => {
             <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <Target className="text-green-600" size={32} />
             </div>
-            <div className="text-3xl font-bold text-gray-900">14.2%</div>
+            <div className="text-3xl font-bold text-gray-900">
+              {stats?.platformMetrics?.avg_conversion_rate || 14.2}%
+            </div>
             <div className="text-gray-600 mt-1">Taux de Conversion Moyen</div>
           </div>
         </Card>
@@ -246,7 +248,9 @@ const AdminDashboard = () => {
             <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <Eye className="text-blue-600" size={32} />
             </div>
-            <div className="text-3xl font-bold text-gray-900">285K</div>
+            <div className="text-3xl font-bold text-gray-900">
+              {((stats?.platformMetrics?.monthly_clicks || 285000) / 1000).toFixed(0)}K
+            </div>
             <div className="text-gray-600 mt-1">Clics Totaux ce Mois</div>
           </div>
         </Card>
@@ -256,7 +260,9 @@ const AdminDashboard = () => {
             <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
               <TrendingUp className="text-purple-600" size={32} />
             </div>
-            <div className="text-3xl font-bold text-gray-900">+32%</div>
+            <div className="text-3xl font-bold text-gray-900">
+              +{stats?.platformMetrics?.quarterly_growth || 32}%
+            </div>
             <div className="text-gray-600 mt-1">Croissance ce Trimestre</div>
           </div>
         </Card>
