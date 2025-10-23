@@ -27,15 +27,19 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, merchantsRes, influencersRes, revenueRes, categoriesRes] = await Promise.all([
+      const [statsRes, merchantsRes, influencersRes, revenueRes, categoriesRes, metricsRes] = await Promise.all([
         api.get('/api/analytics/overview'),
         api.get('/api/merchants'),
         api.get('/api/influencers'),
         api.get('/api/analytics/admin/revenue-chart'),
-        api.get('/api/analytics/admin/categories')
+        api.get('/api/analytics/admin/categories'),
+        api.get('/api/analytics/admin/platform-metrics')
       ]);
       
-      setStats(statsRes.data);
+      setStats({
+        ...statsRes.data,
+        platformMetrics: metricsRes.data
+      });
       setMerchants(merchantsRes.data.merchants || []);
       setInfluencers(influencersRes.data.influencers || []);
       
