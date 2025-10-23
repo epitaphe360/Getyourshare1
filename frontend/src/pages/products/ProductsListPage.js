@@ -57,9 +57,10 @@ const ProductsListPage = () => {
       await api.delete(`/api/products/${productId}`);
       setDeleteModal({ isOpen: false, product: null });
       await fetchProducts();
+      toast.success('Produit supprimé avec succès');
     } catch (error) {
       console.error('Error deleting product:', error);
-      alert('Erreur lors de la suppression du produit');
+      toast.error('Erreur lors de la suppression du produit');
     }
   };
 
