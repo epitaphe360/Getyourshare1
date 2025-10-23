@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
+import SkeletonDashboard from '../../components/common/SkeletonLoader';
 import { 
   TrendingUp, Users, DollarSign, ShoppingBag, 
   Sparkles, BarChart3, Target, Eye 
