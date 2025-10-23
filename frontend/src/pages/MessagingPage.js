@@ -94,7 +94,7 @@ const MessagingPage = () => {
       await fetchConversations(); // Rafraîchir la liste
     } catch (error) {
       console.error('Error sending message:', error);
-      alert('Erreur lors de l\'envoi du message');
+      toast.error('Erreur lors de l\'envoi du message');
     } finally {
       setSending(false);
     }
