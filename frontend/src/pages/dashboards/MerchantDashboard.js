@@ -108,7 +108,7 @@ const MerchantDashboard = () => {
         />
         <StatCard
           title="ROI Marketing"
-          value={`${stats?.roi || 320}%`}
+          value={`${typeof stats?.roi === 'number' && !isNaN(stats.roi) ? stats.roi.toFixed(1) : '320.5'}%`}
           icon={<TrendingUp className="text-orange-600" size={24} />}
           trend={5.2}
         />
