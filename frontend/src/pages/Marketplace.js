@@ -63,11 +63,15 @@ const MarketplaceNew = () => {
       
       if (response.data.link) {
         const linkUrl = response.data.link.short_url || response.data.link.full_url;
-        alert(`✅ Lien généré avec succès !\n\n${linkUrl}\n\nLe lien a été copié dans votre presse-papier.`);
+        alert(`✅ Lien généré avec succès !\n\n${linkUrl}`);
         
-        // Copy to clipboard
-        if (navigator.clipboard) {
-          navigator.clipboard.writeText(linkUrl);
+        // Copy to clipboard (with error handling)
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(linkUrl);
+          }
+        } catch (err) {
+          console.log('Could not copy to clipboard:', err);
         }
         
         // Redirect to tracking links page
