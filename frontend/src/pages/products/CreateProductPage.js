@@ -153,14 +153,16 @@ const CreateProductPage = () => {
 
       if (isEdit) {
         await api.put(`/api/products/${productId}`, productData);
+        toast.success('Produit modifié avec succès');
       } else {
         await api.post('/api/products', productData);
+        toast.success('Produit créé avec succès');
       }
 
-      navigate('/products');
+      setTimeout(() => navigate('/products'), 1000);
     } catch (error) {
       console.error('Error saving product:', error);
-      alert(`Erreur lors de ${isEdit ? 'la modification' : 'la création'} du produit`);
+      toast.error(`Erreur lors de ${isEdit ? 'la modification' : 'la création'} du produit`);
     } finally {
       setSubmitting(false);
     }
