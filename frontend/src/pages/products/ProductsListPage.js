@@ -70,29 +70,58 @@ const ProductsListPage = () => {
     product.category?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Fonction utilitaire pour gérer les images (JSONB array)
+  const getFirstImage = (product) => {
+    if (!product.images) return null;
+
+    // Si c'est déjà un array
+    if (Array.isArray(product.images) && product.images.length > 0) {
+      return product.images[0];
+    }
+
+    // Si c'est une string JSON, parser
+    if (typeof product.images === 'string') {
+      try {
+        const parsed = JSON.parse(product.images);
+        return Array.isArray(parsed) && parsed.length > 0 ? parsed[0] : null;
+      } catch {
+        return null;
+      }
+    }
+
+    return null;
+  };
+
   const columns = [
     {
       key: 'name',
       label: 'Produit',
-      render: (product) => (
-        <div className="flex items-center gap-3">
-          {product.image_url ? (
-            <img 
-              src={product.image_url} 
-              alt={product.name}
-              className="w-12 h-12 rounded object-cover"
-            />
-          ) : (
-            <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
-              <Package size={24} className="text-gray-400" />
+      render: (product) => {
+        const imageUrl = getFirstImage(product);
+
+        return (
+          <div className="flex items-center gap-3">
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={product.name}
+                className="w-12 h-12 rounded object-cover"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+            ) : (
+              <div className="w-12 h-12 bg-gray-200 rounded flex items-center justify-center">
+                <Package size={24} className="text-gray-400" />
+              </div>
+            )}
+            <div>
+              <div className="font-semibold">{product.name}</div>
+              <div className="text-sm text-gray-500">{product.category || 'Non catégorisé'}</div>
             </div>
-          )}
-          <div>
-            <div className="font-semibold">{product.name}</div>
-            <div className="text-sm text-gray-500">{product.category || 'Non catégorisé'}</div>
           </div>
-        </div>
-      )
+        );
+      }
     },
     {
       key: 'description',

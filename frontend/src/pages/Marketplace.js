@@ -96,9 +96,29 @@ const MarketplaceNew = () => {
     }
   };
 
+  // Fonction utilitaire pour gérer les images (JSONB array)
+  const getProductImages = (product) => {
+    if (!product.images) return [];
+
+    // Si c'est déjà un array
+    if (Array.isArray(product.images)) return product.images;
+
+    // Si c'est une string JSON, parser
+    if (typeof product.images === 'string') {
+      try {
+        const parsed = JSON.parse(product.images);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    return [];
+  };
+
   // Filter and sort products
   let filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          product.description?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
@@ -258,15 +278,26 @@ const MarketplaceNew = () => {
             >
               {/* Product Image */}
               <div className="relative h-48 bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center overflow-hidden">
-                {product.images && product.images.length > 0 ? (
-                  <img
-                    src={product.images[0]}
-                    alt={product.name}
-                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                  />
-                ) : (
-                  <Package className="w-24 h-24 text-purple-300" />
-                )}
+                {(() => {
+                  const images = getProductImages(product);
+                  const hasImage = images.length > 0;
+
+                  return hasImage ? (
+                    <>
+                      <img
+                        src={images[0]}
+                        alt={product.name}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                      <Package className="w-24 h-24 text-purple-300 absolute" style={{display: 'none'}} />
+                    </>
+                  ) : (
+                    <Package className="w-24 h-24 text-purple-300" />
+                  );
+                })()}
                 <div className="absolute top-3 right-3">
                   <button className="bg-white p-2 rounded-full shadow-lg hover:bg-pink-50 transition">
                     <Heart className="w-5 h-5 text-gray-600" />
