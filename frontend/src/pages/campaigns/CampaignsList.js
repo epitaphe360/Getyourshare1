@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
@@ -12,11 +13,11 @@ import { Plus, Search, MoreVertical, Pause, Play, Archive, Target } from 'lucide
 
 const CampaignsList = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusModal, setStatusModal] = useState({ isOpen: false, campaign: null, newStatus: null });
-  const [updating, setUpdating] = useState(false);
+  const [actionModal, setActionModal] = useState({ isOpen: false, campaign: null, action: null });
 
   useEffect(() => {
     fetchCampaigns();
@@ -25,181 +26,142 @@ const CampaignsList = () => {
   const fetchCampaigns = async () => {
     try {
       const response = await api.get('/api/campaigns');
-      // Gestion des deux formats de réponse possibles
-      const campaignsData = Array.isArray(response.data) ? response.data : response.data.data || [];
-      setCampaigns(campaignsData);
+      setCampaigns(response.data.data || []);
     } catch (error) {
       console.error('Error fetching campaigns:', error);
-      setCampaigns([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleStatusChange = async () => {
-    if (!statusModal.campaign || !statusModal.newStatus) return;
-
-    setUpdating(true);
+  const handleUpdateStatus = async (campaignId, newStatus) => {
     try {
-      await api.put(`/api/campaigns/${statusModal.campaign.id}/status`, {
-        status: statusModal.newStatus
-      });
-      
-      // Rafraîchir la liste
+      await api.put(`/api/campaigns/${campaignId}/status`, { status: newStatus });
       await fetchCampaigns();
-      
-      // Fermer le modal
-      setStatusModal({ isOpen: false, campaign: null, newStatus: null });
+      setActionModal({ isOpen: false, campaign: null, action: null });
+      toast.success(`Campagne ${newStatus === 'active' ? 'activée' : newStatus === 'paused' ? 'mise en pause' : 'archivée'}`);
     } catch (error) {
-      console.error('Error updating campaign status:', error);
-      alert('Erreur lors de la mise à jour du statut');
-    } finally {
-      setUpdating(false);
+      console.error('Error updating status:', error);
+      toast.error('Erreur lors de la mise à jour du statut');
     }
   };
 
-  const getStatusBadgeVariant = (status) => {
-    switch (status) {
-      case 'active': return 'success';
-      case 'paused': return 'warning';
-      case 'archived': return 'secondary';
-      case 'draft': return 'info';
-      default: return 'secondary';
-    }
-  };
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'active': return 'Actif';
-      case 'paused': return 'En pause';
-      case 'archived': return 'Archivé';
-      case 'draft': return 'Brouillon';
-      default: return status;
-    }
-  };
-
-  const filteredCampaigns = campaigns.filter(camp =>
-    camp.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    camp.advertiser_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    camp.category?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredCampaigns = campaigns.filter(campaign =>
+    campaign.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    campaign.description?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const columns = [
     {
-      header: 'Campagne',
-      accessor: 'name',
-      render: (row) => (
+      key: 'name',
+      label: 'Campagne',
+      render: (campaign) => (
         <div>
-          <div className="font-semibold">{row.name}</div>
-          <div className="text-xs text-gray-500">{row.advertiser_name || 'Non défini'}</div>
+          <div className="font-medium text-gray-900">{campaign.name}</div>
+          <div className="text-sm text-gray-500">{campaign.description}</div>
         </div>
-      ),
+      )
     },
     {
-      header: 'Catégorie',
+      key: 'category',
+      label: 'Catégorie',
       accessor: 'category',
       render: (row) => row.category || 'Non défini'
     },
     {
-      header: 'Statut',
-      accessor: 'status',
-      render: (row) => (
-        <Badge variant={getStatusBadgeVariant(row.status)}>
-          {getStatusLabel(row.status)}
+      key: 'budget',
+      label: 'Budget',
+      render: (campaign) => formatCurrency(campaign.budget)
+    },
+    {
+      key: 'commission_rate',
+      label: 'Commission',
+      render: (campaign) => `${campaign.commission_rate}%`
+    },
+    {
+      key: 'influencers',
+      label: 'Influenceurs',
+      render: (campaign) => formatNumber(campaign.influencers_count || 0)
+    },
+    {
+      key: 'status',
+      label: 'Statut',
+      render: (campaign) => (
+        <Badge status={campaign.status}>
+          {campaign.status === 'active' ? 'Active' :
+           campaign.status === 'paused' ? 'Pausée' :
+           campaign.status === 'ended' ? 'Terminée' : 'Brouillon'}
         </Badge>
-      ),
+      )
     },
     {
-      header: 'Commission',
-      accessor: 'commission',
-      render: (row) => (
-        <span>
-          {row.commission_type === 'percentage' 
-            ? `${row.commission_value || 10}%` 
-            : formatCurrency(row.commission_value || 0)}
-        </span>
-      ),
-    },
-    {
-      header: 'Clics',
-      accessor: 'clicks',
-      render: (row) => formatNumber(row.clicks || 0),
-    },
-    {
-      header: 'Conversions',
-      accessor: 'conversions',
-      render: (row) => formatNumber(row.conversions || 0),
-    },
-    {
-      header: 'Revenus',
-      accessor: 'revenue',
-      render: (row) => formatCurrency(row.revenue || 0),
-    },
-    {
-      header: 'Actions',
-      accessor: 'actions',
-      render: (row) => (
+      key: 'actions',
+      label: 'Actions',
+      render: (campaign) => (
         <div className="flex gap-2">
-          {row.status === 'active' && (
+          {campaign.status === 'active' && (
             <button
-              onClick={() => setStatusModal({ isOpen: true, campaign: row, newStatus: 'paused' })}
-              className="p-2 hover:bg-yellow-100 rounded transition text-yellow-600"
+              onClick={() => setActionModal({ isOpen: true, campaign, action: 'pause' })}
+              className="text-yellow-600 hover:text-yellow-700"
               title="Mettre en pause"
             >
               <Pause size={18} />
             </button>
           )}
-          {row.status === 'paused' && (
+          {campaign.status === 'paused' && (
             <button
-              onClick={() => setStatusModal({ isOpen: true, campaign: row, newStatus: 'active' })}
-              className="p-2 hover:bg-green-100 rounded transition text-green-600"
+              onClick={() => setActionModal({ isOpen: true, campaign, action: 'activate' })}
+              className="text-green-600 hover:text-green-700"
               title="Activer"
             >
               <Play size={18} />
             </button>
           )}
-          {(row.status === 'active' || row.status === 'paused') && (
-            <button
-              onClick={() => setStatusModal({ isOpen: true, campaign: row, newStatus: 'archived' })}
-              className="p-2 hover:bg-gray-100 rounded transition text-gray-600"
-              title="Archiver"
-            >
-              <Archive size={18} />
-            </button>
-          )}
+          <button
+            onClick={() => setActionModal({ isOpen: true, campaign, action: 'archive' })}
+            className="text-gray-600 hover:text-gray-700"
+            title="Archiver"
+          >
+            <Archive size={18} />
+          </button>
         </div>
-      ),
-    },
+      )
+    }
   ];
 
   return (
-    <div className="space-y-6" data-testid="campaigns-list">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-start">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Campagnes & Offres</h1>
-          <p className="text-gray-600 mt-2">Gérez vos campagnes</p>
+          <h1 className="text-3xl font-bold text-gray-900">Campagnes</h1>
+          <p className="text-gray-600 mt-2">Gérez vos campagnes marketing</p>
         </div>
-        <Button onClick={() => navigate('/campaigns/create')}>
+        <Button onClick={() => navigate('/campaigns/create')} data-testid="create-campaign-btn">
           <Plus size={20} className="mr-2" />
           Nouvelle Campagne
         </Button>
       </div>
 
+      {/* Search and Filters */}
       <Card>
-        <div className="mb-4">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+        <div className="flex gap-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
               placeholder="Rechercher une campagne..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               data-testid="search-input"
             />
           </div>
         </div>
+      </Card>
 
+      {/* Campaigns Table */}
+      <Card>
         {loading ? (
           <div className="text-center py-8">Chargement...</div>
         ) : filteredCampaigns.length === 0 ? (
@@ -215,48 +177,33 @@ const CampaignsList = () => {
         )}
       </Card>
 
-      {/* Status Change Confirmation Modal */}
+      {/* Action Confirmation Modal */}
       <Modal
-        isOpen={statusModal.isOpen}
-        onClose={() => setStatusModal({ isOpen: false, campaign: null, newStatus: null })}
-        title="Modifier le statut de la campagne"
+        isOpen={actionModal.isOpen}
+        onClose={() => setActionModal({ isOpen: false, campaign: null, action: null })}
+        title="Confirmer l'action"
       >
         <div className="space-y-4">
           <p className="text-gray-600">
-            Voulez-vous vraiment {' '}
-            {statusModal.newStatus === 'active' && <span className="font-semibold text-green-600">activer</span>}
-            {statusModal.newStatus === 'paused' && <span className="font-semibold text-yellow-600">mettre en pause</span>}
-            {statusModal.newStatus === 'archived' && <span className="font-semibold text-gray-600">archiver</span>}
-            {' '} la campagne{' '}
-            <span className="font-semibold">{statusModal.campaign?.name}</span> ?
+            {actionModal.action === 'pause' && 'Voulez-vous mettre en pause cette campagne ?'}
+            {actionModal.action === 'activate' && 'Voulez-vous activer cette campagne ?'}
+            {actionModal.action === 'archive' && 'Voulez-vous archiver cette campagne ?'}
           </p>
-          
-          {statusModal.newStatus === 'paused' && (
-            <p className="text-sm text-gray-500">
-              La campagne sera temporairement désactivée. Vous pourrez la réactiver à tout moment.
-            </p>
-          )}
-          
-          {statusModal.newStatus === 'archived' && (
-            <p className="text-sm text-red-600">
-              La campagne sera archivée et ne sera plus visible pour les influenceurs.
-            </p>
-          )}
-          
-          <div className="flex gap-3 justify-end mt-6">
+          <div className="flex justify-end gap-3">
             <Button
-              variant="secondary"
-              onClick={() => setStatusModal({ isOpen: false, campaign: null, newStatus: null })}
-              disabled={updating}
+              variant="outline"
+              onClick={() => setActionModal({ isOpen: false, campaign: null, action: null })}
             >
               Annuler
             </Button>
             <Button
-              onClick={handleStatusChange}
-              disabled={updating}
-              variant={statusModal.newStatus === 'archived' ? 'danger' : 'primary'}
+              onClick={() => handleUpdateStatus(
+                actionModal.campaign?.id,
+                actionModal.action === 'pause' ? 'paused' :
+                actionModal.action === 'activate' ? 'active' : 'archived'
+              )}
             >
-              {updating ? 'Mise à jour...' : 'Confirmer'}
+              Confirmer
             </Button>
           </div>
         </div>
