@@ -50,8 +50,8 @@ const InfluencerProfilePage = () => {
       }
     } catch (error) {
       console.error('Error fetching influencer profile:', error);
-      alert('Erreur lors du chargement du profil');
-      navigate('/influencers');
+      toast.error('Erreur lors du chargement du profil');
+      setTimeout(() => navigate('/influencers'), 1500);
     } finally {
       setLoading(false);
     }
