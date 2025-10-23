@@ -19,19 +19,23 @@ const AffiliatesList = () => {
   const fetchAffiliates = async () => {
     try {
       const response = await api.get('/api/affiliates');
-      setAffiliates(response.data.data);
+      setAffiliates(response.data.data || []);
     } catch (error) {
       console.error('Error fetching affiliates:', error);
+      setAffiliates([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredAffiliates = affiliates.filter(aff =>
-    aff.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    aff.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    aff.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAffiliates = affiliates.filter(aff => {
+    const search = searchTerm.toLowerCase();
+    return (
+      (aff.first_name?.toLowerCase().includes(search) || false) ||
+      (aff.last_name?.toLowerCase().includes(search) || false) ||
+      (aff.email?.toLowerCase().includes(search) || false)
+    );
+  });
 
   const columns = [
     {
