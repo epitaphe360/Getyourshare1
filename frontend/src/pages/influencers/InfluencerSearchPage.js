@@ -76,7 +76,7 @@ const InfluencerSearchPage = () => {
 
   const handleContactInfluencer = async (influencer) => {
     // TODO: Implémenter système de messagerie
-    alert(`Contacter ${influencer.full_name} - Fonctionnalité à venir`);
+    toast.info(`Contacter ${influencer.full_name} - Fonctionnalité à venir`, { duration: 4000 });
   };
 
   const formatNumber = (num) => {
