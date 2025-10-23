@@ -54,7 +54,7 @@ const MarketplaceNew = () => {
     console.log('User role:', user?.role);
     
     if (user?.role !== 'influencer') {
-      alert('Vous devez être un influenceur pour générer des liens');
+      toast.warning('Vous devez être un influenceur pour générer des liens');
       return;
     }
 
@@ -65,16 +65,22 @@ const MarketplaceNew = () => {
       
       if (response.data.link) {
         const linkUrl = response.data.link.short_url || response.data.link.full_url;
-        alert(`✅ Lien généré avec succès !\n\n${linkUrl}`);
         
         // Copy to clipboard (with error handling)
+        let copied = false;
         try {
           if (navigator.clipboard && navigator.clipboard.writeText) {
             await navigator.clipboard.writeText(linkUrl);
+            copied = true;
           }
         } catch (err) {
           console.log('Could not copy to clipboard:', err);
         }
+        
+        toast.success(
+          `Lien généré avec succès ! ${copied ? 'Copié dans le presse-papier.' : ''}`,
+          { duration: 4000 }
+        );
         
         // Redirect to tracking links page
         setTimeout(() => {
@@ -84,7 +90,9 @@ const MarketplaceNew = () => {
     } catch (error) {
       console.error('Error generating link:', error);
       console.error('Error details:', error.response?.data);
-      alert(`❌ Erreur lors de la génération du lien:\n${error.response?.data?.detail || error.message}`);
+      toast.error(
+        `Erreur lors de la génération du lien: ${error.response?.data?.detail || error.message}`
+      );
     }
   };
 
