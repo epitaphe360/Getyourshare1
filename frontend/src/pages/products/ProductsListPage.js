@@ -238,24 +238,15 @@ const ProductsListPage = () => {
       {/* Products Table */}
       <Card>
         {filteredProducts.length === 0 ? (
-          <div className="text-center py-12">
-            <Package size={64} className="mx-auto text-gray-300 mb-4" />
-            <h3 className="text-xl font-semibold mb-2">
-              {searchTerm ? 'Aucun produit trouvé' : 'Aucun produit'}
-            </h3>
-            <p className="text-gray-600 mb-6">
-              {searchTerm 
-                ? 'Essayez de modifier vos critères de recherche'
-                : 'Commencez par ajouter votre premier produit'
-              }
-            </p>
-            {!searchTerm && (
-              <Button onClick={() => navigate('/products/create')}>
-                <Plus size={20} className="mr-2" />
-                Créer un produit
-              </Button>
-            )}
-          </div>
+          <EmptyState
+            icon={Package}
+            title={searchTerm ? "Aucun produit trouvé" : "Aucun produit pour le moment"}
+            description={searchTerm 
+              ? "Essayez avec d'autres mots-clés ou filtres" 
+              : "Créez votre premier produit pour commencer à vendre et travailler avec des influenceurs"}
+            actionLabel={!searchTerm ? "Créer un produit" : null}
+            onAction={() => navigate('/products/create')}
+          />
         ) : (
           <Table columns={columns} data={filteredProducts} />
         )}
