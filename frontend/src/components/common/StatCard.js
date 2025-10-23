@@ -23,16 +23,14 @@ const StatCard = ({ title, value, icon, trend, isCurrency = false, suffix = '' }
           <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
           <p className="mt-2 text-3xl font-bold text-gray-900">{displayValue}</p>
           {trend && (
-            <p className={`mt-2 text-sm ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {trend >= 0 ? '+' : ''}{trend}% par rapport au mois dernier
+            <p className={`text-sm font-medium mt-2 ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {trend >= 0 ? '↗' : '↘'} {Math.abs(trend)}% ce mois
             </p>
           )}
         </div>
         {icon && (
-          <div className="ml-4">
-            <div className="p-3 bg-blue-100 rounded-full">
-              {icon}
-            </div>
+          <div className="ml-4 p-3 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg">
+            {icon}
           </div>
         )}
       </div>
