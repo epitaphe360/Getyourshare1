@@ -2,8 +2,13 @@ import React, { useState } from 'react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { Mail, Server, Lock } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
+import api from '../../utils/api';
 
 const SMTP = () => {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [smtpConfig, setSmtpConfig] = useState({
     host: 'smtp.gmail.com',
     port: 587,
@@ -14,13 +19,35 @@ const SMTP = () => {
     encryption: 'tls',
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Saving SMTP config:', smtpConfig);
+    setSaving(true);
+    try {
+      await api.post('/api/settings/smtp', smtpConfig);
+      toast.success('Configuration SMTP sauvegardée avec succès');
+    } catch (error) {
+      console.error('Error saving SMTP config:', error);
+      toast.error('Erreur lors de la sauvegarde de la configuration');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleTest = () => {
-    console.log('Testing SMTP connection');
+  const handleTest = async () => {
+    setTesting(true);
+    try {
+      const response = await api.post('/api/settings/smtp/test', smtpConfig);
+      if (response.data.success) {
+        toast.success('Email de test envoyé avec succès');
+      } else {
+        toast.error('Échec du test SMTP');
+      }
+    } catch (error) {
+      console.error('Error testing SMTP:', error);
+      toast.error('Erreur lors du test SMTP');
+    } finally {
+      setTesting(false);
+    }
   };
 
   return (
@@ -133,11 +160,11 @@ const SMTP = () => {
             </div>
 
             <div className="flex justify-end space-x-4">
-              <Button type="button" variant="outline" onClick={handleTest}>
-                Tester la Connexion
+              <Button type="button" variant="outline" onClick={handleTest} disabled={testing || saving}>
+                {testing ? 'Test en cours...' : 'Tester la Connexion'}
               </Button>
-              <Button type="submit">
-                Enregistrer
+              <Button type="submit" disabled={saving || testing}>
+                {saving ? 'Sauvegarde...' : 'Enregistrer'}
               </Button>
             </div>
           </div>
