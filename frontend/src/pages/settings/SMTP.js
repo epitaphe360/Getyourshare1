@@ -9,8 +9,8 @@ const SMTP = () => {
     port: 587,
     username: '',
     password: '',
-    from_email: 'noreply@tracknow.io',
-    from_name: 'Tracknow',
+    from_email: 'noreply@shareyoursales.com',
+    from_name: 'ShareYourSales',
     encryption: 'tls',
   });
 
