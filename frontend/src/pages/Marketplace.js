@@ -13,6 +13,7 @@ import {
 const MarketplaceNew = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
