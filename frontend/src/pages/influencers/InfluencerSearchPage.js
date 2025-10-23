@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -7,6 +8,7 @@ import { Search, Filter, X, Users, MapPin, TrendingUp, CheckCircle, ArrowLeft, M
 
 const InfluencerSearchPage = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [influencers, setInfluencers] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
