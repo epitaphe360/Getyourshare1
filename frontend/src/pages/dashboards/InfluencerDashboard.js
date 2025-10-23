@@ -1,21 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
-import { 
-  DollarSign, MousePointer, ShoppingCart, TrendingUp, 
-  Eye, Target, Award, Link as LinkIcon, Sparkles 
+import {
+  DollarSign, MousePointer, ShoppingCart, TrendingUp,
+  Eye, Target, Award, Link as LinkIcon, Sparkles
 } from 'lucide-react';
-import { 
+import {
   LineChart, Line, AreaChart, Area,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
 const InfluencerDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const [stats, setStats] = useState(null);
   const [links, setLinks] = useState([]);
   const [earningsData, setEarningsData] = useState([]);
@@ -28,26 +30,57 @@ const InfluencerDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, linksRes, earningsRes] = await Promise.all([
+      // Utiliser Promise.allSettled au lieu de Promise.all
+      const results = await Promise.allSettled([
         api.get('/api/analytics/overview'),
         api.get('/api/affiliate-links'),
         api.get('/api/analytics/influencer/earnings-chart')
       ]);
-      
-      setStats(statsRes.data);
-      setLinks(linksRes.data.links || []);
-      setEarningsData(earningsRes.data.data || []);
-      
-      // Pour performanceData, on peut utiliser les mêmes données mais avec clics et conversions
-      // On va créer un calcul basé sur les stats existantes
-      const perfData = (earningsRes.data.data || []).map(day => ({
-        date: day.date,
-        clics: Math.round((day.gains || 0) * 3), // Estimation basée sur les gains
-        conversions: Math.round((day.gains || 0) / 25) // Estimation: gain moyen de 25€ par conversion
-      }));
-      setPerformanceData(perfData);
+
+      const [statsRes, linksRes, earningsRes] = results;
+
+      // Gérer les statistiques
+      if (statsRes.status === 'fulfilled') {
+        setStats(statsRes.value.data);
+      } else {
+        console.error('Error loading stats:', statsRes.reason);
+        toast.error('Erreur lors du chargement des statistiques');
+        setStats({
+          total_earnings: 0,
+          total_clicks: 0,
+          total_sales: 0,
+          balance: 0
+        });
+      }
+
+      // Gérer les liens
+      if (linksRes.status === 'fulfilled') {
+        setLinks(linksRes.value.data.links || []);
+      } else {
+        console.error('Error loading links:', linksRes.reason);
+        setLinks([]);
+      }
+
+      // Gérer les données de gains
+      if (earningsRes.status === 'fulfilled') {
+        const earningsDataResult = earningsRes.value.data.data || [];
+        setEarningsData(earningsDataResult);
+
+        // Créer les données de performance basées sur les gains réels
+        const perfData = earningsDataResult.map(day => ({
+          date: day.date,
+          clics: day.clics || 0,
+          conversions: day.conversions || 0
+        }));
+        setPerformanceData(perfData);
+      } else {
+        console.error('Error loading earnings:', earningsRes.reason);
+        setEarningsData([]);
+        setPerformanceData([]);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -91,26 +124,31 @@ const InfluencerDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Gains Totaux"
-          value={stats?.total_earnings || 18650}
+          value={stats?.total_earnings || 0}
           isCurrency={true}
           icon={<DollarSign className="text-green-600" size={24} />}
-          trend={24.8}
+          trend={stats?.earnings_growth || 0}
         />
         <StatCard
           title="Clics Générés"
-          value={stats?.total_clicks || 12450}
+          value={stats?.total_clicks || 0}
           icon={<MousePointer className="text-indigo-600" size={24} />}
-          trend={18.2}
+          trend={stats?.clicks_growth || 0}
         />
         <StatCard
           title="Ventes Réalisées"
-          value={stats?.total_sales || 186}
+          value={stats?.total_sales || 0}
           icon={<ShoppingCart className="text-purple-600" size={24} />}
-          trend={15.7}
+          trend={stats?.sales_growth || 0}
         />
         <StatCard
           title="Taux de Conversion"
-          value={`${((stats?.total_sales / stats?.total_clicks * 100) || 1.49).toFixed(2)}%`}
+          value={(() => {
+            const clicks = stats?.total_clicks || 0;
+            const sales = stats?.total_sales || 0;
+            if (clicks === 0) return '0.00%';
+            return `${((sales / clicks) * 100).toFixed(2)}%`;
+          })()}
           icon={<Target className="text-orange-600" size={24} />}
         />
       </div>
@@ -121,7 +159,7 @@ const InfluencerDashboard = () => {
           <div>
             <div className="text-purple-100 mb-2">Solde Disponible</div>
             <div className="text-5xl font-bold mb-4">
-              {(stats?.balance || 4250).toLocaleString()} €
+              {(stats?.balance || 0).toLocaleString()} €
             </div>
             <button className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition">
               Demander un Paiement

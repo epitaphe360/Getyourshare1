@@ -1,20 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
 import SkeletonDashboard from '../../components/common/SkeletonLoader';
-import { 
-  TrendingUp, Users, DollarSign, ShoppingBag, 
-  Sparkles, BarChart3, Target, Eye 
+import {
+  TrendingUp, Users, DollarSign, ShoppingBag,
+  Sparkles, BarChart3, Target, Eye
 } from 'lucide-react';
-import { 
+import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [stats, setStats] = useState(null);
   const [merchants, setMerchants] = useState([]);
   const [influencers, setInfluencers] = useState([]);
@@ -28,7 +30,8 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, merchantsRes, influencersRes, revenueRes, categoriesRes, metricsRes] = await Promise.all([
+      // Utiliser Promise.allSettled au lieu de Promise.all pour gérer les erreurs partielles
+      const results = await Promise.allSettled([
         api.get('/api/analytics/overview'),
         api.get('/api/merchants'),
         api.get('/api/influencers'),
@@ -36,31 +39,75 @@ const AdminDashboard = () => {
         api.get('/api/analytics/admin/categories'),
         api.get('/api/analytics/admin/platform-metrics')
       ]);
-      
-      setStats({
-        ...statsRes.data,
-        platformMetrics: metricsRes.data
-      });
-      setMerchants(merchantsRes.data.merchants || []);
-      setInfluencers(influencersRes.data.influencers || []);
-      
-      // Transformer les données de revenus en format mensuel (simplification pour l'exemple)
-      const dailyData = revenueRes.data.data || [];
-      setRevenueData(dailyData.map((day, idx) => ({
-        month: day.date,
-        revenue: day.revenus
-      })));
-      
-      // CategoryData: données réelles depuis l'API
-      const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#14b8a6'];
-      const categoriesData = categoriesRes.data.data || [];
-      setCategoryData(categoriesData.map((cat, idx) => ({
-        name: cat.category,
-        value: cat.count,
-        color: colors[idx % colors.length]
-      })));
+
+      const [statsRes, merchantsRes, influencersRes, revenueRes, categoriesRes, metricsRes] = results;
+
+      // Gérer les statistiques
+      if (statsRes.status === 'fulfilled' && metricsRes.status === 'fulfilled') {
+        setStats({
+          ...statsRes.value.data,
+          platformMetrics: metricsRes.value.data
+        });
+      } else {
+        console.error('Error loading stats:', statsRes.reason || metricsRes.reason);
+        toast.error('Erreur lors du chargement des statistiques');
+        setStats({
+          total_revenue: 0,
+          total_merchants: 0,
+          total_influencers: 0,
+          total_products: 0,
+          platformMetrics: {
+            avg_conversion_rate: 0,
+            monthly_clicks: 0,
+            quarterly_growth: 0
+          }
+        });
+      }
+
+      // Gérer les merchants
+      if (merchantsRes.status === 'fulfilled') {
+        setMerchants(merchantsRes.value.data.merchants || []);
+      } else {
+        console.error('Error loading merchants:', merchantsRes.reason);
+        setMerchants([]);
+      }
+
+      // Gérer les influencers
+      if (influencersRes.status === 'fulfilled') {
+        setInfluencers(influencersRes.value.data.influencers || []);
+      } else {
+        console.error('Error loading influencers:', influencersRes.reason);
+        setInfluencers([]);
+      }
+
+      // Gérer les données de revenus
+      if (revenueRes.status === 'fulfilled') {
+        const dailyData = revenueRes.value.data.data || [];
+        setRevenueData(dailyData.map((day, idx) => ({
+          month: day.date,
+          revenue: day.revenus
+        })));
+      } else {
+        console.error('Error loading revenue chart:', revenueRes.reason);
+        setRevenueData([]);
+      }
+
+      // Gérer les catégories
+      if (categoriesRes.status === 'fulfilled') {
+        const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#14b8a6'];
+        const categoriesData = categoriesRes.value.data.data || [];
+        setCategoryData(categoriesData.map((cat, idx) => ({
+          name: cat.category,
+          value: cat.count,
+          color: colors[idx % colors.length]
+        })));
+      } else {
+        console.error('Error loading categories:', categoriesRes.reason);
+        setCategoryData([]);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -89,28 +136,28 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Revenus Total"
-          value={stats?.total_revenue || 502000}
+          value={stats?.total_revenue || 0}
           isCurrency={true}
           icon={<DollarSign className="text-green-600" size={24} />}
-          trend={12.5}
+          trend={stats?.revenue_growth || 0}
         />
         <StatCard
           title="Entreprises"
           value={stats?.total_merchants || merchants.length}
           icon={<ShoppingBag className="text-indigo-600" size={24} />}
-          trend={8.2}
+          trend={stats?.merchants_growth || 0}
         />
         <StatCard
           title="Influenceurs"
           value={stats?.total_influencers || influencers.length}
           icon={<Users className="text-purple-600" size={24} />}
-          trend={15.3}
+          trend={stats?.influencers_growth || 0}
         />
         <StatCard
           title="Produits"
           value={stats?.total_products || 0}
           icon={<Sparkles className="text-orange-600" size={24} />}
-          trend={5.7}
+          trend={stats?.products_growth || 0}
         />
       </div>
 
@@ -234,7 +281,7 @@ const AdminDashboard = () => {
               <Target className="text-green-600" size={32} />
             </div>
             <div className="text-3xl font-bold text-gray-900">
-              {stats?.platformMetrics?.avg_conversion_rate || 14.2}%
+              {stats?.platformMetrics?.avg_conversion_rate || 0}%
             </div>
             <div className="text-gray-600 mt-1">Taux de Conversion Moyen</div>
           </div>
@@ -246,7 +293,7 @@ const AdminDashboard = () => {
               <Eye className="text-blue-600" size={32} />
             </div>
             <div className="text-3xl font-bold text-gray-900">
-              {((stats?.platformMetrics?.monthly_clicks || 285000) / 1000).toFixed(0)}K
+              {((stats?.platformMetrics?.monthly_clicks || 0) / 1000).toFixed(0)}K
             </div>
             <div className="text-gray-600 mt-1">Clics Totaux ce Mois</div>
           </div>
@@ -258,7 +305,7 @@ const AdminDashboard = () => {
               <TrendingUp className="text-purple-600" size={32} />
             </div>
             <div className="text-3xl font-bold text-gray-900">
-              +{stats?.platformMetrics?.quarterly_growth || 32}%
+              +{stats?.platformMetrics?.quarterly_growth || 0}%
             </div>
             <div className="text-gray-600 mt-1">Croissance ce Trimestre</div>
           </div>
