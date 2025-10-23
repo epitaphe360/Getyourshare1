@@ -225,8 +225,18 @@ def get_affiliate_links(influencer_id: Optional[str] = None) -> List[Dict]:
         return []
 
 def create_affiliate_link(product_id: str, influencer_id: str, unique_code: str) -> Optional[Dict]:
-    """Crée un nouveau lien d'affiliation"""
+    """Crée un nouveau lien d'affiliation ou retourne le lien existant"""
     try:
+        # Check if link already exists
+        existing_link = supabase.table("trackable_links").select("*").eq(
+            "product_id", product_id
+        ).eq("influencer_id", influencer_id).execute()
+        
+        if existing_link.data:
+            print(f"Link already exists for product {product_id} and influencer {influencer_id}")
+            return existing_link.data[0]
+        
+        # Create new link if it doesn't exist
         link_data = {
             "product_id": product_id,
             "influencer_id": influencer_id,
