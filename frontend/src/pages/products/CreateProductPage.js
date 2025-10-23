@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
@@ -10,6 +11,7 @@ const CreateProductPage = () => {
   const navigate = useNavigate();
   const { productId } = useParams();
   const { user } = useAuth();
+  const toast = useToast();
   const isEdit = !!productId;
 
   const [loading, setLoading] = useState(false);
