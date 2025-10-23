@@ -300,54 +300,54 @@ const AIMarketing = () => {
                     </h3>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <div className="text-sm text-green-700 mb-1">Mois Prochain</div>
+                        <div className="text-sm text-green-700 mb-1">Mois Prochain (estimé)</div>
                         <div className="text-3xl font-bold text-green-900">
-                          {predictions.sales_forecast?.next_month?.toLocaleString() || 0} €
+                          {predictions.predicted_sales_next_month || 0} ventes
                         </div>
                       </div>
                       <div>
-                        <div className="text-sm text-green-700 mb-1">Prochain Trimestre</div>
+                        <div className="text-sm text-green-700 mb-1">30 Derniers Jours</div>
                         <div className="text-3xl font-bold text-green-900">
-                          {predictions.sales_forecast?.next_quarter?.toLocaleString() || 0} €
+                          {predictions.total_sales_last_30_days || 0} ventes
                         </div>
                       </div>
                     </div>
+                    <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-green-700">Moyenne/jour: </span>
+                        <span className="font-semibold text-green-900">{predictions.current_daily_average || 0}</span>
+                      </div>
+                      <div>
+                        <span className="text-green-700">Potentiel: </span>
+                        <span className="font-semibold text-green-900">{predictions.growth_potential || 'N/A'}</span>
+                      </div>
+                    </div>
                     <div className="mt-4 text-sm text-green-700">
-                      Confiance: {predictions.sales_forecast?.confidence || 0}%
+                      Score de Tendance: {predictions.trend_score || 0}% 
+                      <div className="w-full bg-green-200 rounded-full h-2 mt-1">
+                        <div 
+                          className="bg-green-600 h-2 rounded-full transition-all" 
+                          style={{width: `${predictions.trend_score || 0}%`}}
+                        ></div>
+                      </div>
                     </div>
                   </div>
 
                   {/* Recommendations */}
                   <div className="bg-gradient-to-br from-indigo-50 to-purple-50 p-6 rounded-xl border-2 border-indigo-200">
                     <h3 className="font-semibold text-lg mb-4 text-indigo-900">
-                      💡 Recommandations Stratégiques
+                      💡 Recommandation Stratégique
                     </h3>
-                    <ul className="space-y-3">
-                      <li className="flex items-start">
-                        <span className="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">
-                          1
-                        </span>
-                        <span className="text-gray-700">
-                          Augmenter le budget de 15% sur Instagram pour maximiser le ROI
-                        </span>
-                      </li>
-                      <li className="flex items-start">
-                        <span className="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">
-                          2
-                        </span>
-                        <span className="text-gray-700">
-                          Cibler les 25-34 ans pour de meilleurs résultats
-                        </span>
-                      </li>
-                      <li className="flex items-start">
-                        <span className="bg-indigo-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-sm mr-3 flex-shrink-0">
-                          3
-                        </span>
-                        <span className="text-gray-700">
-                          Publier entre 18h-20h pour plus d'engagement
-                        </span>
-                      </li>
-                    </ul>
+                    <div className="bg-white p-4 rounded-lg border border-indigo-200">
+                      <p className="text-gray-700 leading-relaxed">
+                        {predictions.recommended_strategy || 'Continuez à créer des campagnes pour obtenir des recommandations personnalisées.'}
+                      </p>
+                    </div>
+                    {predictions.note && (
+                      <div className="mt-4 text-sm text-indigo-600 italic">
+                        ℹ️ {predictions.note}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

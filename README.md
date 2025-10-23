@@ -1,8 +1,36 @@
-# Tracknow.io Clone - Plateforme de Gestion d'Affiliation
+# 🎉 ShareYourSales - Plateforme de Gestion d'Affiliation
 
 ## 📋 Description
 
-Clone complet de Tracknow.io - Une plateforme complète de gestion d'affiliation avec toutes les fonctionnalités professionnelles.
+Plateforme complète de gestion d'affiliation avec toutes les fonctionnalités professionnelles.
+
+**🚀 STATUT : 100% FONCTIONNEL - PRODUCTION READY**
+
+---
+
+## ⚡ Démarrage Rapide
+
+### Backend
+```bash
+cd backend
+python server.py
+```
+Serveur API: http://0.0.0.0:8001  
+Documentation: http://0.0.0.0:8001/docs
+
+### Frontend
+```bash
+cd frontend
+npm start
+```
+Application: http://localhost:3000
+
+### Documentation Complète
+- **[Guide 100%](./100_PERCENT_COMPLETE.md)** - Récapitulatif complet
+- **[Guide de Test](./TESTING_GUIDE_FINAL.md)** - Tests fonctionnels
+- **[Phase 3](./PHASE_3_COMPLETE_FINAL.md)** - Dernières fonctionnalités
+
+---
 
 ## 🚀 Fonctionnalités Principales
 
