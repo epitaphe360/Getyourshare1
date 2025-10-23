@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import api from '../../utils/api';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
-import { Building, Mail, MapPin, CreditCard } from 'lucide-react';
+import { Building, Mail, MapPin, CreditCard, Check, AlertCircle } from 'lucide-react';
 
 const CompanySettings = () => {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [notification, setNotification] = useState(null);
 
   useEffect(() => {
     fetchSettings();
@@ -25,7 +27,27 @@ const CompanySettings = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Saving company settings:', settings);
+    setSaving(true);
+    setNotification(null);
+    
+    try {
+      await api.put('/api/settings/company', settings);
+      setNotification({
+        type: 'success',
+        message: 'Paramètres de l\'entreprise enregistrés avec succès !'
+      });
+      
+      // Recharger les paramètres pour confirmer
+      await fetchSettings();
+    } catch (error) {
+      console.error('Error saving company settings:', error);
+      setNotification({
+        type: 'error',
+        message: error.response?.data?.detail || 'Erreur lors de l\'enregistrement des paramètres'
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return <div>Chargement...</div>;
@@ -36,6 +58,26 @@ const CompanySettings = () => {
         <h1 className="text-3xl font-bold text-gray-900">Paramètres de l'Entreprise</h1>
         <p className="text-gray-600 mt-2">Informations générales de votre entreprise</p>
       </div>
+
+      {/* Notification */}
+      {notification && (
+        <div className={`p-4 rounded-lg flex items-center gap-3 ${
+          notification.type === 'success' 
+            ? 'bg-green-50 border border-green-200' 
+            : 'bg-red-50 border border-red-200'
+        }`}>
+          {notification.type === 'success' ? (
+            <Check className="text-green-600" size={20} />
+          ) : (
+            <AlertCircle className="text-red-600" size={20} />
+          )}
+          <span className={`${
+            notification.type === 'success' ? 'text-green-800' : 'text-red-800'
+          }`}>
+            {notification.message}
+          </span>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <Card title="Informations de l'Entreprise">
@@ -118,8 +160,8 @@ const CompanySettings = () => {
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit">
-                Enregistrer les modifications
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
               </Button>
             </div>
           </div>

@@ -43,117 +43,267 @@ const Sidebar = () => {
     setExpandedMenus(prev => ({ ...prev, [menu]: !prev[menu] }));
   };
 
-  const menuItems = [
-    {
-      title: 'Getting Started',
-      icon: <Newspaper size={20} />,
-      path: '/getting-started',
-    },
-    {
-      title: 'Dashboard',
-      icon: <LayoutDashboard size={20} />,
-      path: '/dashboard',
-    },
-    {
-      title: 'Messages',
-      icon: <MessageSquare size={20} />,
-      path: '/messages',
-    },
-    {
-      title: 'News & Newsletter',
-      icon: <Newspaper size={20} />,
-      path: '/news',
-    },
-    {
-      title: 'Annonceurs',
-      icon: <Users size={20} />,
-      submenu: 'advertisers',
-      items: [
-        { title: 'Liste', path: '/advertisers' },
-        { title: 'Inscriptions', path: '/advertisers/registrations' },
-        { title: 'Facturation', path: '/advertisers/billing' },
-      ],
-    },
-    {
-      title: 'Campagnes/Offres',
-      icon: <Target size={20} />,
-      path: '/campaigns',
-    },
-    {
-      title: 'Produits',
-      icon: <ShoppingCart size={20} />,
-      path: '/products',
-    },
-    {
-      title: 'Performance',
-      icon: <TrendingUp size={20} />,
-      submenu: 'performance',
-      items: [
-        { title: 'Conversions', path: '/performance/conversions' },
-        { title: 'Commissions MLM', path: '/performance/mlm-commissions' },
-        { title: 'Leads', path: '/performance/leads' },
-        { title: 'Rapports', path: '/performance/reports' },
-      ],
-    },
-    {
-      title: 'Affiliés',
-      icon: <UserCheck size={20} />,
-      submenu: 'affiliates',
-      items: [
-        { title: 'Liste', path: '/affiliates' },
-        { title: 'Demandes', path: '/affiliates/applications' },
-        { title: 'Paiements', path: '/affiliates/payouts' },
-        { title: 'Coupons', path: '/affiliates/coupons' },
-        { title: 'Commandes Perdues', path: '/affiliates/lost-orders' },
-        { title: 'Rapport de Solde', path: '/affiliates/balance-report' },
-      ],
-    },
-    {
-      title: 'Logs',
-      icon: <FileText size={20} />,
-      submenu: 'logs',
-      items: [
-        { title: 'Clics', path: '/logs/clicks' },
-        { title: 'Postback', path: '/logs/postback' },
-        { title: 'Audit', path: '/logs/audit' },
-        { title: 'Webhooks', path: '/logs/webhooks' },
-      ],
-    },
-    {
-      title: 'Marketplace',
-      icon: <ShoppingCart size={20} />,
-      path: '/marketplace',
-    },
-    {
-      title: 'Liens de Tracking',
-      icon: <LinkIcon size={20} />,
-      path: '/tracking-links',
-    },
-    {
-      title: 'Intégrations',
-      icon: <Zap size={20} />,
-      path: '/integrations',
-    },
-    {
-      title: 'Paramètres',
-      icon: <Settings size={20} />,
-      submenu: 'settings',
-      items: [
-        { title: 'Personnel', path: '/settings/personal' },
-        { title: 'Sécurité', path: '/settings/security' },
-        { title: 'Entreprise', path: '/settings/company' },
-        { title: 'Affiliés', path: '/settings/affiliates' },
-        { title: 'Inscription', path: '/settings/registration' },
-        { title: 'MLM', path: '/settings/mlm' },
-        { title: 'Sources de Trafic', path: '/settings/traffic-sources' },
-        { title: 'Permissions', path: '/settings/permissions' },
-        { title: 'Utilisateurs', path: '/settings/users' },
-        { title: 'SMTP', path: '/settings/smtp' },
-        { title: 'Emails', path: '/settings/emails' },
-        { title: 'White Label', path: '/settings/white-label' },
-      ],
-    },
-  ];
+  // ============================================
+  // MENUS ADAPTÉS PAR RÔLE
+  // ============================================
+
+  const getMenuItemsForRole = (role) => {
+    // Menu pour INFLUENCER - Simplifié et focalisé
+    const influencerMenu = [
+      {
+        title: 'Getting Started',
+        icon: <Newspaper size={20} />,
+        path: '/getting-started',
+      },
+      {
+        title: 'Dashboard',
+        icon: <LayoutDashboard size={20} />,
+        path: '/dashboard',
+      },
+      {
+        title: 'Messages',
+        icon: <MessageSquare size={20} />,
+        path: '/messages',
+      },
+      {
+        title: 'Marketplace',
+        icon: <ShoppingCart size={20} />,
+        path: '/marketplace',
+      },
+      {
+        title: 'Mes Campagnes',
+        icon: <Target size={20} />,
+        path: '/campaigns',
+      },
+      {
+        title: 'Mes Liens',
+        icon: <LinkIcon size={20} />,
+        path: '/tracking-links',
+      },
+      {
+        title: 'Performance',
+        icon: <TrendingUp size={20} />,
+        submenu: 'performance',
+        items: [
+          { title: 'Conversions', path: '/performance/conversions' },
+          { title: 'Rapports', path: '/performance/reports' },
+        ],
+      },
+      {
+        title: 'Paramètres',
+        icon: <Settings size={20} />,
+        submenu: 'settings',
+        items: [
+          { title: 'Personnel', path: '/settings/personal' },
+          { title: 'Sécurité', path: '/settings/security' },
+        ],
+      },
+    ];
+
+    // Menu pour MERCHANT - Adapté à la gestion commerciale
+    const merchantMenu = [
+      {
+        title: 'Getting Started',
+        icon: <Newspaper size={20} />,
+        path: '/getting-started',
+      },
+      {
+        title: 'Dashboard',
+        icon: <LayoutDashboard size={20} />,
+        path: '/dashboard',
+      },
+      {
+        title: 'Messages',
+        icon: <MessageSquare size={20} />,
+        path: '/messages',
+      },
+      {
+        title: 'Mes Produits',
+        icon: <ShoppingCart size={20} />,
+        path: '/products',
+      },
+      {
+        title: 'Mes Campagnes',
+        icon: <Target size={20} />,
+        path: '/campaigns',
+      },
+      {
+        title: 'Mes Affiliés',
+        icon: <UserCheck size={20} />,
+        submenu: 'affiliates',
+        items: [
+          { title: 'Liste', path: '/affiliates' },
+          { title: 'Demandes', path: '/affiliates/applications' },
+          { title: 'Paiements', path: '/affiliates/payouts' },
+          { title: 'Coupons', path: '/affiliates/coupons' },
+        ],
+      },
+      {
+        title: 'Performance',
+        icon: <TrendingUp size={20} />,
+        submenu: 'performance',
+        items: [
+          { title: 'Conversions', path: '/performance/conversions' },
+          { title: 'Commissions MLM', path: '/performance/mlm-commissions' },
+          { title: 'Rapports', path: '/performance/reports' },
+        ],
+      },
+      {
+        title: 'Suivi',
+        icon: <FileText size={20} />,
+        submenu: 'logs',
+        items: [
+          { title: 'Clics', path: '/logs/clicks' },
+          { title: 'Postback', path: '/logs/postback' },
+        ],
+      },
+      {
+        title: 'Marketplace',
+        icon: <ShoppingCart size={20} />,
+        path: '/marketplace',
+      },
+      {
+        title: 'Paramètres',
+        icon: <Settings size={20} />,
+        submenu: 'settings',
+        items: [
+          { title: 'Personnel', path: '/settings/personal' },
+          { title: 'Sécurité', path: '/settings/security' },
+          { title: 'Entreprise', path: '/settings/company' },
+          { title: 'Affiliés', path: '/settings/affiliates' },
+          { title: 'SMTP', path: '/settings/smtp' },
+          { title: 'Emails', path: '/settings/emails' },
+        ],
+      },
+    ];
+
+    // Menu pour ADMIN - Complet avec toutes les fonctionnalités
+    const adminMenu = [
+      {
+        title: 'Getting Started',
+        icon: <Newspaper size={20} />,
+        path: '/getting-started',
+      },
+      {
+        title: 'Dashboard',
+        icon: <LayoutDashboard size={20} />,
+        path: '/dashboard',
+      },
+      {
+        title: 'Messages',
+        icon: <MessageSquare size={20} />,
+        path: '/messages',
+      },
+      {
+        title: 'News & Newsletter',
+        icon: <Newspaper size={20} />,
+        path: '/news',
+      },
+      {
+        title: 'Annonceurs',
+        icon: <Users size={20} />,
+        submenu: 'advertisers',
+        items: [
+          { title: 'Liste', path: '/advertisers' },
+          { title: 'Inscriptions', path: '/advertisers/registrations' },
+          { title: 'Facturation', path: '/advertisers/billing' },
+        ],
+      },
+      {
+        title: 'Campagnes/Offres',
+        icon: <Target size={20} />,
+        path: '/campaigns',
+      },
+      {
+        title: 'Produits',
+        icon: <ShoppingCart size={20} />,
+        path: '/products',
+      },
+      {
+        title: 'Performance',
+        icon: <TrendingUp size={20} />,
+        submenu: 'performance',
+        items: [
+          { title: 'Conversions', path: '/performance/conversions' },
+          { title: 'Commissions MLM', path: '/performance/mlm-commissions' },
+          { title: 'Leads', path: '/performance/leads' },
+          { title: 'Rapports', path: '/performance/reports' },
+        ],
+      },
+      {
+        title: 'Affiliés',
+        icon: <UserCheck size={20} />,
+        submenu: 'affiliates',
+        items: [
+          { title: 'Liste', path: '/affiliates' },
+          { title: 'Demandes', path: '/affiliates/applications' },
+          { title: 'Paiements', path: '/affiliates/payouts' },
+          { title: 'Coupons', path: '/affiliates/coupons' },
+          { title: 'Commandes Perdues', path: '/affiliates/lost-orders' },
+          { title: 'Rapport de Solde', path: '/affiliates/balance-report' },
+        ],
+      },
+      {
+        title: 'Logs',
+        icon: <FileText size={20} />,
+        submenu: 'logs',
+        items: [
+          { title: 'Clics', path: '/logs/clicks' },
+          { title: 'Postback', path: '/logs/postback' },
+          { title: 'Audit', path: '/logs/audit' },
+          { title: 'Webhooks', path: '/logs/webhooks' },
+        ],
+      },
+      {
+        title: 'Marketplace',
+        icon: <ShoppingCart size={20} />,
+        path: '/marketplace',
+      },
+      {
+        title: 'Liens de Tracking',
+        icon: <LinkIcon size={20} />,
+        path: '/tracking-links',
+      },
+      {
+        title: 'Intégrations',
+        icon: <Zap size={20} />,
+        path: '/integrations',
+      },
+      {
+        title: 'Paramètres',
+        icon: <Settings size={20} />,
+        submenu: 'settings',
+        items: [
+          { title: 'Personnel', path: '/settings/personal' },
+          { title: 'Sécurité', path: '/settings/security' },
+          { title: 'Entreprise', path: '/settings/company' },
+          { title: 'Affiliés', path: '/settings/affiliates' },
+          { title: 'Inscription', path: '/settings/registration' },
+          { title: 'MLM', path: '/settings/mlm' },
+          { title: 'Sources de Trafic', path: '/settings/traffic-sources' },
+          { title: 'Permissions', path: '/settings/permissions' },
+          { title: 'Utilisateurs', path: '/settings/users' },
+          { title: 'SMTP', path: '/settings/smtp' },
+          { title: 'Emails', path: '/settings/emails' },
+          { title: 'White Label', path: '/settings/white-label' },
+        ],
+      },
+    ];
+
+    // Retourner le menu approprié selon le rôle
+    switch (role?.toLowerCase()) {
+      case 'influencer':
+        return influencerMenu;
+      case 'merchant':
+        return merchantMenu;
+      case 'admin':
+      default:
+        return adminMenu;
+    }
+  };
+
+  // Obtenir le menu selon le rôle de l'utilisateur
+  const menuItems = getMenuItemsForRole(user?.role);
 
   const renderMenuItem = (item) => {
     if (item.submenu) {
