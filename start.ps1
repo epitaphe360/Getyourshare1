@@ -24,7 +24,7 @@ if (-not (Test-Path "backend\.env")) {
 Write-Host "`n🚀 Démarrage du serveur backend..." -ForegroundColor Yellow
 $backendJob = Start-Job -ScriptBlock {
     Set-Location $using:PWD
-    cd backend
+    Set-Location backend
     python server.py
 }
 
@@ -63,9 +63,9 @@ if (-not (Test-Path "frontend\build")) {
     Write-Host "⚠️  Build frontend manquant, création en cours..." -ForegroundColor Yellow
     Write-Host "   (Cela peut prendre 1-2 minutes)" -ForegroundColor Gray
     
-    cd frontend
+    Set-Location frontend
     npm run build
-    cd ..
+    Set-Location ..
     
     if (-not (Test-Path "frontend\build")) {
         Write-Host "❌ Échec du build frontend" -ForegroundColor Red
@@ -81,7 +81,7 @@ Write-Host "`n🚀 Démarrage du serveur frontend..." -ForegroundColor Yellow
 
 # Vérifier si 'serve' est installé
 try {
-    $serveVersion = serve --version 2>&1
+    $null = serve --version 2>&1
     Write-Host "✅ serve est installé" -ForegroundColor Green
 } catch {
     Write-Host "⚠️  Installation de 'serve' en cours..." -ForegroundColor Yellow
@@ -90,7 +90,7 @@ try {
 
 $frontendJob = Start-Job -ScriptBlock {
     Set-Location $using:PWD
-    cd frontend
+    Set-Location frontend
     serve -s build -l 52112
 }
 

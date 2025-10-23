@@ -7,7 +7,7 @@ import Card from '../../components/common/Card';
 import SkeletonDashboard from '../../components/common/SkeletonLoader';
 import { 
   DollarSign, ShoppingBag, Users, TrendingUp, 
-  Package, Eye, Target, Award, Plus, Search 
+  Package, Eye, Target, Award, Plus, Search, FileText, Settings 
 } from 'lucide-react';
 import { 
   LineChart, Line, BarChart, Bar, 
@@ -257,7 +257,7 @@ const MerchantDashboard = () => {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <button
           onClick={() => navigate('/products')}
           className="p-6 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition"
@@ -283,6 +283,15 @@ const MerchantDashboard = () => {
           <TrendingUp className="w-8 h-8 mb-3" />
           <div className="text-xl font-bold">Rapports</div>
           <div className="text-sm text-green-100 mt-1">Analyses détaillées</div>
+        </button>
+
+        <button
+          onClick={() => navigate('/merchant/invoices')}
+          className="p-6 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition"
+        >
+          <FileText className="w-8 h-8 mb-3" />
+          <div className="text-xl font-bold">Mes Factures</div>
+          <div className="text-sm text-orange-100 mt-1">Facturation mensuelle</div>
         </button>
       </div>
     </div>

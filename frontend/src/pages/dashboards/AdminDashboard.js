@@ -6,7 +6,7 @@ import Card from '../../components/common/Card';
 import SkeletonDashboard from '../../components/common/SkeletonLoader';
 import { 
   TrendingUp, Users, DollarSign, ShoppingBag, 
-  Sparkles, BarChart3, Target, Eye 
+  Sparkles, BarChart3, Target, Eye, Settings, FileText, Bell
 } from 'lucide-react';
 import { 
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -79,7 +79,25 @@ const AdminDashboard = () => {
           <p className="text-gray-600 mt-2">Vue d'ensemble complète de la plateforme</p>
         </div>
         <div className="flex space-x-3">
-          <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+          <button 
+            onClick={() => navigate('/admin/users/create')}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
+          >
+            <Users size={18} />
+            Ajouter Utilisateur
+          </button>
+          <button 
+            onClick={() => navigate('/admin/reports')}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
+          >
+            <BarChart3 size={18} />
+            Générer Rapport
+          </button>
+          <button 
+            onClick={() => window.print()}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+          >
+            <TrendingUp size={18} />
             Export PDF
           </button>
         </div>
@@ -263,6 +281,45 @@ const AdminDashboard = () => {
             <div className="text-gray-600 mt-1">Croissance ce Trimestre</div>
           </div>
         </Card>
+      </div>
+
+      {/* Quick Actions for Admin */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <button
+          onClick={() => navigate('/admin/users')}
+          className="p-6 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition"
+        >
+          <Users className="w-8 h-8 mb-3" />
+          <div className="text-xl font-bold">Gestion Utilisateurs</div>
+          <div className="text-sm text-indigo-100 mt-1">Admins, Marchands, Influenceurs</div>
+        </button>
+
+        <button
+          onClick={() => navigate('/admin/gateway-stats')}
+          className="p-6 bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition"
+        >
+          <DollarSign className="w-8 h-8 mb-3" />
+          <div className="text-xl font-bold">Paiements Gateway</div>
+          <div className="text-sm text-purple-100 mt-1">CMI, PayZen, SG Maroc</div>
+        </button>
+
+        <button
+          onClick={() => navigate('/settings/company')}
+          className="p-6 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition"
+        >
+          <Settings className="w-8 h-8 mb-3" />
+          <div className="text-xl font-bold">Configuration</div>
+          <div className="text-sm text-green-100 mt-1">Paramètres plateforme</div>
+        </button>
+
+        <button
+          onClick={() => navigate('/admin/invoices')}
+          className="p-6 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition"
+        >
+          <FileText className="w-8 h-8 mb-3" />
+          <div className="text-xl font-bold">Facturation</div>
+          <div className="text-sm text-orange-100 mt-1">Gérer les factures</div>
+        </button>
       </div>
     </div>
   );

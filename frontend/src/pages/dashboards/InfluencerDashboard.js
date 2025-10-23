@@ -6,10 +6,10 @@ import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
 import { 
   DollarSign, MousePointer, ShoppingCart, TrendingUp, 
-  Eye, Target, Award, Link as LinkIcon, Sparkles 
+  Eye, Target, Award, Link as LinkIcon, Sparkles, Wallet, BarChart3
 } from 'lucide-react';
 import { 
-  LineChart, Line, AreaChart, Area,
+  LineChart, Line, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
 } from 'recharts';
 
@@ -20,6 +20,7 @@ const InfluencerDashboard = () => {
   const [links, setLinks] = useState([]);
   const [earningsData, setEarningsData] = useState([]);
   const [performanceData, setPerformanceData] = useState([]);
+  const [productEarnings, setProductEarnings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,6 +38,18 @@ const InfluencerDashboard = () => {
       setStats(statsRes.data);
       setLinks(linksRes.data.links || []);
       setEarningsData(earningsRes.data.data || []);
+      
+      // Calculer les gains par produit à partir des liens
+      const productEarningsData = (linksRes.data.links || [])
+        .filter(link => link.commission_earned > 0)
+        .sort((a, b) => b.commission_earned - a.commission_earned)
+        .slice(0, 10) // Top 10 produits
+        .map(link => ({
+          name: link.product_name?.substring(0, 20) + (link.product_name?.length > 20 ? '...' : ''),
+          gains: link.commission_earned || 0,
+          conversions: link.conversions || 0
+        }));
+      setProductEarnings(productEarningsData);
       
       // Pour performanceData, on peut utiliser les mêmes données mais avec clics et conversions
       // On va créer un calcul basé sur les stats existantes
@@ -196,6 +209,89 @@ const InfluencerDashboard = () => {
         </Card>
       </div>
 
+      {/* Gains par Produit Affilié */}
+      <Card title="💰 Top 10 - Gains par Produit Affilié" icon={<DollarSign size={20} />}>
+        {productEarnings.length > 0 ? (
+          <>
+            <ResponsiveContainer width="100%" height={400}>
+              <BarChart data={productEarnings} layout="horizontal">
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={150} />
+                <Tooltip 
+                  formatter={(value, name) => {
+                    if (name === 'gains') return [`${value} €`, 'Gains'];
+                    return [value, 'Conversions'];
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="gains" fill="#10b981" name="Gains (€)" />
+                <Bar dataKey="conversions" fill="#6366f1" name="Conversions" />
+              </BarChart>
+            </ResponsiveContainer>
+            
+            {/* Tableau détaillé */}
+            <div className="mt-6 overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rang</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produit</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Conversions</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gains</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gain/Conv</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {productEarnings.map((product, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                          index === 0 ? 'bg-yellow-100 text-yellow-700' :
+                          index === 1 ? 'bg-gray-100 text-gray-700' :
+                          index === 2 ? 'bg-orange-100 text-orange-700' :
+                          'bg-blue-50 text-blue-700'
+                        }`}>
+                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-medium text-gray-900">{product.name}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <span className="px-2 py-1 text-sm font-semibold rounded-full bg-indigo-100 text-indigo-800">
+                          {product.conversions}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <span className="text-lg font-bold text-green-600">
+                          {product.gains.toLocaleString()} €
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">
+                        {product.conversions > 0 ? (product.gains / product.conversions).toFixed(2) : '0.00'} €
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : (
+          <div className="text-center py-12 text-gray-500">
+            <DollarSign className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+            <p className="text-lg font-medium">Aucun gain enregistré</p>
+            <p className="text-sm mt-2">Commencez à promouvoir des produits pour voir vos gains ici</p>
+            <button
+              onClick={() => navigate('/marketplace')}
+              className="mt-4 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+            >
+              Explorer le Marketplace
+            </button>
+          </div>
+        )}
+      </Card>
+
       {/* My Links Performance */}
       <Card title="Mes Liens d'Affiliation" icon={<LinkIcon size={20} />}>
         <div className="overflow-x-auto">
@@ -268,7 +364,7 @@ const InfluencerDashboard = () => {
       </Card>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <button
           onClick={() => navigate('/marketplace')}
           className="p-6 bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition"
@@ -294,6 +390,15 @@ const InfluencerDashboard = () => {
           <Award className="w-8 h-8 mb-3" />
           <div className="text-xl font-bold">IA Marketing</div>
           <div className="text-sm text-pink-100 mt-1">Optimiser vos campagnes</div>
+        </button>
+
+        <button
+          onClick={() => navigate('/performance/reports')}
+          className="p-6 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition"
+        >
+          <BarChart3 className="w-8 h-8 mb-3" />
+          <div className="text-xl font-bold">Mes Rapports</div>
+          <div className="text-sm text-green-100 mt-1">Analyses de performance</div>
         </button>
       </div>
     </div>
