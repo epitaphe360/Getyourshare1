@@ -3,8 +3,9 @@ ShareYourSales API Server - Version Supabase
 Tous les endpoints utilisent Supabase au lieu de MOCK_DATA
 """
 
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional, List
@@ -21,6 +22,15 @@ from supabase_client import supabase
 load_dotenv()
 
 app = FastAPI(title="ShareYourSales API - Supabase Edition")
+
+# Importer le scheduler et les services
+from scheduler import start_scheduler, stop_scheduler
+from auto_payment_service import AutoPaymentService
+from tracking_service import tracking_service
+from webhook_service import webhook_service
+
+# Initialiser les services
+payment_service = AutoPaymentService()
 
 # CORS configuration - Allow all localhost origins
 app.add_middleware(
@@ -91,6 +101,16 @@ class MessageCreate(BaseModel):
 
 class MessageRead(BaseModel):
     message_id: str = Field(..., min_length=1)
+
+class CompanySettingsUpdate(BaseModel):
+    name: Optional[str] = Field(None, max_length=255)
+    email: Optional[EmailStr] = None
+    address: Optional[str] = Field(None, max_length=500)
+    tax_id: Optional[str] = Field(None, max_length=50)
+    currency: Optional[str] = Field(None, pattern="^(EUR|USD|GBP|MAD)$")
+    phone: Optional[str] = Field(None, max_length=20)
+    website: Optional[str] = Field(None, max_length=255)
+    logo_url: Optional[str] = Field(None, max_length=500)
 
 # Helper Functions
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -867,6 +887,64 @@ async def update_settings(settings: dict, payload: dict = Depends(verify_token))
     # Mock pour l'instant
     return settings
 
+@app.get("/api/settings/company")
+async def get_company_settings(payload: dict = Depends(verify_token)):
+    """Récupère les paramètres de l'entreprise pour l'utilisateur connecté"""
+    user_id = payload.get("user_id")
+    
+    try:
+        # Chercher les paramètres de l'entreprise
+        response = supabase.table('company_settings').select('*').eq('user_id', user_id).execute()
+        
+        if response.data and len(response.data) > 0:
+            return response.data[0]
+        else:
+            # Retourner des valeurs par défaut si aucun paramètre n'existe
+            return {
+                "user_id": user_id,
+                "name": "",
+                "email": "",
+                "address": "",
+                "tax_id": "",
+                "currency": "MAD",
+                "phone": "",
+                "website": "",
+                "logo_url": ""
+            }
+    except Exception as e:
+        print(f"❌ Erreur lors de la récupération des paramètres: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
+
+@app.put("/api/settings/company")
+async def update_company_settings(settings: CompanySettingsUpdate, payload: dict = Depends(verify_token)):
+    """Met à jour les paramètres de l'entreprise"""
+    user_id = payload.get("user_id")
+    
+    try:
+        # Préparer les données à mettre à jour (exclure les valeurs None)
+        update_data = {k: v for k, v in settings.dict().items() if v is not None}
+        update_data['user_id'] = user_id
+        update_data['updated_at'] = datetime.now().isoformat()
+        
+        # Vérifier si les paramètres existent déjà
+        check_response = supabase.table('company_settings').select('id').eq('user_id', user_id).execute()
+        
+        if check_response.data and len(check_response.data) > 0:
+            # Update
+            response = supabase.table('company_settings').update(update_data).eq('user_id', user_id).execute()
+        else:
+            # Insert
+            update_data['created_at'] = datetime.now().isoformat()
+            response = supabase.table('company_settings').insert(update_data).execute()
+        
+        return {
+            "message": "Paramètres enregistrés avec succès",
+            "data": response.data[0] if response.data else update_data
+        }
+    except Exception as e:
+        print(f"❌ Erreur lors de la mise à jour des paramètres: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
+
 # ============================================
 # AI MARKETING ENDPOINTS
 # ============================================
@@ -1401,6 +1479,119 @@ async def get_platform_metrics(payload: dict = Depends(verify_token)):
             "quarterly_growth": 32.0
         }
 
+@app.get("/api/admin/platform-revenue")
+async def get_platform_revenue(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    payload: dict = Depends(verify_token)
+):
+    """
+    📊 Revenus de la plateforme (commission 5%)
+    
+    Affiche:
+    - Total des commissions plateforme
+    - Répartition par merchant
+    - Statistiques détaillées
+    """
+    try:
+        user = get_user_by_id(payload["sub"])
+        if user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Admin uniquement")
+        
+        # Requête base
+        query = supabase.table('sales')\
+            .select('*, merchants(company_name)')\
+            .eq('status', 'completed')
+        
+        # Filtres dates optionnels
+        if start_date:
+            query = query.gte('created_at', start_date)
+        if end_date:
+            query = query.lte('created_at', end_date)
+        
+        sales = query.execute()
+        
+        if not sales.data:
+            return {
+                'summary': {
+                    'total_platform_revenue': 0,
+                    'total_influencer_commission': 0,
+                    'total_merchant_revenue': 0,
+                    'total_sales': 0,
+                    'average_commission_per_sale': 0
+                },
+                'by_merchant': [],
+                'recent_commissions': []
+            }
+        
+        # Calculer statistiques globales
+        total_platform_revenue = sum(float(sale.get('platform_commission', 0)) for sale in sales.data)
+        total_influencer_commission = sum(float(sale.get('influencer_commission', 0)) for sale in sales.data)
+        total_merchant_revenue = sum(float(sale.get('merchant_revenue', 0)) for sale in sales.data)
+        total_amount = sum(float(sale.get('amount', 0)) for sale in sales.data)
+        
+        # Grouper par merchant
+        merchants_revenue = {}
+        for sale in sales.data:
+            merchant_id = sale.get('merchant_id')
+            if not merchant_id:
+                continue
+                
+            if merchant_id not in merchants_revenue:
+                merchants_revenue[merchant_id] = {
+                    'merchant_id': merchant_id,
+                    'company_name': sale.get('merchants', {}).get('company_name', 'Unknown') if sale.get('merchants') else 'Unknown',
+                    'platform_commission': 0,
+                    'influencer_commission': 0,
+                    'merchant_revenue': 0,
+                    'total_sales_amount': 0,
+                    'sales_count': 0
+                }
+            
+            merchants_revenue[merchant_id]['platform_commission'] += float(sale.get('platform_commission', 0))
+            merchants_revenue[merchant_id]['influencer_commission'] += float(sale.get('influencer_commission', 0))
+            merchants_revenue[merchant_id]['merchant_revenue'] += float(sale.get('merchant_revenue', 0))
+            merchants_revenue[merchant_id]['total_sales_amount'] += float(sale.get('amount', 0))
+            merchants_revenue[merchant_id]['sales_count'] += 1
+        
+        # Trier par commission décroissante
+        merchants_list = sorted(
+            merchants_revenue.values(),
+            key=lambda x: x['platform_commission'],
+            reverse=True
+        )
+        
+        # 10 dernières commissions
+        recent_commissions = []
+        for sale in sales.data[:10]:
+            recent_commissions.append({
+                'merchant_id': sale.get('merchant_id'),
+                'company_name': sale.get('merchants', {}).get('company_name', 'Unknown') if sale.get('merchants') else 'Unknown',
+                'amount': float(sale.get('amount', 0)),
+                'platform_commission': float(sale.get('platform_commission', 0)),
+                'influencer_commission': float(sale.get('influencer_commission', 0)),
+                'merchant_revenue': float(sale.get('merchant_revenue', 0)),
+                'created_at': sale.get('created_at')
+            })
+        
+        return {
+            'summary': {
+                'total_platform_revenue': round(total_platform_revenue, 2),
+                'total_influencer_commission': round(total_influencer_commission, 2),
+                'total_merchant_revenue': round(total_merchant_revenue, 2),
+                'total_sales_amount': round(total_amount, 2),
+                'total_sales': len(sales.data),
+                'average_commission_per_sale': round(total_platform_revenue / len(sales.data), 2) if sales.data else 0,
+                'platform_commission_rate': round((total_platform_revenue / total_amount * 100), 2) if total_amount > 0 else 0
+            },
+            'by_merchant': merchants_list,
+            'recent_commissions': recent_commissions
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting platform revenue: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ============================================
 try:
     from advanced_endpoints import integrate_all_endpoints
@@ -1411,8 +1602,1170 @@ except ImportError as e:
 except Exception as e:
     print(f"⚠️  Erreur lors du chargement des endpoints avancés: {e}")
 
+# ============================================
+# ÉVÉNEMENTS STARTUP/SHUTDOWN
+# ============================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Événement de démarrage - Lance le scheduler"""
+    print("🚀 Démarrage du serveur...")
+    print("📊 Base de données: Supabase PostgreSQL")
+    print("⏰ Lancement du scheduler de paiements automatiques...")
+    start_scheduler()
+    print("✅ Scheduler actif")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Événement d'arrêt - Arrête le scheduler"""
+    print("🛑 Arrêt du serveur...")
+    stop_scheduler()
+    print("✅ Scheduler arrêté")
+
+# ============================================
+# ENDPOINTS PAIEMENTS AUTOMATIQUES
+# ============================================
+
+@app.post("/api/admin/validate-sales")
+async def manual_validate_sales(payload: dict = Depends(verify_token)):
+    """Déclenche manuellement la validation des ventes (admin only)"""
+    user = get_user_by_id(payload["sub"])
+    
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    
+    result = payment_service.validate_pending_sales()
+    return result
+
+@app.post("/api/admin/process-payouts")
+async def manual_process_payouts(payload: dict = Depends(verify_token)):
+    """Déclenche manuellement les paiements automatiques (admin only)"""
+    user = get_user_by_id(payload["sub"])
+    
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin uniquement")
+    
+    result = payment_service.process_automatic_payouts()
+    return result
+
+@app.post("/api/sales/{sale_id}/refund")
+async def refund_sale(sale_id: str, reason: str = "customer_return", payload: dict = Depends(verify_token)):
+    """Traite un remboursement de vente"""
+    user = get_user_by_id(payload["sub"])
+    
+    if user["role"] not in ["admin", "merchant"]:
+        raise HTTPException(status_code=403, detail="Accès refusé")
+    
+    result = payment_service.process_refund(sale_id, reason)
+    
+    if not result["success"]:
+        raise HTTPException(status_code=400, detail=result["error"])
+    
+    return result
+
+@app.put("/api/influencer/payment-method")
+async def update_payment_method(
+    payment_data: dict,
+    payload: dict = Depends(verify_token)
+):
+    """Met à jour la méthode de paiement de l'influenceur"""
+    user = get_user_by_id(payload["sub"])
+    
+    if user["role"] != "influencer":
+        raise HTTPException(status_code=403, detail="Influenceurs uniquement")
+    
+    influencer = get_influencer_by_user_id(user["id"])
+    if not influencer:
+        raise HTTPException(status_code=404, detail="Profil influenceur non trouvé")
+    
+    # Valider les données selon la méthode
+    payment_method = payment_data.get("method")
+    payment_details = payment_data.get("details", {})
+    
+    if payment_method == "paypal":
+        if not payment_details.get("email"):
+            raise HTTPException(status_code=400, detail="Email PayPal requis")
+    elif payment_method == "bank_transfer":
+        if not payment_details.get("iban") or not payment_details.get("account_name"):
+            raise HTTPException(status_code=400, detail="IBAN et nom du compte requis")
+    else:
+        raise HTTPException(status_code=400, detail="Méthode de paiement invalide")
+    
+    # Mettre à jour dans la base
+    update_response = supabase.table('influencers').update({
+        'payment_method': payment_method,
+        'payment_details': payment_details,
+        'updated_at': datetime.now().isoformat()
+    }).eq('id', influencer["id"]).execute()
+    
+    if not update_response.data:
+        raise HTTPException(status_code=500, detail="Erreur lors de la mise à jour")
+    
+    return {
+        "success": True,
+        "message": "Méthode de paiement configurée",
+        "payment_method": payment_method
+    }
+
+@app.get("/api/influencer/payment-status")
+async def get_payment_status(payload: dict = Depends(verify_token)):
+    """Récupère le statut de paiement de l'influenceur"""
+    user = get_user_by_id(payload["sub"])
+    
+    if user["role"] != "influencer":
+        raise HTTPException(status_code=403, detail="Influenceurs uniquement")
+    
+    influencer = get_influencer_by_user_id(user["id"])
+    if not influencer:
+        raise HTTPException(status_code=404, detail="Profil influenceur non trouvé")
+    
+    # Récupérer les ventes en attente
+    pending_sales = supabase.table('sales').select('influencer_commission').eq(
+        'influencer_id', influencer["id"]
+    ).eq('status', 'pending').execute()
+    
+    pending_amount = sum(float(sale.get('influencer_commission', 0)) for sale in (pending_sales.data or []))
+    
+    # Récupérer le prochain paiement prévu
+    next_payout = None
+    if influencer.get('balance', 0) >= 50:
+        # Calculer le prochain vendredi
+        from datetime import date
+        today = date.today()
+        days_until_friday = (4 - today.weekday()) % 7
+        if days_until_friday == 0:
+            days_until_friday = 7
+        next_friday = today + timedelta(days=days_until_friday)
+        next_payout = next_friday.isoformat()
+    
+    return {
+        "balance": influencer.get('balance', 0),
+        "pending_validation": round(pending_amount, 2),
+        "total_earnings": influencer.get('total_earnings', 0),
+        "payment_method_configured": bool(influencer.get('payment_method')),
+        "payment_method": influencer.get('payment_method'),
+        "min_payout_amount": 50.0,
+        "next_payout_date": next_payout,
+        "auto_payout_enabled": bool(influencer.get('payment_method'))
+    }
+
+# ============================================
+# ENDPOINTS TRACKING & REDIRECTION
+# ============================================
+
+@app.get("/r/{short_code}")
+async def redirect_tracking_link(short_code: str, request: Request, response: Response):
+    """
+    Endpoint de redirection avec tracking
+    
+    Workflow:
+    1. Enregistre le clic dans la BDD
+    2. Crée un cookie d'attribution (30 jours)
+    3. Redirige vers l'URL marchande
+    
+    Exemple: http://localhost:8000/r/ABC12345 → https://boutique.com/produit
+    """
+    try:
+        # Tracker le clic et récupérer l'URL de destination
+        destination_url = await tracking_service.track_click(
+            short_code=short_code,
+            request=request,
+            response=response
+        )
+        
+        if not destination_url:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Lien de tracking introuvable ou inactif: {short_code}"
+            )
+        
+        # Rediriger vers la boutique marchande
+        return RedirectResponse(
+            url=destination_url,
+            status_code=302  # Temporary redirect
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Erreur tracking: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors du tracking")
+
+
+@app.post("/api/tracking-links/generate")
+async def generate_tracking_link(data: AffiliateLinkGenerate, payload: dict = Depends(verify_token)):
+    """
+    Génère un lien tracké pour un influenceur
+    
+    Body:
+    {
+        "product_id": "uuid"
+    }
+    
+    Returns:
+    {
+        "link_id": "uuid",
+        "short_code": "ABC12345",
+        "tracking_url": "http://localhost:8000/r/ABC12345",
+        "destination_url": "https://boutique.com/produit"
+    }
+    """
+    try:
+        user_id = payload.get("user_id")
+        
+        # Récupérer l'influenceur
+        influencer = supabase.table('influencers').select('id').eq('user_id', user_id).execute()
+        
+        if not influencer.data:
+            raise HTTPException(status_code=404, detail="Influenceur introuvable")
+        
+        influencer_id = influencer.data[0]['id']
+        
+        # Récupérer le produit
+        product = supabase.table('products').select('*').eq('id', data.product_id).execute()
+        
+        if not product.data:
+            raise HTTPException(status_code=404, detail="Produit introuvable")
+        
+        product_data = product.data[0]
+        merchant_url = product_data.get('url') or product_data.get('link')
+        
+        if not merchant_url:
+            raise HTTPException(status_code=400, detail="Le produit n'a pas d'URL configurée")
+        
+        # Générer le lien tracké
+        result = await tracking_service.create_tracking_link(
+            influencer_id=influencer_id,
+            product_id=data.product_id,
+            merchant_url=merchant_url,
+            campaign_id=product_data.get('campaign_id')
+        )
+        
+        if not result.get('success'):
+            raise HTTPException(status_code=500, detail=result.get('error'))
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Erreur génération lien: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/tracking-links/{link_id}/stats")
+async def get_tracking_link_stats(link_id: str, payload: dict = Depends(verify_token)):
+    """
+    Récupère les statistiques d'un lien tracké
+    
+    Returns:
+    {
+        "clicks_total": 150,
+        "clicks_unique": 95,
+        "conversions": 12,
+        "conversion_rate": 8.0,
+        "revenue": 1250.50
+    }
+    """
+    try:
+        stats = await tracking_service.get_link_stats(link_id)
+        
+        if stats.get('error'):
+            raise HTTPException(status_code=404, detail=stats['error'])
+        
+        return stats
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Erreur stats lien: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================
+# ENDPOINTS WEBHOOKS E-COMMERCE
+# ============================================
+
+@app.post("/api/webhook/shopify/{merchant_id}")
+async def shopify_webhook(merchant_id: str, request: Request):
+    """
+    Reçoit un webhook Shopify (order/create)
+    
+    Configuration Shopify:
+    1. Aller dans Settings → Notifications → Webhooks
+    2. Créer webhook: Event = Order creation
+    3. URL: https://api.tracknow.io/api/webhook/shopify/{merchant_id}
+    4. Format: JSON
+    
+    Headers automatiques:
+    - X-Shopify-Topic: orders/create
+    - X-Shopify-Hmac-SHA256: signature
+    - X-Shopify-Shop-Domain: votreboutique.myshopify.com
+    """
+    try:
+        result = await webhook_service.process_shopify_webhook(
+            request=request,
+            merchant_id=merchant_id
+        )
+        
+        if result.get('success'):
+            return {
+                "status": "success",
+                "message": "Vente enregistrée",
+                "sale_id": result.get('sale_id')
+            }
+        else:
+            return {
+                "status": "error",
+                "message": result.get('error')
+            }
+            
+    except Exception as e:
+        print(f"❌ Erreur webhook Shopify: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+
+@app.post("/api/webhook/woocommerce/{merchant_id}")
+async def woocommerce_webhook(merchant_id: str, request: Request):
+    """
+    Reçoit un webhook WooCommerce (order.created)
+    
+    Configuration WooCommerce:
+    1. Installer plugin "WooCommerce Webhooks"
+    2. WooCommerce → Settings → Advanced → Webhooks
+    3. Créer webhook: Topic = Order created
+    4. Delivery URL: https://api.tracknow.io/api/webhook/woocommerce/{merchant_id}
+    5. Secret: Configuré dans votre compte marchand
+    """
+    try:
+        result = await webhook_service.process_woocommerce_webhook(
+            request=request,
+            merchant_id=merchant_id
+        )
+        
+        if result.get('success'):
+            return {
+                "status": "success",
+                "message": "Vente enregistrée",
+                "sale_id": result.get('sale_id')
+            }
+        else:
+            return {
+                "status": "error",
+                "message": result.get('error')
+            }
+            
+    except Exception as e:
+        print(f"❌ Erreur webhook WooCommerce: {e}")
+        return {
+            "status": "error",
+            "message": str(e)
+        }
+
+
+@app.post("/api/webhook/tiktok/{merchant_id}")
+async def tiktok_shop_webhook(merchant_id: str, request: Request):
+    """
+    Reçoit un webhook TikTok Shop (order placed/paid)
+    
+    Configuration TikTok Shop:
+    1. TikTok Seller Center → Settings → Developer
+    2. Create App ou utiliser App existante
+    3. Webhooks → Subscribe to events
+    4. Events: ORDER_STATUS_CHANGE, ORDER_PAID
+    5. Callback URL: https://api.tracknow.io/api/webhook/tiktok/{merchant_id}
+    6. App Secret: Configuré dans votre compte marchand
+    
+    Documentation:
+    https://partner.tiktokshop.com/docv2/page/650a99c4b1a23902bebbb651
+    
+    Headers automatiques:
+    - X-TikTok-Signature: signature HMAC-SHA256
+    - Content-Type: application/json
+    
+    Payload structure:
+    {
+      "type": "ORDER_STATUS_CHANGE",
+      "timestamp": 1634567890,
+      "data": {
+        "order_id": "123456789",
+        "order_status": 111,  // 111=paid, 112=in_transit, etc.
+        "payment": {
+          "total_amount": 12550,  // en centimes
+          "currency": "USD"
+        },
+        "buyer_info": {
+          "email": "customer@email.com",
+          "name": "John Doe"
+        },
+        "creator_info": {
+          "creator_id": "tiktok_creator_id"
+        },
+        "tracking_info": {
+          "utm_source": "ABC12345",
+          "utm_campaign": "campaign_name"
+        }
+      }
+    }
+    """
+    try:
+        result = await webhook_service.process_tiktok_webhook(
+            request=request,
+            merchant_id=merchant_id
+        )
+        
+        if result.get('success'):
+            return {
+                "code": 0,  # TikTok attend code: 0 pour success
+                "message": "success",
+                "data": {
+                    "sale_id": result.get('sale_id'),
+                    "commission": result.get('commission')
+                }
+            }
+        else:
+            return {
+                "code": 1,  # Code erreur
+                "message": result.get('error'),
+                "data": {}
+            }
+            
+    except Exception as e:
+        print(f"❌ Erreur webhook TikTok Shop: {e}")
+        return {
+            "code": 1,
+            "message": str(e),
+            "data": {}
+        }
+
+
+# ============================================================================
+# PAYMENT GATEWAYS - MULTI-GATEWAY MAROC (CMI, PayZen, SG)
+# ============================================================================
+
+from payment_gateways import payment_gateway_service
+
+@app.post("/api/payment/create")
+async def create_payment(
+    request: Request,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Crée un paiement via le gateway configuré du merchant
+    
+    Body:
+    {
+      "merchant_id": "uuid",
+      "amount": 150.00,
+      "description": "Commission plateforme octobre 2025",
+      "invoice_id": "uuid"  // optionnel
+    }
+    
+    Returns:
+    {
+      "success": true,
+      "transaction_id": "PMT_123456",
+      "payment_url": "https://payment.gateway.com/pay/xxx",
+      "status": "pending",
+      "gateway": "cmi"
+    }
+    """
+    try:
+        body = await request.json()
+        
+        merchant_id = body.get('merchant_id')
+        amount = body.get('amount')
+        description = body.get('description', 'Commission plateforme ShareYourSales')
+        invoice_id = body.get('invoice_id')
+        
+        if not merchant_id or not amount:
+            raise HTTPException(status_code=400, detail="merchant_id and amount required")
+        
+        # Créer paiement
+        result = payment_gateway_service.create_payment(
+            merchant_id=merchant_id,
+            amount=float(amount),
+            description=description,
+            invoice_id=invoice_id
+        )
+        
+        if result.get('success'):
+            return result
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=result.get('error', 'Payment creation failed')
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Payment creation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/payment/status/{transaction_id}")
+async def get_payment_status(
+    transaction_id: str,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Récupère le statut d'une transaction
+    
+    Returns:
+    {
+      "success": true,
+      "transaction": {
+        "id": "uuid",
+        "status": "completed",
+        "amount": 150.00,
+        "gateway": "cmi",
+        ...
+      }
+    }
+    """
+    try:
+        result = payment_gateway_service.get_transaction_status(transaction_id)
+        
+        if result.get('success'):
+            return result
+        else:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting transaction status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/webhook/cmi/{merchant_id}")
+async def cmi_webhook(merchant_id: str, request: Request):
+    """
+    Webhook CMI (Centre Monétique Interbancaire)
+    
+    URL à configurer dans CMI: https://yourdomain.com/api/webhook/cmi/{merchant_id}
+    
+    Headers:
+    - X-CMI-Signature: signature HMAC-SHA256
+    
+    Payload:
+    {
+      "event": "payment.succeeded",
+      "payment_id": "PMT_123456789",
+      "amount": 15000,  // en centimes
+      "currency": "MAD",
+      "status": "completed",
+      "order_id": "ORDER-2025-001",
+      "paid_at": "2025-10-23T15:30:00Z"
+    }
+    """
+    try:
+        # Récupérer payload et headers
+        body = await request.body()
+        headers = dict(request.headers)
+        
+        try:
+            payload = await request.json()
+        except:
+            payload = {}
+        
+        # Traiter webhook
+        result = payment_gateway_service.process_webhook(
+            gateway_type='cmi',
+            merchant_id=merchant_id,
+            payload=payload,
+            headers=headers,
+            raw_body=body.decode('utf-8')
+        )
+        
+        if result.get('success'):
+            return {"status": "success", "message": "Webhook processed"}
+        else:
+            return {"status": "error", "message": result.get('error')}
+            
+    except Exception as e:
+        print(f"❌ CMI webhook error: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/api/webhook/payzen/{merchant_id}")
+async def payzen_webhook(merchant_id: str, request: Request):
+    """
+    Webhook PayZen / Lyra (IPN - Instant Payment Notification)
+    
+    URL à configurer dans PayZen: https://yourdomain.com/api/webhook/payzen/{merchant_id}
+    
+    Headers:
+    - kr-hash: signature SHA256
+    
+    Payload (form-urlencoded):
+    {
+      "kr-answer": {
+        "orderStatus": "PAID",
+        "orderDetails": {
+          "orderId": "ORDER-2025-001",
+          "orderTotalAmount": 15000,
+          "orderCurrency": "MAD"
+        },
+        "transactions": [
+          {
+            "uuid": "xxxxx",
+            "amount": 15000,
+            "currency": "MAD",
+            "status": "CAPTURED"
+          }
+        ]
+      },
+      "kr-hash": "sha256_signature"
+    }
+    """
+    try:
+        # PayZen envoie en form-urlencoded
+        body = await request.body()
+        headers = dict(request.headers)
+        
+        # Essayer de parser le JSON
+        try:
+            payload = await request.json()
+        except:
+            # Si form-urlencoded, convertir
+            import urllib.parse
+            form_data = urllib.parse.parse_qs(body.decode('utf-8'))
+            payload = {
+                key: value[0] if len(value) == 1 else value
+                for key, value in form_data.items()
+            }
+        
+        # Traiter webhook
+        result = payment_gateway_service.process_webhook(
+            gateway_type='payzen',
+            merchant_id=merchant_id,
+            payload=payload,
+            headers=headers,
+            raw_body=body.decode('utf-8')
+        )
+        
+        if result.get('success'):
+            return {"status": "success"}
+        else:
+            return {"status": "error", "message": result.get('error')}
+            
+    except Exception as e:
+        print(f"❌ PayZen webhook error: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@app.post("/api/webhook/sg/{merchant_id}")
+async def sg_maroc_webhook(merchant_id: str, request: Request):
+    """
+    Webhook Société Générale Maroc - e-Payment
+    
+    URL à configurer: https://yourdomain.com/api/webhook/sg/{merchant_id}
+    
+    Headers:
+    - X-Signature: signature HMAC-SHA256 en Base64
+    
+    Payload:
+    {
+      "transactionId": "TRX123456789",
+      "orderId": "ORDER-2025-001",
+      "amount": "150.00",
+      "currency": "MAD",
+      "status": "SUCCESS",
+      "paymentDate": "2025-10-23T15:30:00Z",
+      "merchantCode": "SG123456"
+    }
+    """
+    try:
+        body = await request.body()
+        headers = dict(request.headers)
+        
+        try:
+            payload = await request.json()
+        except:
+            payload = {}
+        
+        # Traiter webhook
+        result = payment_gateway_service.process_webhook(
+            gateway_type='sg_maroc',
+            merchant_id=merchant_id,
+            payload=payload,
+            headers=headers,
+            raw_body=body.decode('utf-8')
+        )
+        
+        if result.get('success'):
+            return {"status": "success", "message": "Payment received"}
+        else:
+            return {"status": "error", "message": result.get('error')}
+            
+    except Exception as e:
+        print(f"❌ SG Maroc webhook error: {e}")
+        return {"status": "error", "message": str(e)}
+
+
+@app.get("/api/admin/gateways/stats")
+async def get_gateway_statistics(payload: dict = Depends(verify_token)):
+    """
+    Statistiques des gateways de paiement (Admin uniquement)
+    
+    Returns:
+    [
+      {
+        "gateway": "cmi",
+        "total_transactions": 150,
+        "successful_transactions": 145,
+        "failed_transactions": 5,
+        "success_rate": 96.67,
+        "total_amount_processed": 125000.00,
+        "total_fees_paid": 2187.50,
+        "avg_completion_time_seconds": 3.5
+      }
+    ]
+    """
+    try:
+        # Vérifier admin
+        user = get_user_by_id(payload["sub"])
+        if user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Admin uniquement")
+        
+        # Rafraîchir vue matérialisée
+        supabase.rpc('refresh_materialized_view', {'view_name': 'gateway_statistics'}).execute()
+        
+        # Récupérer stats
+        result = supabase.table('gateway_statistics')\
+            .select('*')\
+            .execute()
+        
+        return result.data
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting gateway stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/merchant/payment-config")
+async def get_merchant_payment_config(payload: dict = Depends(verify_token)):
+    """
+    Récupère la configuration de paiement du merchant connecté
+    
+    Returns:
+    {
+      "payment_gateway": "cmi",
+      "auto_debit_enabled": true,
+      "gateway_activated_at": "2025-10-15T10:00:00Z",
+      "gateway_config": {
+        // Config masquée (sans API keys complètes)
+        "cmi_merchant_id": "123456789",
+        "cmi_terminal_id": "T001"
+      }
+    }
+    """
+    try:
+        user = get_user_by_id(payload["sub"])
+        
+        if user["role"] != "merchant":
+            raise HTTPException(status_code=403, detail="Merchants uniquement")
+        
+        # Récupérer config
+        result = supabase.table('merchants')\
+            .select('payment_gateway, auto_debit_enabled, gateway_activated_at, gateway_config')\
+            .eq('id', user['id'])\
+            .single()\
+            .execute()
+        
+        if result.data:
+            # Masquer clés sensibles
+            config = result.data.get('gateway_config', {})
+            masked_config = {}
+            for key, value in config.items():
+                if 'key' in key.lower() or 'secret' in key.lower() or 'password' in key.lower():
+                    masked_config[key] = '***' + str(value)[-4:] if value else None
+                else:
+                    masked_config[key] = value
+            
+            return {
+                'payment_gateway': result.data.get('payment_gateway'),
+                'auto_debit_enabled': result.data.get('auto_debit_enabled'),
+                'gateway_activated_at': result.data.get('gateway_activated_at'),
+                'gateway_config': masked_config
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Merchant not found")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting payment config: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.put("/api/merchant/payment-config")
+async def update_merchant_payment_config(
+    request: Request,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Met à jour la configuration de paiement du merchant
+    
+    Body:
+    {
+      "payment_gateway": "cmi",  // cmi, payzen, sg_maroc, manual
+      "auto_debit_enabled": true,
+      "gateway_config": {
+        "cmi_merchant_id": "123456789",
+        "cmi_api_key": "sk_live_xxxxx",
+        "cmi_store_key": "xxxxx",
+        "cmi_terminal_id": "T001"
+      }
+    }
+    """
+    try:
+        user = get_user_by_id(payload["sub"])
+        
+        if user["role"] != "merchant":
+            raise HTTPException(status_code=403, detail="Merchants uniquement")
+        
+        body = await request.json()
+        
+        # Valider gateway
+        valid_gateways = ['manual', 'cmi', 'payzen', 'sg_maroc']
+        gateway = body.get('payment_gateway')
+        
+        if gateway not in valid_gateways:
+            raise HTTPException(status_code=400, detail=f"Gateway invalide. Options: {valid_gateways}")
+        
+        # Mettre à jour
+        update_data = {
+            'payment_gateway': gateway,
+            'auto_debit_enabled': body.get('auto_debit_enabled', False),
+            'gateway_config': body.get('gateway_config', {}),
+            'gateway_activated_at': datetime.now().isoformat()
+        }
+        
+        result = supabase.table('merchants')\
+            .update(update_data)\
+            .eq('id', user['id'])\
+            .execute()
+        
+        return {
+            "success": True,
+            "message": f"Configuration {gateway} mise à jour avec succès"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error updating payment config: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# INVOICING - FACTURATION AUTOMATIQUE
+# ============================================================================
+
+from invoicing_service import invoicing_service
+
+@app.post("/api/admin/invoices/generate")
+async def generate_monthly_invoices(
+    request: Request,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Génère toutes les factures pour un mois donné (Admin uniquement)
+    
+    Body:
+    {
+      "year": 2025,
+      "month": 10
+    }
+    
+    Returns:
+    {
+      "success": true,
+      "invoices_created": 15,
+      "invoices": [...]
+    }
+    """
+    try:
+        # Vérifier admin
+        user = get_user_by_id(payload["sub"])
+        if user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Admin uniquement")
+        
+        body = await request.json()
+        year = body.get('year', datetime.now().year)
+        month = body.get('month', datetime.now().month)
+        
+        result = invoicing_service.generate_monthly_invoices(year, month)
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error generating invoices: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/admin/invoices")
+async def get_all_invoices(
+    status: Optional[str] = None,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Récupère toutes les factures (Admin uniquement)
+    
+    Query params:
+    - status: pending, sent, viewed, paid, overdue, cancelled
+    
+    Returns:
+    [
+      {
+        "id": "uuid",
+        "invoice_number": "INV-2025-10-0001",
+        "merchant": {...},
+        "total_amount": 1500.00,
+        "status": "paid",
+        ...
+      }
+    ]
+    """
+    try:
+        # Vérifier admin
+        user = get_user_by_id(payload["sub"])
+        if user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Admin uniquement")
+        
+        query = supabase.table('platform_invoices')\
+            .select('*, merchants(id, company_name, email, payment_gateway)')
+        
+        if status:
+            query = query.eq('status', status)
+        
+        result = query.order('invoice_date', desc=True).execute()
+        
+        return result.data if result.data else []
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting invoices: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/admin/invoices/{invoice_id}")
+async def get_invoice_details_admin(
+    invoice_id: str,
+    payload: dict = Depends(verify_token)
+):
+    """Récupère les détails complets d'une facture (Admin)"""
+    
+    try:
+        user = get_user_by_id(payload["sub"])
+        if user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Admin uniquement")
+        
+        invoice = invoicing_service.get_invoice_details(invoice_id)
+        
+        if invoice:
+            return invoice
+        else:
+            raise HTTPException(status_code=404, detail="Facture non trouvée")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting invoice details: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/admin/invoices/{invoice_id}/mark-paid")
+async def mark_invoice_paid_admin(
+    invoice_id: str,
+    request: Request,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Marque une facture comme payée manuellement (Admin)
+    
+    Body:
+    {
+      "payment_method": "virement",
+      "payment_reference": "REF123456"
+    }
+    """
+    try:
+        user = get_user_by_id(payload["sub"])
+        if user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Admin uniquement")
+        
+        body = await request.json()
+        
+        result = invoicing_service.mark_invoice_paid(
+            invoice_id=invoice_id,
+            payment_method=body.get('payment_method', 'manual'),
+            payment_reference=body.get('payment_reference')
+        )
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error marking invoice as paid: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/merchant/invoices")
+async def get_merchant_invoices(payload: dict = Depends(verify_token)):
+    """
+    Récupère toutes les factures du merchant connecté
+    
+    Returns:
+    [
+      {
+        "id": "uuid",
+        "invoice_number": "INV-2025-10-0001",
+        "total_amount": 1500.00,
+        "status": "pending",
+        "due_date": "2025-11-23",
+        ...
+      }
+    ]
+    """
+    try:
+        user = get_user_by_id(payload["sub"])
+        
+        if user["role"] != "merchant":
+            raise HTTPException(status_code=403, detail="Merchants uniquement")
+        
+        invoices = invoicing_service.get_merchant_invoices(user['id'])
+        
+        return invoices
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting merchant invoices: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/merchant/invoices/{invoice_id}")
+async def get_invoice_details_merchant(
+    invoice_id: str,
+    payload: dict = Depends(verify_token)
+):
+    """Récupère les détails d'une facture (Merchant)"""
+    
+    try:
+        user = get_user_by_id(payload["sub"])
+        
+        if user["role"] != "merchant":
+            raise HTTPException(status_code=403, detail="Merchants uniquement")
+        
+        invoice = invoicing_service.get_invoice_details(invoice_id)
+        
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Facture non trouvée")
+        
+        # Vérifier que c'est bien la facture du merchant
+        if invoice['merchant_id'] != user['id']:
+            raise HTTPException(status_code=403, detail="Accès non autorisé")
+        
+        return invoice
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error getting invoice details: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/merchant/invoices/{invoice_id}/pay")
+async def pay_invoice_merchant(
+    invoice_id: str,
+    request: Request,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Initie le paiement d'une facture via le gateway configuré
+    
+    Returns:
+    {
+      "success": true,
+      "payment_url": "https://gateway.com/pay/xxx",
+      "transaction_id": "TRX123"
+    }
+    """
+    try:
+        user = get_user_by_id(payload["sub"])
+        
+        if user["role"] != "merchant":
+            raise HTTPException(status_code=403, detail="Merchants uniquement")
+        
+        # Récupérer facture
+        invoice = invoicing_service.get_invoice_details(invoice_id)
+        
+        if not invoice:
+            raise HTTPException(status_code=404, detail="Facture non trouvée")
+        
+        if invoice['merchant_id'] != user['id']:
+            raise HTTPException(status_code=403, detail="Accès non autorisé")
+        
+        if invoice['status'] == 'paid':
+            raise HTTPException(status_code=400, detail="Facture déjà payée")
+        
+        # Créer paiement via gateway
+        payment_result = payment_gateway_service.create_payment(
+            merchant_id=user['id'],
+            amount=invoice['total_amount'],
+            description=f"Paiement facture {invoice['invoice_number']}",
+            invoice_id=invoice_id
+        )
+        
+        return payment_result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error initiating invoice payment: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/admin/invoices/send-reminders")
+async def send_payment_reminders(payload: dict = Depends(verify_token)):
+    """Envoie des rappels pour toutes les factures en retard (Admin)"""
+    
+    try:
+        user = get_user_by_id(payload["sub"])
+        if user["role"] != "admin":
+            raise HTTPException(status_code=403, detail="Admin uniquement")
+        
+        result = invoicing_service.send_payment_reminders()
+        
+        return result
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error sending reminders: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     print("🚀 Démarrage du serveur Supabase...")
     print("📊 Base de données: Supabase PostgreSQL")
+    print("💰 Paiements automatiques: ACTIVÉS")
+    print("🔗 Tracking: ACTIVÉ (endpoint /r/{short_code})")
+    print("📡 Webhooks: ACTIVÉS (Shopify, WooCommerce, TikTok Shop)")
+    print("💳 Gateways: CMI, PayZen, Société Générale Maroc")
+    print("📄 Facturation: AUTOMATIQUE (PDF + Emails)")
     uvicorn.run(app, host="0.0.0.0", port=8001)
