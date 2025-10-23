@@ -63,7 +63,7 @@ const CreateProductPage = () => {
       }
     } catch (error) {
       console.error('Error fetching product:', error);
-      alert('Erreur lors du chargement du produit');
+      toast.error('Erreur lors du chargement du produit');
       navigate('/products');
     } finally {
       setLoading(false);
