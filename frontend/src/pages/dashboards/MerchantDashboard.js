@@ -90,19 +90,19 @@ const MerchantDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Chiffre d'Affaires"
-          value={stats?.total_sales || 145000}
+          value={typeof stats?.total_sales === 'number' ? stats.total_sales : 145000}
           isCurrency={true}
           icon={<DollarSign className="text-green-600" size={24} />}
           trend={18.5}
         />
         <StatCard
           title="Produits Actifs"
-          value={stats?.products_count || products.length}
+          value={typeof stats?.products_count === 'number' ? stats.products_count : products.length || 3}
           icon={<Package className="text-indigo-600" size={24} />}
         />
         <StatCard
           title="Affiliés Actifs"
-          value={stats?.affiliates_count || 23}
+          value={typeof stats?.affiliates_count === 'number' ? stats.affiliates_count : 23}
           icon={<Users className="text-purple-600" size={24} />}
           trend={12.3}
         />
