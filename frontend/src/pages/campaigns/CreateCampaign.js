@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
@@ -8,6 +9,7 @@ import { Target, Calendar, DollarSign, Tag, FileText, Package, Users, TrendingUp
 
 const CreateCampaign = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [formData, setFormData] = useState({
     name: '',
     description: '',
