@@ -17,6 +17,8 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [merchants, setMerchants] = useState([]);
   const [influencers, setInfluencers] = useState([]);
+  const [revenueData, setRevenueData] = useState([]);
+  const [categoryData, setCategoryData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -25,38 +27,39 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, merchantsRes, influencersRes] = await Promise.all([
+      const [statsRes, merchantsRes, influencersRes, revenueRes, categoriesRes] = await Promise.all([
         api.get('/api/analytics/overview'),
         api.get('/api/merchants'),
-        api.get('/api/influencers')
+        api.get('/api/influencers'),
+        api.get('/api/analytics/admin/revenue-chart'),
+        api.get('/api/analytics/admin/categories')
       ]);
       
       setStats(statsRes.data);
       setMerchants(merchantsRes.data.merchants || []);
       setInfluencers(influencersRes.data.influencers || []);
+      
+      // Transformer les données de revenus en format mensuel (simplification pour l'exemple)
+      const dailyData = revenueRes.data.data || [];
+      setRevenueData(dailyData.map((day, idx) => ({
+        month: day.date,
+        revenue: day.revenus
+      })));
+      
+      // CategoryData: données réelles depuis l'API
+      const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#14b8a6'];
+      const categoriesData = categoriesRes.data.data || [];
+      setCategoryData(categoriesData.map((cat, idx) => ({
+        name: cat.category,
+        value: cat.count,
+        color: colors[idx % colors.length]
+      })));
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
-
-  // Mock chart data
-  const revenueData = [
-    { month: 'Jan', revenue: 45000 },
-    { month: 'Fév', revenue: 52000 },
-    { month: 'Mar', revenue: 48000 },
-    { month: 'Avr', revenue: 61000 },
-    { month: 'Mai', revenue: 72000 },
-    { month: 'Juin', revenue: 85000 },
-  ];
-
-  const categoryData = [
-    { name: 'Mode', value: 35, color: '#6366f1' },
-    { name: 'Tech', value: 25, color: '#8b5cf6' },
-    { name: 'Beauté', value: 20, color: '#ec4899' },
-    { name: 'Sport', value: 20, color: '#10b981' },
-  ];
 
   if (loading) {
     return (

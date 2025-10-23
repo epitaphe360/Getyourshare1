@@ -15,6 +15,15 @@ import LandingPage from './pages/LandingPage';
 import AIMarketing from './pages/AIMarketing';
 import MerchantsList from './pages/merchants/MerchantsList';
 import InfluencersList from './pages/influencers/InfluencersList';
+import InfluencerSearchPage from './pages/influencers/InfluencerSearchPage';
+import InfluencerProfilePage from './pages/influencers/InfluencerProfilePage';
+
+// Messaging
+import MessagingPage from './pages/MessagingPage';
+
+// Products
+import ProductsListPage from './pages/products/ProductsListPage';
+import CreateProductPage from './pages/products/CreateProductPage';
 
 // Advertisers
 import AdvertisersList from './pages/advertisers/AdvertisersList';
@@ -23,6 +32,7 @@ import AdvertiserBilling from './pages/advertisers/AdvertiserBilling';
 
 // Campaigns
 import CampaignsList from './pages/campaigns/CampaignsList';
+import CreateCampaignPage from './pages/campaigns/CreateCampaignPage';
 
 // Affiliates
 import AffiliatesList from './pages/affiliates/AffiliatesList';
@@ -151,6 +161,14 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/campaigns/create"
+            element={
+              <ProtectedRoute>
+                <CreateCampaignPage />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Merchants Routes */}
           <Route
@@ -168,6 +186,66 @@ function App() {
             element={
               <ProtectedRoute>
                 <InfluencersList />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/influencers/search"
+            element={
+              <ProtectedRoute>
+                <InfluencerSearchPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/influencers/:influencerId"
+            element={
+              <ProtectedRoute>
+                <InfluencerProfilePage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Messages Routes */}
+          <Route
+            path="/messages"
+            element={
+              <ProtectedRoute>
+                <MessagingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/messages/:conversationId"
+            element={
+              <ProtectedRoute>
+                <MessagingPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Products Routes */}
+          <Route
+            path="/products"
+            element={
+              <ProtectedRoute>
+                <ProductsListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/products/create"
+            element={
+              <ProtectedRoute>
+                <CreateProductPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/products/:productId/edit"
+            element={
+              <ProtectedRoute>
+                <CreateProductPage />
               </ProtectedRoute>
             }
           />

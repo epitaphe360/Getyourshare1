@@ -6,7 +6,7 @@ import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
 import { 
   DollarSign, ShoppingBag, Users, TrendingUp, 
-  Package, Eye, Target, Award 
+  Package, Eye, Target, Award, Plus, Search 
 } from 'lucide-react';
 import { 
   LineChart, Line, BarChart, Bar, 
@@ -18,6 +18,7 @@ const MerchantDashboard = () => {
   const { user } = useAuth();
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
+  const [salesData, setSalesData] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,30 +27,21 @@ const MerchantDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, productsRes] = await Promise.all([
+      const [statsRes, productsRes, salesChartRes] = await Promise.all([
         api.get('/api/analytics/overview'),
-        api.get('/api/products')
+        api.get('/api/products'),
+        api.get('/api/analytics/merchant/sales-chart')
       ]);
       
       setStats(statsRes.data);
       setProducts(productsRes.data.products || []);
+      setSalesData(salesChartRes.data.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
   };
-
-  // Mock data
-  const salesData = [
-    { date: '01/06', ventes: 12, revenus: 3500 },
-    { date: '02/06', ventes: 19, revenus: 5200 },
-    { date: '03/06', ventes: 15, revenus: 4100 },
-    { date: '04/06', ventes: 22, revenus: 6800 },
-    { date: '05/06', ventes: 28, revenus: 8900 },
-    { date: '06/06', ventes: 25, revenus: 7500 },
-    { date: '07/06', ventes: 31, revenus: 9200 },
-  ];
 
   if (loading) {
     return (
@@ -71,10 +63,25 @@ const MerchantDashboard = () => {
         </div>
         <div className="flex space-x-3">
           <button 
-            onClick={() => navigate('/products/new')}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+            onClick={() => navigate('/campaigns/create')}
+            className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
           >
-            + Ajouter Produit
+            <Plus size={18} />
+            Créer Campagne
+          </button>
+          <button 
+            onClick={() => navigate('/influencers/search')}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
+          >
+            <Search size={18} />
+            Rechercher Influenceurs
+          </button>
+          <button 
+            onClick={() => navigate('/products/create')}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Ajouter Produit
           </button>
         </div>
       </div>

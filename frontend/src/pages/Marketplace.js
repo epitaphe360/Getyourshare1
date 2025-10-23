@@ -26,9 +26,12 @@ const MarketplaceNew = () => {
     try {
       const params = selectedCategory !== 'all' ? { category: selectedCategory } : {};
       const response = await api.get('/api/products', { params });
-      setProducts(response.data.products || []);
+      // Gestion des deux formats de réponse possibles
+      const productsData = Array.isArray(response.data) ? response.data : response.data.products || [];
+      setProducts(productsData);
     } catch (error) {
       console.error('Error fetching products:', error);
+      setProducts([]);
     } finally {
       setLoading(false);
     }

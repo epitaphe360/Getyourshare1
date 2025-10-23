@@ -17,7 +17,8 @@ import {
   Menu,
   X,
   Link as LinkIcon,
-  Zap
+  Zap,
+  MessageSquare
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -54,6 +55,11 @@ const Sidebar = () => {
       path: '/dashboard',
     },
     {
+      title: 'Messages',
+      icon: <MessageSquare size={20} />,
+      path: '/messages',
+    },
+    {
       title: 'News & Newsletter',
       icon: <Newspaper size={20} />,
       path: '/news',
@@ -72,6 +78,11 @@ const Sidebar = () => {
       title: 'Campagnes/Offres',
       icon: <Target size={20} />,
       path: '/campaigns',
+    },
+    {
+      title: 'Produits',
+      icon: <ShoppingCart size={20} />,
+      path: '/products',
     },
     {
       title: 'Performance',

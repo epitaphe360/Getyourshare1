@@ -35,6 +35,27 @@ const Login = () => {
     setLoading(false);
   };
 
+  // Connexion rapide avec compte de test
+  const quickLogin = async (testEmail, testPassword) => {
+    setEmail(testEmail);
+    setPassword(testPassword);
+    setError('');
+    setLoading(true);
+
+    const result = await login(testEmail, testPassword);
+    
+    if (result.success) {
+      navigate('/dashboard');
+    } else if (result.requires2FA) {
+      setRequires2FA(true);
+      setTempToken(result.tempToken);
+      setError('');
+    } else {
+      setError(result.error);
+    }
+    setLoading(false);
+  };
+
   const handleVerify2FA = async (e) => {
     e.preventDefault();
     setError('');
@@ -155,12 +176,76 @@ const Login = () => {
                 </p>
               </div>
 
+              <div className="mt-6">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-300"></div>
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">Connexion rapide (démo)</span>
+                  </div>
+                </div>
+
+                <div className="mt-6 space-y-3">
+                  <button
+                    onClick={() => quickLogin('admin@shareyoursales.com', 'admin123')}
+                    disabled={loading}
+                    className="w-full flex items-center justify-between px-4 py-3 border-2 border-purple-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition disabled:opacity-50"
+                  >
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                        <Shield className="w-5 h-5 text-purple-600" />
+                      </div>
+                      <div className="ml-3 text-left">
+                        <p className="text-sm font-semibold text-gray-900">Admin</p>
+                        <p className="text-xs text-gray-500">admin@shareyoursales.com</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-purple-600 font-medium">Connexion →</span>
+                  </button>
+
+                  <button
+                    onClick={() => quickLogin('contact@techstyle.fr', 'merchant123')}
+                    disabled={loading}
+                    className="w-full flex items-center justify-between px-4 py-3 border-2 border-blue-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition disabled:opacity-50"
+                  >
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <Sparkles className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="ml-3 text-left">
+                        <p className="text-sm font-semibold text-gray-900">Merchant</p>
+                        <p className="text-xs text-gray-500">contact@techstyle.fr</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-blue-600 font-medium">Connexion →</span>
+                  </button>
+
+                  <button
+                    onClick={() => quickLogin('emma.style@instagram.com', 'influencer123')}
+                    disabled={loading}
+                    className="w-full flex items-center justify-between px-4 py-3 border-2 border-pink-200 rounded-lg hover:border-pink-400 hover:bg-pink-50 transition disabled:opacity-50"
+                  >
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center">
+                        <Sparkles className="w-5 h-5 text-pink-600" />
+                      </div>
+                      <div className="ml-3 text-left">
+                        <p className="text-sm font-semibold text-gray-900">Influenceur</p>
+                        <p className="text-xs text-gray-500">emma.style@instagram.com</p>
+                      </div>
+                    </div>
+                    <span className="text-xs text-pink-600 font-medium">Connexion →</span>
+                  </button>
+                </div>
+              </div>
+
               <div className="mt-6 p-4 bg-indigo-50 rounded-lg">
-                <p className="text-xs text-gray-700 font-semibold mb-2">💡 Comptes de test :</p>
+                <p className="text-xs text-gray-700 font-semibold mb-2">💡 Autres comptes de test :</p>
                 <div className="space-y-1 text-xs text-gray-600">
-                  <p><strong>Admin:</strong> admin@shareyoursales.com / admin123</p>
-                  <p><strong>Merchant:</strong> contact@techstyle.fr / merchant123</p>
-                  <p><strong>Influenceur:</strong> emma.style@instagram.com / influencer123</p>
+                  <p><strong>Merchant 2:</strong> hello@beautypro.com / merchant123</p>
+                  <p><strong>Influenceur 2:</strong> lucas.tech@youtube.com / influencer123</p>
+                  <p><strong>Influenceur 3:</strong> julie.beauty@tiktok.com / influencer123</p>
                   <p className="text-indigo-600 mt-2"><strong>Code 2FA:</strong> 123456</p>
                 </div>
               </div>

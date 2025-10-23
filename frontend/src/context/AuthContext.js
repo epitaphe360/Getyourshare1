@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }) => {
     // Vérification périodique de la session
     const intervalId = setInterval(() => {
       const token = localStorage.getItem('token');
-      if (token && user) {
+      if (token) {
         console.log('🔄 Vérification périodique de la session...');
         verifySession();
       }
@@ -62,7 +62,8 @@ export const AuthProvider = ({ children }) => {
 
     // Cleanup
     return () => clearInterval(intervalId);
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Exécuter uniquement au montage du composant
 
   const login = async (email, password) => {
     try {
