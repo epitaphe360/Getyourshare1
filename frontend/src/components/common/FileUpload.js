@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, X, File, Image as ImageIcon, Check, AlertCircle } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 
 const FileUpload = ({ 
@@ -9,6 +10,7 @@ const FileUpload = ({
   multiple = false,
   maxSize = 10 // MB
 }) => {
+  const toast = useToast();
   const [files, setFiles] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState({});
@@ -23,7 +25,7 @@ const FileUpload = ({
     );
     
     if (oversizedFiles.length > 0) {
-      alert(`Certains fichiers dépassent la taille maximale de ${maxSize}MB`);
+      toast.error(`Certains fichiers dépassent la taille maximale de ${maxSize}MB`);
       return;
     }
     
