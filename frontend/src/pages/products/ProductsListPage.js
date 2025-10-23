@@ -7,6 +7,7 @@ import Button from '../../components/common/Button';
 import Table from '../../components/common/Table';
 import Modal from '../../components/common/Modal';
 import Badge from '../../components/common/Badge';
+import EmptyState from '../../components/common/EmptyState';
 import {
   Package, Plus, Edit, Trash2, Search, Eye, TrendingUp,
   DollarSign, Archive
