@@ -282,6 +282,30 @@ async def register(data: RegisterRequest):
     if not user:
         raise HTTPException(status_code=500, detail="Erreur lors de la création du compte")
 
+    # Créer automatiquement le profil merchant ou influencer
+    try:
+        if data.role == "merchant":
+            merchant_data = {
+                'user_id': user["id"],
+                'company_name': f'Company {user["email"].split("@")[0]}',
+                'industry': 'General',
+            }
+            supabase.table('merchants').insert(merchant_data).execute()
+        elif data.role == "influencer":
+            influencer_data = {
+                'user_id': user["id"],
+                'username': user["email"].split("@")[0],
+                'full_name': user["email"].split("@")[0],
+                'category': 'General',
+                'influencer_type': 'micro',
+                'audience_size': 1000,
+                'engagement_rate': 3.0
+            }
+            supabase.table('influencers').insert(influencer_data).execute()
+    except Exception as e:
+        print(f"Warning: Could not create profile for {data.role}: {e}")
+        # Continue anyway, profile can be created later
+
     return {"message": "Compte créé avec succès", "user_id": user["id"]}
 
 # ============================================
