@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import { useToast } from '../../context/ToastContext';
+import api from '../../utils/api';
 
 const MLMSettings = () => {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
   const [mlmEnabled, setMlmEnabled] = useState(true);
   const [levels, setLevels] = useState([
     { level: 1, percentage: 10, enabled: true },
@@ -23,9 +27,18 @@ const MLMSettings = () => {
     setLevels(newLevels);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Saving MLM settings:', { mlmEnabled, levels });
+    setSaving(true);
+    try {
+      await api.post('/api/settings/mlm', { mlmEnabled, levels });
+      toast.success('Paramètres MLM sauvegardés avec succès');
+    } catch (error) {
+      console.error('Error saving MLM settings:', error);
+      toast.error('Erreur lors de la sauvegarde des paramètres');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -94,8 +107,8 @@ const MLMSettings = () => {
             )}
 
             <div className="flex justify-end">
-              <Button type="submit">
-                Enregistrer les modifications
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Sauvegarde...' : 'Enregistrer les modifications'}
               </Button>
             </div>
           </div>

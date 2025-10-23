@@ -3,9 +3,13 @@ import { useAuth } from '../../context/AuthContext';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { User, Mail, Phone, Globe } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
+import api from '../../utils/api';
 
 const PersonalSettings = () => {
   const { user } = useAuth();
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
     first_name: user?.first_name || '',
     last_name: user?.last_name || '',
@@ -15,9 +19,19 @@ const PersonalSettings = () => {
     language: 'fr',
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Saving personal settings:', formData);
+    setSaving(true);
+    try {
+      await api.put(`/api/users/${user.id}`, formData);
+      toast.success('Profil mis à jour avec succès');
+      // Note: You may want to update the AuthContext with the new user data
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error('Erreur lors de la mise à jour du profil');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -125,8 +139,8 @@ const PersonalSettings = () => {
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit">
-                Enregistrer les modifications
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Sauvegarde...' : 'Enregistrer les modifications'}
               </Button>
             </div>
           </div>

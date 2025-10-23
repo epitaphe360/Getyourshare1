@@ -3,10 +3,13 @@ import api from '../../utils/api';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { Building, Mail, MapPin, CreditCard } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 
 const CompanySettings = () => {
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     fetchSettings();
@@ -25,7 +28,17 @@ const CompanySettings = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Saving company settings:', settings);
+    setSaving(true);
+    try {
+      await api.put('/api/settings/company', settings);
+      toast.success('Paramètres de l\'entreprise sauvegardés avec succès');
+      await fetchSettings(); // Refresh settings
+    } catch (error) {
+      console.error('Error saving company settings:', error);
+      toast.error('Erreur lors de la sauvegarde des paramètres');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return <div>Chargement...</div>;
@@ -118,8 +131,8 @@ const CompanySettings = () => {
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit">
-                Enregistrer les modifications
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Sauvegarde...' : 'Enregistrer les modifications'}
               </Button>
             </div>
           </div>
