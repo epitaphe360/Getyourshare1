@@ -1,8 +1,20 @@
 import React from 'react';
 import { formatNumber, formatCurrency } from '../../utils/helpers';
 
-const StatCard = ({ title, value, icon, trend, isCurrency = false }) => {
-  const displayValue = isCurrency ? formatCurrency(value) : formatNumber(value);
+const StatCard = ({ title, value, icon, trend, isCurrency = false, suffix = '' }) => {
+  // Handle different value types
+  let displayValue;
+  
+  if (typeof value === 'string') {
+    // If value is already a string (e.g., "320%"), use it as-is
+    displayValue = value;
+  } else if (isCurrency) {
+    displayValue = formatCurrency(value);
+  } else if (suffix) {
+    displayValue = `${formatNumber(value)}${suffix}`;
+  } else {
+    displayValue = formatNumber(value);
+  }
   
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover-lift">
