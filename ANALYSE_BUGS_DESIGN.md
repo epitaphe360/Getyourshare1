@@ -78,15 +78,20 @@
 
 ## 📝 PLAN DE CORRECTION
 
-### Phase 1: Bugs Critiques (Priorité HAUTE) ⏱️ 30 min
+### Phase 1: Bugs Critiques (Priorité HAUTE) ⏱️ 30 min ✅ COMPLÉTÉE
 1. ✅ Fixer `getStatusColor()` pour gérer les valeurs non-string
 2. ✅ Corriger le calcul du ROI dans dashboard
 3. ✅ Gérer les cas `null`/`undefined` partout
 
-### Phase 2: Améliorations UX (Priorité MOYENNE) ⏱️ 45 min
-4. ✅ Créer de meilleurs "empty states" avec illustrations
-5. ✅ Ajouter des données de démonstration pour les nouveaux users
-6. ✅ Améliorer les messages d'erreur
+### Phase 2: Génération de Lien ⏱️ 45 min ✅ COMPLÉTÉE
+4. ✅ Création automatique des profils merchant/influencer
+5. ✅ Gestion des liens existants (contrainte d'unicité)
+6. ✅ Amélioration du feedback utilisateur
+
+### Phase 3: Améliorations UX (Priorité MOYENNE) ⏱️ 45 min
+7. ✅ Créer de meilleurs "empty states" avec illustrations
+8. 🔄 Ajouter EmptyState aux autres pages (Products, Affiliates)
+9. 🔄 Améliorer les messages d'erreur
 
 ### Phase 3: Design & UI (Priorité MOYENNE) ⏱️ 60 min
 7. ✅ Moderniser les StatCards
