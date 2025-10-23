@@ -6,8 +6,9 @@ import Table from '../../components/common/Table';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 import Modal from '../../components/common/Modal';
+import EmptyState from '../../components/common/EmptyState';
 import { formatCurrency, formatNumber } from '../../utils/helpers';
-import { Plus, Search, MoreVertical, Pause, Play, Archive } from 'lucide-react';
+import { Plus, Search, MoreVertical, Pause, Play, Archive, Target } from 'lucide-react';
 
 const CampaignsList = () => {
   const navigate = useNavigate();
