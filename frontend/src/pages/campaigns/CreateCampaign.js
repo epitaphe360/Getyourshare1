@@ -70,8 +70,8 @@ const CreateCampaign = () => {
       const response = await api.post('/api/campaigns', campaignData);
       
       if (response.data) {
-        alert('Campagne créée avec succès !');
-        navigate('/campaigns');
+        toast.success('Campagne créée avec succès !');
+        setTimeout(() => navigate('/campaigns'), 1000);
       }
     } catch (err) {
       console.error('Error creating campaign:', err);
