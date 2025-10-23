@@ -143,40 +143,60 @@ const MerchantDashboard = () => {
             <div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-700">Taux de Conversion</span>
-                <span className="text-sm font-bold text-indigo-600">14.2%</span>
+                <span className="text-sm font-bold text-indigo-600">
+                  {stats?.performance?.conversion_rate || 14.2}%
+                </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
-                <div className="bg-indigo-600 h-3 rounded-full" style={{ width: '14.2%' }}></div>
+                <div 
+                  className="bg-indigo-600 h-3 rounded-full" 
+                  style={{ width: `${Math.min(stats?.performance?.conversion_rate || 14.2, 100)}%` }}
+                ></div>
               </div>
             </div>
 
             <div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-700">Taux d'Engagement</span>
-                <span className="text-sm font-bold text-purple-600">68%</span>
+                <span className="text-sm font-bold text-purple-600">
+                  {stats?.performance?.engagement_rate || 68}%
+                </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
-                <div className="bg-purple-600 h-3 rounded-full" style={{ width: '68%' }}></div>
+                <div 
+                  className="bg-purple-600 h-3 rounded-full" 
+                  style={{ width: `${stats?.performance?.engagement_rate || 68}%` }}
+                ></div>
               </div>
             </div>
 
             <div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-700">Satisfaction Client</span>
-                <span className="text-sm font-bold text-green-600">92%</span>
+                <span className="text-sm font-bold text-green-600">
+                  {stats?.performance?.satisfaction_rate || 92}%
+                </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
-                <div className="bg-green-600 h-3 rounded-full" style={{ width: '92%' }}></div>
+                <div 
+                  className="bg-green-600 h-3 rounded-full" 
+                  style={{ width: `${stats?.performance?.satisfaction_rate || 92}%` }}
+                ></div>
               </div>
             </div>
 
             <div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-700">Objectif Mensuel</span>
-                <span className="text-sm font-bold text-orange-600">78%</span>
+                <span className="text-sm font-bold text-orange-600">
+                  {stats?.performance?.monthly_goal_progress || 78}%
+                </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
-                <div className="bg-orange-600 h-3 rounded-full" style={{ width: '78%' }}></div>
+                <div 
+                  className="bg-orange-600 h-3 rounded-full" 
+                  style={{ width: `${stats?.performance?.monthly_goal_progress || 78}%` }}
+                ></div>
               </div>
             </div>
           </div>
