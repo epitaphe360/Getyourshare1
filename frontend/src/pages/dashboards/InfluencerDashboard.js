@@ -161,16 +161,24 @@ const InfluencerDashboard = () => {
             <div className="text-5xl font-bold mb-4">
               {(stats?.balance || 0).toLocaleString()} €
             </div>
-            <button className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition">
+            <button
+              onClick={() => {
+                toast.info('Fonctionnalité de demande de paiement bientôt disponible');
+              }}
+              className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition"
+              title="Demander un paiement (bientôt disponible)"
+            >
               Demander un Paiement
             </button>
           </div>
           <div className="text-right">
             <div className="text-purple-100 mb-2">Gains ce Mois</div>
             <div className="text-3xl font-bold">
-              {((stats?.total_earnings || 18650) * 0.25).toLocaleString()} €
+              {((stats?.total_earnings || 0) * 0.25).toLocaleString()} €
             </div>
-            <div className="text-purple-200 text-sm mt-1">+32% vs mois dernier</div>
+            <div className="text-purple-200 text-sm mt-1">
+              {stats?.monthly_growth ? `+${stats.monthly_growth}%` : '+0%'} vs mois dernier
+            </div>
           </div>
         </div>
       </div>

@@ -126,7 +126,11 @@ const AdminDashboard = () => {
           <p className="text-gray-600 mt-2">Vue d'ensemble complète de la plateforme</p>
         </div>
         <div className="flex space-x-3">
-          <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition">
+          <button
+            onClick={() => toast.info('Fonctionnalité d\'export PDF bientôt disponible')}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition"
+            title="Export PDF (bientôt disponible)"
+          >
             Export PDF
           </button>
         </div>

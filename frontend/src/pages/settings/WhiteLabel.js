@@ -9,7 +9,7 @@ const WhiteLabel = () => {
     primary_color: '#3b82f6',
     secondary_color: '#1e40af',
     accent_color: '#10b981',
-    company_name: 'Tracknow Platform',
+    company_name: 'ShareYourSales',
     custom_domain: 'track.votredomaine.com',
     ssl_enabled: true,
     custom_email_domain: 'noreply@votredomaine.com',
