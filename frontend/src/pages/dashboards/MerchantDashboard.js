@@ -1,22 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
 import SkeletonDashboard from '../../components/common/SkeletonLoader';
-import { 
-  DollarSign, ShoppingBag, Users, TrendingUp, 
-  Package, Eye, Target, Award, Plus, Search 
+import {
+  DollarSign, ShoppingBag, Users, TrendingUp,
+  Package, Eye, Target, Award, Plus, Search
 } from 'lucide-react';
-import { 
-  LineChart, Line, BarChart, Bar, 
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+import {
+  LineChart, Line, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
 const MerchantDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [salesData, setSalesData] = useState([]);
@@ -28,21 +30,57 @@ const MerchantDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, productsRes, salesChartRes, performanceRes] = await Promise.all([
+      // Utiliser Promise.allSettled au lieu de Promise.all
+      const results = await Promise.allSettled([
         api.get('/api/analytics/overview'),
         api.get('/api/products'),
         api.get('/api/analytics/merchant/sales-chart'),
         api.get('/api/analytics/merchant/performance')
       ]);
-      
-      setStats({
-        ...statsRes.data,
-        performance: performanceRes.data
-      });
-      setProducts(productsRes.data.products || []);
-      setSalesData(salesChartRes.data.data || []);
+
+      const [statsRes, productsRes, salesChartRes, performanceRes] = results;
+
+      // Gérer les statistiques
+      if (statsRes.status === 'fulfilled' && performanceRes.status === 'fulfilled') {
+        setStats({
+          ...statsRes.value.data,
+          performance: performanceRes.value.data
+        });
+      } else {
+        console.error('Error loading stats:', statsRes.reason || performanceRes.reason);
+        toast.error('Erreur lors du chargement des statistiques');
+        setStats({
+          total_sales: 0,
+          products_count: 0,
+          affiliates_count: 0,
+          roi: 0,
+          performance: {
+            conversion_rate: 0,
+            engagement_rate: 0,
+            satisfaction_rate: 0,
+            monthly_goal_progress: 0
+          }
+        });
+      }
+
+      // Gérer les produits
+      if (productsRes.status === 'fulfilled') {
+        setProducts(productsRes.value.data.products || []);
+      } else {
+        console.error('Error loading products:', productsRes.reason);
+        setProducts([]);
+      }
+
+      // Gérer les données de ventes
+      if (salesChartRes.status === 'fulfilled') {
+        setSalesData(salesChartRes.value.data.data || []);
+      } else {
+        console.error('Error loading sales chart:', salesChartRes.reason);
+        setSalesData([]);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -91,28 +129,28 @@ const MerchantDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Chiffre d'Affaires"
-          value={typeof stats?.total_sales === 'number' ? stats.total_sales : 145000}
+          value={typeof stats?.total_sales === 'number' ? stats.total_sales : 0}
           isCurrency={true}
           icon={<DollarSign className="text-green-600" size={24} />}
-          trend={18.5}
+          trend={stats?.sales_growth || 0}
         />
         <StatCard
           title="Produits Actifs"
-          value={typeof stats?.products_count === 'number' ? stats.products_count : products.length || 3}
+          value={typeof stats?.products_count === 'number' ? stats.products_count : products.length || 0}
           icon={<Package className="text-indigo-600" size={24} />}
         />
         <StatCard
           title="Affiliés Actifs"
-          value={typeof stats?.affiliates_count === 'number' ? stats.affiliates_count : 23}
+          value={typeof stats?.affiliates_count === 'number' ? stats.affiliates_count : 0}
           icon={<Users className="text-purple-600" size={24} />}
-          trend={12.3}
+          trend={stats?.affiliates_growth || 0}
         />
         <StatCard
           title="ROI Marketing"
-          value={typeof stats?.roi === 'number' && !isNaN(stats.roi) ? stats.roi : 320.5}
+          value={typeof stats?.roi === 'number' && !isNaN(stats.roi) ? stats.roi : 0}
           suffix="%"
           icon={<TrendingUp className="text-orange-600" size={24} />}
-          trend={5.2}
+          trend={stats?.roi_growth || 0}
         />
       </div>
 
