@@ -5,13 +5,14 @@ import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
 import SkeletonDashboard from '../../components/common/SkeletonLoader';
-import { 
-  DollarSign, ShoppingBag, Users, TrendingUp, 
-  Package, Eye, Target, Award, Plus, Search 
+import EmptyState from '../../components/common/EmptyState';
+import {
+  DollarSign, ShoppingBag, Users, TrendingUp,
+  Package, Eye, Target, Award, Plus, Search, RefreshCw
 } from 'lucide-react';
-import { 
-  LineChart, Line, BarChart, Bar, 
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+import {
+  LineChart, Line, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
 const MerchantDashboard = () => {
@@ -21,6 +22,7 @@ const MerchantDashboard = () => {
   const [products, setProducts] = useState([]);
   const [salesData, setSalesData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -28,13 +30,14 @@ const MerchantDashboard = () => {
 
   const fetchData = async () => {
     try {
+      setError(null);
       const [statsRes, productsRes, salesChartRes, performanceRes] = await Promise.all([
         api.get('/api/analytics/overview'),
         api.get('/api/products'),
         api.get('/api/analytics/merchant/sales-chart'),
         api.get('/api/analytics/merchant/performance')
       ]);
-      
+
       setStats({
         ...statsRes.data,
         performance: performanceRes.data
@@ -43,6 +46,7 @@ const MerchantDashboard = () => {
       setSalesData(salesChartRes.data.data || []);
     } catch (error) {
       console.error('Error fetching data:', error);
+      setError('Erreur lors du chargement des données. Veuillez réessayer.');
     } finally {
       setLoading(false);
     }
@@ -50,6 +54,28 @@ const MerchantDashboard = () => {
 
   if (loading) {
     return <SkeletonDashboard />;
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center max-w-md">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Erreur de chargement</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => {
+              setLoading(true);
+              fetchData();
+            }}
+            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2 mx-auto"
+          >
+            <RefreshCw size={18} />
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -63,21 +89,28 @@ const MerchantDashboard = () => {
           </p>
         </div>
         <div className="flex space-x-3">
-          <button 
+          <button
+            onClick={() => fetchData()}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition flex items-center gap-2"
+            title="Rafraîchir les données"
+          >
+            <RefreshCw size={18} />
+          </button>
+          <button
             onClick={() => navigate('/campaigns/create')}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
           >
             <Plus size={18} />
             Créer Campagne
           </button>
-          <button 
+          <button
             onClick={() => navigate('/influencers/search')}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
           >
             <Search size={18} />
             Rechercher Influenceurs
           </button>
-          <button 
+          <button
             onClick={() => navigate('/products/create')}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
           >
@@ -202,32 +235,43 @@ const MerchantDashboard = () => {
 
       {/* Products Performance */}
       <Card title="Top Produits Performants" icon={<Award size={20} />}>
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Produit
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Catégorie
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Vues
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Clics
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Ventes
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Revenus
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {products.slice(0, 5).map((product) => (
+        {products.length === 0 ? (
+          <EmptyState
+            icon={<Package size={48} />}
+            title="Aucun produit"
+            description="Ajoutez vos premiers produits pour commencer"
+            action={{
+              label: "Ajouter un Produit",
+              onClick: () => navigate('/products/create')
+            }}
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Produit
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Catégorie
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Vues
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Clics
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Ventes
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Revenus
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {products.slice(0, 5).map((product) => (
                 <tr key={product.id} className="hover:bg-gray-50 cursor-pointer">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="font-medium text-gray-900">{product.name}</div>
@@ -250,10 +294,11 @@ const MerchantDashboard = () => {
                     {((product.total_sales || 0) * (product.price || 0)).toLocaleString()} €
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
 
       {/* Quick Actions */}
