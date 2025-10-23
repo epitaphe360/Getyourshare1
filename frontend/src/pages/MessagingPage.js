@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import api from '../utils/api';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
@@ -14,6 +15,7 @@ const MessagingPage = () => {
   const { conversationId } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
