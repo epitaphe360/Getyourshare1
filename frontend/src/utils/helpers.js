@@ -37,6 +37,11 @@ export const formatNumber = (num) => {
 
 // Get status badge color
 export const getStatusColor = (status) => {
+  // Convert to string and handle null/undefined
+  if (!status) return 'bg-gray-100 text-gray-800';
+  
+  const statusStr = typeof status === 'string' ? status : String(status);
+  
   const colors = {
     approved: 'bg-green-100 text-green-800',
     pending: 'bg-yellow-100 text-yellow-800',
@@ -45,8 +50,12 @@ export const getStatusColor = (status) => {
     active: 'bg-blue-100 text-blue-800',
     paused: 'bg-gray-100 text-gray-800',
     inactive: 'bg-gray-100 text-gray-800',
+    draft: 'bg-purple-100 text-purple-800',
+    completed: 'bg-green-100 text-green-800',
+    ended: 'bg-red-100 text-red-800',
+    archived: 'bg-gray-100 text-gray-800',
   };
-  return colors[status?.toLowerCase()] || 'bg-gray-100 text-gray-800';
+  return colors[statusStr.toLowerCase()] || 'bg-gray-100 text-gray-800';
 };
 
 // Truncate text
