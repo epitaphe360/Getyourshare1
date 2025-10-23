@@ -27,13 +27,17 @@ const MerchantDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, productsRes, salesChartRes] = await Promise.all([
+      const [statsRes, productsRes, salesChartRes, performanceRes] = await Promise.all([
         api.get('/api/analytics/overview'),
         api.get('/api/products'),
-        api.get('/api/analytics/merchant/sales-chart')
+        api.get('/api/analytics/merchant/sales-chart'),
+        api.get('/api/analytics/merchant/performance')
       ]);
       
-      setStats(statsRes.data);
+      setStats({
+        ...statsRes.data,
+        performance: performanceRes.data
+      });
       setProducts(productsRes.data.products || []);
       setSalesData(salesChartRes.data.data || []);
     } catch (error) {
