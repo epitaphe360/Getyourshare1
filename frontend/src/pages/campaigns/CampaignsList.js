@@ -202,6 +202,14 @@ const CampaignsList = () => {
 
         {loading ? (
           <div className="text-center py-8">Chargement...</div>
+        ) : filteredCampaigns.length === 0 ? (
+          <EmptyState
+            icon={Target}
+            title={searchTerm ? "Aucune campagne trouvée" : "Aucune campagne pour le moment"}
+            description={searchTerm ? "Essayez avec d'autres mots-clés" : "Créez votre première campagne pour commencer à travailler avec des influenceurs"}
+            actionLabel={!searchTerm ? "Créer une campagne" : null}
+            onAction={() => navigate('/campaigns/create')}
+          />
         ) : (
           <Table columns={columns} data={filteredCampaigns} />
         )}
