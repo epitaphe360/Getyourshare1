@@ -695,5 +695,231 @@ class KYCService:
             return []
 
 
+    # ============================================
+    # MÉTHODES POUR KYC ENDPOINTS
+    # ============================================
+
+    async def validate_submission(self, data: Dict) -> Dict:
+        """Valider une soumission KYC complète"""
+        errors = []
+        warnings = []
+
+        # Vérifier documents requis
+        if not data.get("identity_document"):
+            errors.append("Document d'identité obligatoire")
+
+        if not data.get("bank_account"):
+            errors.append("Informations bancaires obligatoires")
+
+        if data.get("user_type") == "merchant" and not data.get("company_documents"):
+            errors.append("Documents d'entreprise obligatoires pour les marchands")
+
+        # Vérifier expiration des documents
+        if data.get("identity_document", {}).get("expiry_date"):
+            try:
+                expiry = datetime.strptime(data["identity_document"]["expiry_date"], "%Y-%m-%d")
+                days_until_expiry = (expiry - datetime.now()).days
+
+                if days_until_expiry < 0:
+                    errors.append("Document d'identité expiré")
+                elif days_until_expiry < 90:
+                    warnings.append(f"Le document d'identité expire dans {days_until_expiry} jours")
+            except ValueError:
+                errors.append("Format de date d'expiration invalide")
+
+        return {
+            "valid": len(errors) == 0,
+            "errors": errors,
+            "warnings": warnings
+        }
+
+    async def create_submission(self, user_id: str, user_type: str, data: Dict, ip_address: Optional[str] = None) -> str:
+        """Créer une soumission KYC"""
+        try:
+            import uuid
+            kyc_id = str(uuid.uuid4())
+
+            submission_data = {
+                "id": kyc_id,
+                "user_id": user_id,
+                "user_type": user_type,
+                "status": "submitted",
+                "personal_info": data.get("personal_info"),
+                "identity_document": data.get("identity_document"),
+                "company_documents": data.get("company_documents"),
+                "bank_account": data.get("bank_account"),
+                "ip_address": ip_address,
+                "submitted_at": datetime.utcnow().isoformat(),
+                "created_at": datetime.utcnow().isoformat()
+            }
+
+            # Sauvegarder dans DB (table: kyc_submissions)
+            result = self.supabase.table('kyc_submissions').insert(submission_data).execute()
+
+            logger.info("kyc_submission_created", kyc_id=kyc_id, user_id=user_id)
+
+            return kyc_id
+
+        except Exception as e:
+            logger.error("create_submission_failed", user_id=user_id, error=str(e))
+            raise
+
+    async def get_user_kyc_status(self, user_id: str) -> Dict:
+        """Obtenir le statut KYC d'un utilisateur"""
+        try:
+            # Récupérer dernière soumission
+            result = self.supabase.table('kyc_submissions').select('*').eq('user_id', user_id).order('created_at', desc=True).limit(1).execute()
+
+            if not result.data:
+                return {
+                    "user_id": user_id,
+                    "status": "pending",
+                    "submitted_at": None,
+                    "reviewed_at": None,
+                    "reviewer_id": None,
+                    "documents_uploaded": [],
+                    "missing_documents": ["cin", "rib"],
+                    "rejection_reason": None,
+                    "rejection_comment": None,
+                    "can_resubmit": True
+                }
+
+            submission = result.data[0]
+
+            return {
+                "user_id": user_id,
+                "status": submission.get("status"),
+                "submitted_at": submission.get("submitted_at"),
+                "reviewed_at": submission.get("reviewed_at"),
+                "reviewer_id": submission.get("reviewer_id"),
+                "documents_uploaded": self._list_uploaded_documents(submission),
+                "missing_documents": [],
+                "rejection_reason": submission.get("rejection_reason"),
+                "rejection_comment": submission.get("rejection_comment"),
+                "can_resubmit": submission.get("status") in ["rejected", "expired"]
+            }
+
+        except Exception as e:
+            logger.error("get_kyc_status_failed", user_id=user_id, error=str(e))
+            raise
+
+    def _list_uploaded_documents(self, submission: Dict) -> List[str]:
+        """Lister les documents uploadés d'une soumission"""
+        docs = []
+        if submission.get("identity_document"):
+            docs.append("identity_document")
+        if submission.get("company_documents"):
+            docs.append("company_documents")
+        if submission.get("bank_account"):
+            docs.append("bank_account")
+        return docs
+
+    async def upload_document(self, user_id: str, document_type: str, file_content: bytes, filename: str, content_type: str) -> str:
+        """Upload un document vers le storage"""
+        try:
+            import uuid
+            file_ext = filename.split(".")[-1] if "." in filename else "jpg"
+            unique_filename = f"{user_id}/{document_type}_{uuid.uuid4()}.{file_ext}"
+
+            # Upload vers Supabase Storage (bucket: kyc-documents)
+            result = self.supabase.storage.from_('kyc-documents').upload(
+                unique_filename,
+                file_content,
+                {'content-type': content_type}
+            )
+
+            # Générer URL publique
+            document_url = self.supabase.storage.from_('kyc-documents').get_public_url(unique_filename)
+
+            logger.info("document_uploaded", user_id=user_id, document_type=document_type, url=document_url)
+
+            return document_url
+
+        except Exception as e:
+            logger.error("upload_document_failed", user_id=user_id, document_type=document_type, error=str(e))
+            raise
+
+    async def get_pending_submissions(self, page: int = 1, limit: int = 20) -> List[Dict]:
+        """Récupérer les soumissions KYC en attente"""
+        try:
+            offset = (page - 1) * limit
+
+            result = self.supabase.table('kyc_submissions').select(
+                '*',
+                'users(id, email, first_name, last_name, role)'
+            ).in_('status', ['submitted', 'under_review']).order('submitted_at', desc=False).range(offset, offset + limit - 1).execute()
+
+            return result.data or []
+
+        except Exception as e:
+            logger.error("get_pending_submissions_failed", error=str(e))
+            return []
+
+    async def get_submission_details(self, kyc_id: str) -> Optional[Dict]:
+        """Récupérer les détails complets d'une soumission"""
+        try:
+            result = self.supabase.table('kyc_submissions').select(
+                '*',
+                'users(id, email, first_name, last_name, role, phone)'
+            ).eq('id', kyc_id).execute()
+
+            if not result.data:
+                return None
+
+            return result.data[0]
+
+        except Exception as e:
+            logger.error("get_submission_details_failed", kyc_id=kyc_id, error=str(e))
+            return None
+
+    async def approve_kyc(self, kyc_id: str, reviewer_id: str, notes: Optional[str] = None) -> bool:
+        """Approuver un KYC"""
+        try:
+            update_data = {
+                "status": "approved",
+                "reviewed_at": datetime.utcnow().isoformat(),
+                "reviewer_id": reviewer_id,
+                "reviewer_notes": notes
+            }
+
+            result = self.supabase.table('kyc_submissions').update(update_data).eq('id', kyc_id).execute()
+
+            if result.data:
+                logger.info("kyc_approved", kyc_id=kyc_id, reviewer_id=reviewer_id)
+                # TODO: Envoyer email de confirmation
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error("approve_kyc_failed", kyc_id=kyc_id, error=str(e))
+            return False
+
+    async def reject_kyc(self, kyc_id: str, reviewer_id: str, reason: str, comment: str, notes: Optional[str] = None) -> bool:
+        """Rejeter un KYC"""
+        try:
+            update_data = {
+                "status": "rejected",
+                "reviewed_at": datetime.utcnow().isoformat(),
+                "reviewer_id": reviewer_id,
+                "rejection_reason": reason,
+                "rejection_comment": comment,
+                "reviewer_notes": notes
+            }
+
+            result = self.supabase.table('kyc_submissions').update(update_data).eq('id', kyc_id).execute()
+
+            if result.data:
+                logger.info("kyc_rejected", kyc_id=kyc_id, reviewer_id=reviewer_id, reason=reason)
+                # TODO: Envoyer email avec raison du rejet
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error("reject_kyc_failed", kyc_id=kyc_id, error=str(e))
+            return False
+
+
 # Instance globale du service
 kyc_service = KYCService()
