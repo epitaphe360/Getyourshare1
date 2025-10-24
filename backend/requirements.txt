@@ -87,3 +87,10 @@ uvicorn==0.24.0
 watchfiles==1.1.1
 websockets==15.0.1
 yarl==1.22.0
+
+# Production-Grade Monitoring & Security
+sentry-sdk==1.40.0  # Error tracking & performance monitoring
+structlog==23.3.0  # Structured logging
+psutil==5.9.8  # System metrics (CPU, memory, disk)
+redis==5.0.1  # Redis client for rate limiting & caching
+stripe==8.0.0  # Stripe payment processing
