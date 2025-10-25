@@ -218,6 +218,8 @@ from subscription_endpoints import router as subscription_router
 from team_endpoints import router as team_router
 from domain_endpoints import router as domain_router
 from stripe_webhook_handler import router as stripe_webhook_router
+from commercials_directory_endpoints import router as commercials_router
+from influencers_directory_endpoints import router as influencers_router
 
 # Include all routers in the app
 app.include_router(marketplace_router)
@@ -232,6 +234,8 @@ app.include_router(subscription_router)
 app.include_router(team_router)
 app.include_router(domain_router)
 app.include_router(stripe_webhook_router)
+app.include_router(commercials_router)
+app.include_router(influencers_router)
 
 # Security
 security = HTTPBearer()
