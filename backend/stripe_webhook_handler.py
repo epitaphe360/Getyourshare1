@@ -22,20 +22,36 @@ import stripe
 router = APIRouter(prefix="/api/webhooks", tags=["Webhooks"])
 
 # ============================================
+# ENVIRONMENT VARIABLES VALIDATION
+# ============================================
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    raise ValueError("Missing required Supabase environment variables")
+
+# ============================================
 # SUPABASE CLIENT
 # ============================================
 
-supabase: Client = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_SERVICE_KEY")
-)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 # ============================================
 # STRIPE CONFIGURATION
 # ============================================
 
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+if not STRIPE_SECRET_KEY or not STRIPE_SECRET_KEY.startswith("sk_"):
+    raise ValueError("Missing or invalid STRIPE_SECRET_KEY")
+
+if not STRIPE_WEBHOOK_SECRET or not STRIPE_WEBHOOK_SECRET.startswith("whsec_"):
+    raise ValueError("Missing or invalid STRIPE_WEBHOOK_SECRET")
+
+stripe.api_key = STRIPE_SECRET_KEY
+stripe.max_network_retries = 2
 
 # ============================================
 # WEBHOOK EVENT HANDLERS
