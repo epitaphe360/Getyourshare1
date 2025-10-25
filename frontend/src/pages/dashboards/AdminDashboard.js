@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
@@ -16,6 +17,7 @@ import {
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [stats, setStats] = useState(null);
   const [merchants, setMerchants] = useState([]);
   const [influencers, setInfluencers] = useState([]);
@@ -32,7 +34,8 @@ const AdminDashboard = () => {
   const fetchData = async () => {
     try {
       setError(null);
-      const [statsRes, merchantsRes, influencersRes, revenueRes, categoriesRes, metricsRes] = await Promise.all([
+      // Utiliser Promise.allSettled au lieu de Promise.all pour gérer les erreurs partielles
+      const results = await Promise.allSettled([
         api.get('/api/analytics/overview'),
         api.get('/api/merchants'),
         api.get('/api/influencers'),
@@ -41,31 +44,74 @@ const AdminDashboard = () => {
         api.get('/api/analytics/admin/platform-metrics')
       ]);
 
-      setStats({
-        ...statsRes.data,
-        platformMetrics: metricsRes.data
-      });
-      setMerchants(merchantsRes.data.merchants || []);
-      setInfluencers(influencersRes.data.influencers || []);
+      // Gérer les statistiques
+      const [statsRes, merchantsRes, influencersRes, revenueRes, categoriesRes, metricsRes] = results;
 
-      // Transformer les données de revenus en format mensuel (simplification pour l'exemple)
-      const dailyData = revenueRes.data.data || [];
-      setRevenueData(dailyData.map((day, idx) => ({
-        month: day.date,
-        revenue: day.revenus
-      })));
+      if (statsRes.status === 'fulfilled' && metricsRes.status === 'fulfilled') {
+        setStats({
+          ...statsRes.value.data,
+          platformMetrics: metricsRes.value.data
+        });
+      } else {
+        console.error('Error loading stats:', statsRes.reason || metricsRes.reason);
+        toast.error('Erreur lors du chargement des statistiques');
+        setStats({
+          total_revenue: 0,
+          total_merchants: 0,
+          total_influencers: 0,
+          total_products: 0,
+          platformMetrics: {
+            avg_conversion_rate: 0,
+            monthly_clicks: 0,
+            quarterly_growth: 0
+          }
+        });
+      }
 
-      // CategoryData: données réelles depuis l'API
-      const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#14b8a6'];
-      const categoriesData = categoriesRes.data.data || [];
-      setCategoryData(categoriesData.map((cat, idx) => ({
-        name: cat.category,
-        value: cat.count,
-        color: colors[idx % colors.length]
-      })));
+      // Gérer les merchants
+      if (merchantsRes.status === 'fulfilled') {
+        setMerchants(merchantsRes.value.data.merchants || []);
+      } else {
+        console.error('Error loading merchants:', merchantsRes.reason);
+        setMerchants([]);
+      }
+
+      // Gérer les influencers
+      if (influencersRes.status === 'fulfilled') {
+        setInfluencers(influencersRes.value.data.influencers || []);
+      } else {
+        console.error('Error loading influencers:', influencersRes.reason);
+        setInfluencers([]);
+      }
+
+      // Gérer les données de revenus
+      if (revenueRes.status === 'fulfilled') {
+        const dailyData = revenueRes.value.data.data || [];
+        setRevenueData(dailyData.map((day, idx) => ({
+          month: day.date,
+          revenue: day.revenus
+        })));
+      } else {
+        console.error('Error loading revenue chart:', revenueRes.reason);
+        setRevenueData([]);
+      }
+
+      // Gérer les catégories
+      if (categoriesRes.status === 'fulfilled') {
+        const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#14b8a6'];
+        const categoriesData = categoriesRes.value.data.data || [];
+        setCategoryData(categoriesData.map((cat, idx) => ({
+          name: cat.category,
+          value: cat.count,
+          color: colors[idx % colors.length]
+        })));
+      } else {
+        console.error('Error loading categories:', categoriesRes.reason);
+        setCategoryData([]);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError('Erreur lors du chargement des données. Veuillez réessayer.');
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -123,10 +169,10 @@ Généré par ShareYourSales
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
-      alert('✅ Rapport exporté avec succès!');
+      toast.success('Rapport exporté avec succès!');
     } catch (error) {
       console.error('Error exporting PDF:', error);
-      alert('❌ Erreur lors de l\'export du rapport');
+      toast.error('Erreur lors de l\'export du rapport');
     } finally {
       setExportingPDF(false);
     }
@@ -183,7 +229,6 @@ Généré par ShareYourSales
             <Download size={18} />
             {exportingPDF ? 'Export...' : 'Export Rapport'}
           </button>
-          {/* Les boutons de la branche HEAD sont conservés pour une navigation rapide */}
           <button 
             onClick={() => navigate('/admin/users/create')}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
@@ -208,7 +253,7 @@ Généré par ShareYourSales
           value={stats?.total_revenue || 502000}
           isCurrency={true}
           icon={<DollarSign className="text-green-600" size={24} />}
-          trend={12.5}
+          trend={stats?.platformMetrics?.quarterly_growth || 12.5}
         />
         <StatCard
           title="Entreprises"

@@ -378,7 +378,7 @@ const Sidebar = () => {
       >
         <div className="p-6">
           <div className="flex items-center justify-between mb-8">
-            <h1 className={`text-2xl font-bold ${collapsed ? 'hidden' : 'block'}`}>Tracknow</h1>
+            <h1 className={`text-2xl font-bold ${collapsed ? 'hidden' : 'block'}`}>ShareYourSales</h1>
           </div>
 
           {/* User Info */}

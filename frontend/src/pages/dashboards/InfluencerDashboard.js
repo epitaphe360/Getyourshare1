@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
@@ -18,6 +19,7 @@ import {
 const InfluencerDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const [stats, setStats] = useState(null);
   const [links, setLinks] = useState([]);
   const [earningsData, setEarningsData] = useState([]);
@@ -37,39 +39,69 @@ const InfluencerDashboard = () => {
   const fetchData = async () => {
     try {
       setError(null);
-      const [statsRes, linksRes, earningsRes] = await Promise.all([
+      // Utiliser Promise.allSettled au lieu de Promise.all
+      const results = await Promise.allSettled([
         api.get('/api/analytics/overview'),
         api.get('/api/affiliate-links'),
         api.get('/api/analytics/influencer/earnings-chart')
       ]);
 
-      setStats(statsRes.data);
-      setLinks(linksRes.data.links || []);
-      setEarningsData(earningsRes.data.data || []);
+      const [statsRes, linksRes, earningsRes] = results;
 
-      // Calculer les gains par produit à partir des liens (Logique de HEAD)
-      const productEarningsData = (linksRes.data.links || [])
-        .filter(link => link.commission_earned > 0)
-        .sort((a, b) => b.commission_earned - a.commission_earned)
-        .slice(0, 10) // Top 10 produits
-        .map(link => ({
-          name: link.product_name?.substring(0, 20) + (link.product_name?.length > 20 ? '...' : ''),
-          gains: link.commission_earned || 0,
-          conversions: link.conversions || 0
+      // Gérer les statistiques
+      if (statsRes.status === 'fulfilled') {
+        setStats(statsRes.value.data);
+      } else {
+        console.error('Error loading stats:', statsRes.reason);
+        toast.error('Erreur lors du chargement des statistiques');
+        setStats({
+          total_earnings: 0,
+          total_clicks: 0,
+          total_sales: 0,
+          balance: 0
+        });
+      }
+
+      // Gérer les liens
+      if (linksRes.status === 'fulfilled') {
+        setLinks(linksRes.value.data.links || []);
+        // Calculer les gains par produit à partir des liens (Logique de HEAD)
+        const productEarningsData = (linksRes.value.data.links || [])
+          .filter(link => link.commission_earned > 0)
+          .sort((a, b) => b.commission_earned - a.commission_earned)
+          .slice(0, 10) // Top 10 produits
+          .map(link => ({
+            name: link.product_name?.substring(0, 20) + (link.product_name?.length > 20 ? '...' : ''),
+            gains: link.commission_earned || 0,
+            conversions: link.conversions || 0
+          }));
+        setProductEarnings(productEarningsData);
+      } else {
+        console.error('Error loading links:', linksRes.reason);
+        setLinks([]);
+        setProductEarnings([]);
+      }
+
+      // Gérer les données de gains
+      if (earningsRes.status === 'fulfilled') {
+        const earningsDataResult = earningsRes.value.data.data || [];
+        setEarningsData(earningsDataResult);
+
+        // Créer les données de performance basées sur les gains réels
+        const perfData = earningsDataResult.map(day => ({
+          date: day.date,
+          clics: Math.round((day.gains || 0) * 3), // Estimation basée sur les gains
+          conversions: Math.round((day.gains || 0) / 25) // Estimation: gain moyen de 25€ par conversion
         }));
-      setProductEarnings(productEarningsData);
-
-      // Pour performanceData, on peut utiliser les mêmes données mais avec clics et conversions
-      // On va créer un calcul basé sur les stats existantes
-      const perfData = (earningsRes.data.data || []).map(day => ({
-        date: day.date,
-        clics: Math.round((day.gains || 0) * 3), // Estimation basée sur les gains
-        conversions: Math.round((day.gains || 0) / 25) // Estimation: gain moyen de 25€ par conversion
-      }));
-      setPerformanceData(perfData);
+        setPerformanceData(perfData);
+      } else {
+        console.error('Error loading earnings:', earningsRes.reason);
+        setEarningsData([]);
+        setPerformanceData([]);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError('Erreur lors du chargement des données. Veuillez réessayer.');
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -84,17 +116,17 @@ const InfluencerDashboard = () => {
 
       // Validations
       if (isNaN(amount) || amount <= 0) {
-        alert('❌ Veuillez entrer un montant valide');
+        toast.error('Veuillez entrer un montant valide');
         return;
       }
 
       if (amount > currentBalance) {
-        alert(`❌ Montant demandé (${amount}€) supérieur au solde disponible (${currentBalance}€)`);
+        toast.error(`Montant demandé (${amount}€) supérieur au solde disponible (${currentBalance}€)`);
         return;
       }
 
       if (amount < 50) {
-        alert('❌ Le montant minimum de retrait est de 50€');
+        toast.error('Le montant minimum de retrait est de 50€');
         return;
       }
 
@@ -106,14 +138,14 @@ const InfluencerDashboard = () => {
       });
 
       if (response.data) {
-        alert(`✅ Demande de paiement de ${amount}€ envoyée avec succès! Elle sera traitée sous 2-3 jours ouvrés.`);
+        toast.success(`Demande de paiement de ${amount}€ envoyée avec succès! Elle sera traitée sous 2-3 jours ouvrés.`);
         setShowPayoutModal(false);
         setPayoutAmount('');
         fetchData(); // Rafraîchir les données
       }
     } catch (error) {
       console.error('Error requesting payout:', error);
-      alert('❌ Erreur lors de la demande de paiement. Veuillez réessayer.');
+      toast.error('Erreur lors de la demande de paiement. Veuillez réessayer.');
     } finally {
       setPayoutSubmitting(false);
     }
@@ -122,10 +154,10 @@ const InfluencerDashboard = () => {
   const handleCopyLink = (link) => {
     try {
       navigator.clipboard.writeText(link);
-      alert('✅ Lien copié dans le presse-papier!');
+      toast.success('Lien copié dans le presse-papier!');
     } catch (error) {
       console.error('Error copying link:', error);
-      alert('❌ Erreur lors de la copie du lien');
+      toast.error('Erreur lors de la copie du lien');
     }
   };
 
@@ -196,26 +228,31 @@ const InfluencerDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Gains Totaux"
-          value={stats?.total_earnings || 18650}
+          value={stats?.total_earnings || 0}
           isCurrency={true}
           icon={<DollarSign className="text-green-600" size={24} />}
-          trend={24.8}
+          trend={stats?.earnings_growth || 0}
         />
         <StatCard
           title="Clics Générés"
-          value={stats?.total_clicks || 12450}
+          value={stats?.total_clicks || 0}
           icon={<MousePointer className="text-indigo-600" size={24} />}
-          trend={18.2}
+          trend={stats?.clicks_growth || 0}
         />
         <StatCard
           title="Ventes Réalisées"
-          value={stats?.total_sales || 186}
+          value={stats?.total_sales || 0}
           icon={<ShoppingCart className="text-purple-600" size={24} />}
-          trend={15.7}
+          trend={stats?.sales_growth || 0}
         />
         <StatCard
           title="Taux de Conversion"
-          value={`${((stats?.total_sales / stats?.total_clicks * 100) || 1.49).toFixed(2)}%`}
+          value={(() => {
+            const clicks = stats?.total_clicks || 0;
+            const sales = stats?.total_sales || 0;
+            if (clicks === 0) return '0.00%';
+            return `${((sales / clicks) * 100).toFixed(2)}%`;
+          })()}
           icon={<Target className="text-orange-600" size={24} />}
         />
       </div>
@@ -226,7 +263,7 @@ const InfluencerDashboard = () => {
           <div>
             <div className="text-purple-100 mb-2">Solde Disponible</div>
             <div className="text-5xl font-bold mb-4">
-              {(stats?.balance || 4250).toLocaleString()} €
+              {(stats?.balance || 0).toLocaleString()} €
             </div>
             <button
               onClick={() => setShowPayoutModal(true)}
@@ -239,7 +276,7 @@ const InfluencerDashboard = () => {
           <div className="text-right">
             <div className="text-purple-100 mb-2">Gains ce Mois</div>
             <div className="text-3xl font-bold">
-              {((stats?.total_earnings || 18650) * 0.25).toLocaleString()} €
+              {((stats?.total_earnings || 0) * 0.25).toLocaleString()} €
             </div>
             <div className="text-purple-200 text-sm mt-1">+32% vs mois dernier</div>
           </div>
@@ -390,7 +427,7 @@ const InfluencerDashboard = () => {
       >
         <div className="space-y-4">
           <p className="text-gray-600">
-            Votre solde actuel est de <span className="font-bold">{(stats?.balance || 4250).toLocaleString()} €</span>.
+            Votre solde actuel est de <span className="font-bold">{(stats?.balance || 0).toLocaleString()} €</span>.
             Le montant minimum de retrait est de 50 €.
           </p>
           <div>

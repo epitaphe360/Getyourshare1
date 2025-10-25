@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
@@ -18,6 +19,7 @@ import {
 const MerchantDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [salesData, setSalesData] = useState([]);
@@ -31,22 +33,57 @@ const MerchantDashboard = () => {
   const fetchData = async () => {
     try {
       setError(null);
-      const [statsRes, productsRes, salesChartRes, performanceRes] = await Promise.all([
+      // Utiliser Promise.allSettled au lieu de Promise.all
+      const results = await Promise.allSettled([
         api.get('/api/analytics/overview'),
         api.get('/api/products'),
         api.get('/api/analytics/merchant/sales-chart'),
         api.get('/api/analytics/merchant/performance')
       ]);
 
-      setStats({
-        ...statsRes.data,
-        performance: performanceRes.data
-      });
-      setProducts(productsRes.data.products || []);
-      setSalesData(salesChartRes.data.data || []);
+      const [statsRes, productsRes, salesChartRes, performanceRes] = results;
+
+      // Gérer les statistiques
+      if (statsRes.status === 'fulfilled' && performanceRes.status === 'fulfilled') {
+        setStats({
+          ...statsRes.value.data,
+          performance: performanceRes.value.data
+        });
+      } else {
+        console.error('Error loading stats:', statsRes.reason || performanceRes.reason);
+        toast.error('Erreur lors du chargement des statistiques');
+        setStats({
+          total_sales: 0,
+          products_count: 0,
+          affiliates_count: 0,
+          roi: 0,
+          performance: {
+            conversion_rate: 0,
+            engagement_rate: 0,
+            satisfaction_rate: 0,
+            monthly_goal_progress: 0
+          }
+        });
+      }
+
+      // Gérer les produits
+      if (productsRes.status === 'fulfilled') {
+        setProducts(productsRes.value.data.products || []);
+      } else {
+        console.error('Error loading products:', productsRes.reason);
+        setProducts([]);
+      }
+
+      // Gérer les données de ventes
+      if (salesChartRes.status === 'fulfilled') {
+        setSalesData(salesChartRes.value.data.data || []);
+      } else {
+        console.error('Error loading sales chart:', salesChartRes.reason);
+        setSalesData([]);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
-      setError('Erreur lors du chargement des données. Veuillez réessayer.');
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
@@ -124,28 +161,28 @@ const MerchantDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Chiffre d'Affaires"
-          value={typeof stats?.total_sales === 'number' ? stats.total_sales : 145000}
+          value={typeof stats?.total_sales === 'number' ? stats.total_sales : 0}
           isCurrency={true}
           icon={<DollarSign className="text-green-600" size={24} />}
-          trend={18.5}
+          trend={stats?.sales_growth || 0}
         />
         <StatCard
           title="Produits Actifs"
-          value={typeof stats?.products_count === 'number' ? stats.products_count : products.length || 3}
+          value={typeof stats?.products_count === 'number' ? stats.products_count : products.length || 0}
           icon={<Package className="text-indigo-600" size={24} />}
         />
         <StatCard
           title="Affiliés Actifs"
-          value={typeof stats?.affiliates_count === 'number' ? stats.affiliates_count : 23}
+          value={typeof stats?.affiliates_count === 'number' ? stats.affiliates_count : 0}
           icon={<Users className="text-purple-600" size={24} />}
-          trend={12.3}
+          trend={stats?.affiliates_growth || 0}
         />
         <StatCard
           title="ROI Marketing"
-          value={typeof stats?.roi === 'number' && !isNaN(stats.roi) ? stats.roi : 320.5}
+          value={typeof stats?.roi === 'number' && !isNaN(stats.roi) ? stats.roi : 0}
           suffix="%"
           icon={<TrendingUp className="text-orange-600" size={24} />}
-          trend={5.2}
+          trend={stats?.roi_growth || 0}
         />
       </div>
 
@@ -174,13 +211,13 @@ const MerchantDashboard = () => {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-700">Taux de Conversion</span>
                 <span className="text-sm font-bold text-indigo-600">
-                  {stats?.performance?.conversion_rate || 14.2}%
+                  {stats?.performance?.conversion_rate || 0}%
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
                   className="bg-indigo-600 h-3 rounded-full"
-                  style={{ width: `${Math.min(stats?.performance?.conversion_rate || 14.2, 100)}%` }}
+                  style={{ width: `${Math.min(stats?.performance?.conversion_rate || 0, 100)}%` }}
                 ></div>
               </div>
             </div>
@@ -189,13 +226,13 @@ const MerchantDashboard = () => {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-700">Taux d'Engagement</span>
                 <span className="text-sm font-bold text-purple-600">
-                  {stats?.performance?.engagement_rate || 68}%
+                  {stats?.performance?.engagement_rate || 0}%
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
                   className="bg-purple-600 h-3 rounded-full"
-                  style={{ width: `${stats?.performance?.engagement_rate || 68}%` }}
+                  style={{ width: `${stats?.performance?.engagement_rate || 0}%` }}
                 ></div>
               </div>
             </div>
@@ -204,13 +241,13 @@ const MerchantDashboard = () => {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-700">Satisfaction Client</span>
                 <span className="text-sm font-bold text-green-600">
-                  {stats?.performance?.satisfaction_rate || 92}%
+                  {stats?.performance?.satisfaction_rate || 0}%
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
                   className="bg-green-600 h-3 rounded-full"
-                  style={{ width: `${stats?.performance?.satisfaction_rate || 92}%` }}
+                  style={{ width: `${stats?.performance?.satisfaction_rate || 0}%` }}
                 ></div>
               </div>
             </div>
@@ -219,13 +256,13 @@ const MerchantDashboard = () => {
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-700">Objectif Mensuel</span>
                 <span className="text-sm font-bold text-orange-600">
-                  {stats?.performance?.monthly_goal_progress || 78}%
+                  {stats?.performance?.monthly_goal_progress || 0}%
                 </span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div
                   className="bg-orange-600 h-3 rounded-full"
-                  style={{ width: `${stats?.performance?.monthly_goal_progress || 78}%` }}
+                  style={{ width: `${stats?.performance?.monthly_goal_progress || 0}%` }}
                 ></div>
               </div>
             </div>
