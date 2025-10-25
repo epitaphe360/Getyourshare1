@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import { useToast } from '../../context/ToastContext';
+import api from '../../utils/api';
 
 const AffiliateSettings = () => {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
     min_withdrawal: 50,
     auto_approval: false,
@@ -11,9 +15,18 @@ const AffiliateSettings = () => {
     single_campaign_mode: false,
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Saving affiliate settings:', settings);
+    setSaving(true);
+    try {
+      await api.post('/api/settings/affiliate', settings);
+      toast.success('Paramètres des affiliés sauvegardés avec succès');
+    } catch (error) {
+      console.error('Error saving affiliate settings:', error);
+      toast.error('Erreur lors de la sauvegarde des paramètres');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -101,8 +114,8 @@ const AffiliateSettings = () => {
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit">
-                Enregistrer les modifications
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Sauvegarde...' : 'Enregistrer les modifications'}
               </Button>
             </div>
           </div>

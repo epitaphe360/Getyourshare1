@@ -2,14 +2,18 @@ import React, { useState } from 'react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { Upload, Palette, Mail, Shield } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
+import api from '../../utils/api';
 
 const WhiteLabel = () => {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
     logo_url: '',
     primary_color: '#3b82f6',
     secondary_color: '#1e40af',
     accent_color: '#10b981',
-    company_name: 'Tracknow Platform',
+    company_name: 'ShareYourSales',
     custom_domain: 'track.votredomaine.com',
     ssl_enabled: true,
     custom_email_domain: 'noreply@votredomaine.com',
@@ -32,9 +36,18 @@ const WhiteLabel = () => {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Saving white label settings:', settings);
+    setSaving(true);
+    try {
+      await api.post('/api/settings/whitelabel', settings);
+      toast.success('Configuration white label sauvegardée avec succès');
+    } catch (error) {
+      console.error('Error saving white label settings:', error);
+      toast.error('Erreur lors de la sauvegarde de la configuration');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -250,8 +263,8 @@ const WhiteLabel = () => {
         </Card>
 
         <div className="flex justify-end mt-6">
-          <Button type="submit" size="lg">
-            Enregistrer la Configuration
+          <Button type="submit" size="lg" disabled={saving}>
+            {saving ? 'Sauvegarde...' : 'Enregistrer la Configuration'}
           </Button>
         </div>
       </form>
