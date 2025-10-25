@@ -201,6 +201,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ============================================
+# INCLUDE ROUTERS (Modular Endpoints)
+# ============================================
+
+# Import endpoint routers
+from marketplace_endpoints import router as marketplace_router
+from affiliate_links_endpoints import router as affiliate_links_router
+from contact_endpoints import router as contact_router
+from admin_social_endpoints import router as admin_social_router
+from affiliation_requests_endpoints import router as affiliation_requests_router
+from kyc_endpoints import router as kyc_router
+from twofa_endpoints import router as twofa_router
+from ai_bot_endpoints import router as ai_bot_router
+
+# Include all routers in the app
+app.include_router(marketplace_router)
+app.include_router(affiliate_links_router)
+app.include_router(contact_router)
+app.include_router(admin_social_router)
+app.include_router(affiliation_requests_router)
+app.include_router(kyc_router)
+app.include_router(twofa_router)
+app.include_router(ai_bot_router)
+
 # Security
 security = HTTPBearer()
 JWT_SECRET = os.getenv("JWT_SECRET", "fallback-secret-please-set-env-variable")
