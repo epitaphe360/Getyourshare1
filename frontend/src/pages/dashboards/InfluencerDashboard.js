@@ -4,13 +4,15 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
-import { 
-  DollarSign, MousePointer, ShoppingCart, TrendingUp, 
-  Eye, Target, Award, Link as LinkIcon, Sparkles, Wallet, BarChart3
+import EmptyState from '../../components/common/EmptyState';
+import Modal from '../../components/common/Modal';
+import {
+  DollarSign, MousePointer, ShoppingCart, TrendingUp,
+  Eye, Target, Award, Link as LinkIcon, Sparkles, RefreshCw, X, Send, BarChart3, Wallet
 } from 'lucide-react';
-import { 
+import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
 const InfluencerDashboard = () => {
@@ -22,6 +24,11 @@ const InfluencerDashboard = () => {
   const [performanceData, setPerformanceData] = useState([]);
   const [productEarnings, setProductEarnings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [payoutAmount, setPayoutAmount] = useState('');
+  const [payoutMethod, setPayoutMethod] = useState('bank_transfer');
+  const [payoutSubmitting, setPayoutSubmitting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -29,17 +36,18 @@ const InfluencerDashboard = () => {
 
   const fetchData = async () => {
     try {
+      setError(null);
       const [statsRes, linksRes, earningsRes] = await Promise.all([
         api.get('/api/analytics/overview'),
         api.get('/api/affiliate-links'),
         api.get('/api/analytics/influencer/earnings-chart')
       ]);
-      
+
       setStats(statsRes.data);
       setLinks(linksRes.data.links || []);
       setEarningsData(earningsRes.data.data || []);
-      
-      // Calculer les gains par produit à partir des liens
+
+      // Calculer les gains par produit à partir des liens (Logique de HEAD)
       const productEarningsData = (linksRes.data.links || [])
         .filter(link => link.commission_earned > 0)
         .sort((a, b) => b.commission_earned - a.commission_earned)
@@ -50,7 +58,7 @@ const InfluencerDashboard = () => {
           conversions: link.conversions || 0
         }));
       setProductEarnings(productEarningsData);
-      
+
       // Pour performanceData, on peut utiliser les mêmes données mais avec clics et conversions
       // On va créer un calcul basé sur les stats existantes
       const perfData = (earningsRes.data.data || []).map(day => ({
@@ -61,8 +69,63 @@ const InfluencerDashboard = () => {
       setPerformanceData(perfData);
     } catch (error) {
       console.error('Error fetching data:', error);
+      setError('Erreur lors du chargement des données. Veuillez réessayer.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRequestPayout = async () => {
+    try {
+      setPayoutSubmitting(true);
+
+      const amount = parseFloat(payoutAmount);
+      const currentBalance = stats?.balance || 0;
+
+      // Validations
+      if (isNaN(amount) || amount <= 0) {
+        alert('❌ Veuillez entrer un montant valide');
+        return;
+      }
+
+      if (amount > currentBalance) {
+        alert(`❌ Montant demandé (${amount}€) supérieur au solde disponible (${currentBalance}€)`);
+        return;
+      }
+
+      if (amount < 50) {
+        alert('❌ Le montant minimum de retrait est de 50€');
+        return;
+      }
+
+      // Créer la demande de payout
+      const response = await api.post('/api/payouts/request', {
+        amount,
+        payment_method: payoutMethod,
+        currency: 'EUR'
+      });
+
+      if (response.data) {
+        alert(`✅ Demande de paiement de ${amount}€ envoyée avec succès! Elle sera traitée sous 2-3 jours ouvrés.`);
+        setShowPayoutModal(false);
+        setPayoutAmount('');
+        fetchData(); // Rafraîchir les données
+      }
+    } catch (error) {
+      console.error('Error requesting payout:', error);
+      alert('❌ Erreur lors de la demande de paiement. Veuillez réessayer.');
+    } finally {
+      setPayoutSubmitting(false);
+    }
+  };
+
+  const handleCopyLink = (link) => {
+    try {
+      navigator.clipboard.writeText(link);
+      alert('✅ Lien copié dans le presse-papier!');
+    } catch (error) {
+      console.error('Error copying link:', error);
+      alert('❌ Erreur lors de la copie du lien');
     }
   };
 
@@ -70,6 +133,28 @@ const InfluencerDashboard = () => {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-xl">Chargement...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center max-w-md">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Erreur de chargement</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => {
+              setLoading(true);
+              fetchData();
+            }}
+            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2 mx-auto"
+          >
+            <RefreshCw size={18} />
+            Réessayer
+          </button>
+        </div>
       </div>
     );
   }
@@ -85,13 +170,20 @@ const InfluencerDashboard = () => {
           </p>
         </div>
         <div className="flex space-x-3">
-          <button 
+          <button
+            onClick={() => fetchData()}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition flex items-center gap-2"
+            title="Rafraîchir les données"
+          >
+            <RefreshCw size={18} />
+          </button>
+          <button
             onClick={() => navigate('/marketplace')}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
           >
             🛍️ Marketplace
           </button>
-          <button 
+          <button
             onClick={() => navigate('/ai-marketing')}
             className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg hover:from-indigo-700 hover:to-purple-700 transition"
           >
@@ -136,7 +228,11 @@ const InfluencerDashboard = () => {
             <div className="text-5xl font-bold mb-4">
               {(stats?.balance || 4250).toLocaleString()} €
             </div>
-            <button className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition">
+            <button
+              onClick={() => setShowPayoutModal(true)}
+              className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-purple-50 transition flex items-center gap-2"
+            >
+              <Send size={18} />
               Demander un Paiement
             </button>
           </div>
@@ -166,243 +262,186 @@ const InfluencerDashboard = () => {
               <XAxis dataKey="date" />
               <YAxis />
               <Tooltip formatter={(value) => `${value} €`} />
-              <Area 
-                type="monotone" 
-                dataKey="gains" 
-                stroke="#10b981" 
-                fillOpacity={1} 
-                fill="url(#colorGains)" 
-                name="Gains (€)"
+              <Area
+                type="monotone"
+                dataKey="gains"
+                stroke="#10b981"
+                fillOpacity={1}
+                fill="url(#colorGains)"
               />
             </AreaChart>
           </ResponsiveContainer>
         </Card>
 
         {/* Performance Chart */}
-        <Card title="Clics & Conversions" icon={<Eye size={20} />}>
+        <Card title="Performance (Clics vs Conversions)" icon={<Target size={20} />}>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={performanceData}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
+              <YAxis yAxisId="left" stroke="#6366f1" />
+              <YAxis yAxisId="right" orientation="right" stroke="#f59e0b" />
               <Tooltip />
               <Legend />
-              <Line 
-                yAxisId="left"
-                type="monotone" 
-                dataKey="clics" 
-                stroke="#6366f1" 
-                strokeWidth={2}
-                name="Clics"
-              />
-              <Line 
-                yAxisId="right"
-                type="monotone" 
-                dataKey="conversions" 
-                stroke="#10b981" 
-                strokeWidth={2}
-                name="Conversions"
-              />
+              <Line yAxisId="left" type="monotone" dataKey="clics" stroke="#6366f1" activeDot={{ r: 8 }} />
+              <Line yAxisId="right" type="monotone" dataKey="conversions" stroke="#f59e0b" activeDot={{ r: 8 }} />
             </LineChart>
           </ResponsiveContainer>
         </Card>
       </div>
 
-      {/* Gains par Produit Affilié */}
-      <Card title="💰 Top 10 - Gains par Produit Affilié" icon={<DollarSign size={20} />}>
-        {productEarnings.length > 0 ? (
-          <>
-            <ResponsiveContainer width="100%" height={400}>
-              <BarChart data={productEarnings} layout="horizontal">
+      {/* Product Earnings and Links */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Product Earnings */}
+        <Card title="Top Produits (Gains)" icon={<Wallet size={20} />}>
+          {productEarnings.length === 0 ? (
+            <EmptyState
+              icon={<Sparkles />}
+              title="Aucun gain enregistré"
+              description="Commencez à partager vos liens d'affiliation pour générer des gains."
+            />
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={productEarnings}
+                layout="vertical"
+                margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+              >
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis type="number" />
-                <YAxis dataKey="name" type="category" width={150} />
-                <Tooltip 
-                  formatter={(value, name) => {
-                    if (name === 'gains') return [`${value} €`, 'Gains'];
-                    return [value, 'Conversions'];
-                  }}
-                />
+                <YAxis type="category" dataKey="name" width={100} />
+                <Tooltip formatter={(value) => `${value.toLocaleString()} €`} />
                 <Legend />
-                <Bar dataKey="gains" fill="#10b981" name="Gains (€)" />
-                <Bar dataKey="conversions" fill="#6366f1" name="Conversions" />
+                <Bar dataKey="gains" fill="#8b5cf6" />
               </BarChart>
             </ResponsiveContainer>
-            
-            {/* Tableau détaillé */}
-            <div className="mt-6 overflow-x-auto">
-              <table className="min-w-full">
+          )}
+        </Card>
+
+        {/* Affiliate Links Table */}
+        <Card title="Mes Liens d'Affiliation" icon={<LinkIcon size={20} />}>
+          {links.length === 0 ? (
+            <EmptyState
+              icon={<LinkIcon />}
+              title="Aucun lien d'affiliation"
+              description="Créez votre premier lien depuis la Marketplace pour commencer à gagner des commissions."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rang</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Produit</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Conversions</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gains</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Gain/Conv</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Produit
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Gains (€)
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Clics
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {productEarnings.map((product, index) => (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="px-4 py-4 whitespace-nowrap">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                          index === 0 ? 'bg-yellow-100 text-yellow-700' :
-                          index === 1 ? 'bg-gray-100 text-gray-700' :
-                          index === 2 ? 'bg-orange-100 text-orange-700' :
-                          'bg-blue-50 text-blue-700'
-                        }`}>
-                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
-                        </div>
+                  {links.slice(0, 5).map((link) => (
+                    <tr key={link.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {link.product_name || 'Produit Inconnu'}
                       </td>
-                      <td className="px-6 py-4">
-                        <div className="font-medium text-gray-900">{product.name}</div>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {(link.commission_earned || 0).toLocaleString()}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <span className="px-2 py-1 text-sm font-semibold rounded-full bg-indigo-100 text-indigo-800">
-                          {product.conversions}
-                        </span>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {link.clicks || 0}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <span className="text-lg font-bold text-green-600">
-                          {product.gains.toLocaleString()} €
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-600">
-                        {product.conversions > 0 ? (product.gains / product.conversions).toFixed(2) : '0.00'} €
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          onClick={() => handleCopyLink(link.affiliate_url)}
+                          className="text-indigo-600 hover:text-indigo-900 font-medium"
+                        >
+                          Copier Lien
+                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-          </>
-        ) : (
-          <div className="text-center py-12 text-gray-500">
-            <DollarSign className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-            <p className="text-lg font-medium">Aucun gain enregistré</p>
-            <p className="text-sm mt-2">Commencez à promouvoir des produits pour voir vos gains ici</p>
+          )}
+          <div className="mt-4 text-right">
             <button
-              onClick={() => navigate('/marketplace')}
-              className="mt-4 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+              onClick={() => navigate('/affiliate-links')}
+              className="text-sm font-medium text-indigo-600 hover:text-indigo-900"
             >
-              Explorer le Marketplace
+              Voir tous les liens →
             </button>
           </div>
-        )}
-      </Card>
-
-      {/* My Links Performance */}
-      <Card title="Mes Liens d'Affiliation" icon={<LinkIcon size={20} />}>
-        <div className="overflow-x-auto">
-          <table className="min-w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Produit
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Lien Court
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Clics
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Conversions
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Taux Conv.
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Commission
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {links.map((link) => (
-                <tr key={link.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="font-medium text-gray-900">{link.product_name}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <code className="text-xs bg-gray-100 px-2 py-1 rounded">{link.short_link}</code>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {link.clicks?.toLocaleString() || 0}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {link.conversions?.toLocaleString() || 0}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                      (link.conversion_rate || 0) > 10 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {(link.conversion_rate || 0).toFixed(1)}%
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-green-600">
-                    {(link.commission_earned || 0).toLocaleString()} €
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <button 
-                      onClick={() => navigator.clipboard.writeText(link.full_link)}
-                      className="text-indigo-600 hover:text-indigo-900"
-                    >
-                      Copier
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <button
-          onClick={() => navigate('/marketplace')}
-          className="p-6 bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition"
-        >
-          <Sparkles className="w-8 h-8 mb-3" />
-          <div className="text-xl font-bold">Explorer Marketplace</div>
-          <div className="text-sm text-purple-100 mt-1">Découvrir nouveaux produits</div>
-        </button>
-
-        <button
-          onClick={() => navigate('/tracking-links')}
-          className="p-6 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition"
-        >
-          <LinkIcon className="w-8 h-8 mb-3" />
-          <div className="text-xl font-bold">Générer Lien</div>
-          <div className="text-sm text-indigo-100 mt-1">Créer lien d'affiliation</div>
-        </button>
-
-        <button
-          onClick={() => navigate('/ai-marketing')}
-          className="p-6 bg-gradient-to-br from-pink-500 to-rose-600 text-white rounded-xl hover:from-pink-600 hover:to-rose-700 transition"
-        >
-          <Award className="w-8 h-8 mb-3" />
-          <div className="text-xl font-bold">IA Marketing</div>
-          <div className="text-sm text-pink-100 mt-1">Optimiser vos campagnes</div>
-        </button>
-
-        <button
-          onClick={() => navigate('/performance/reports')}
-          className="p-6 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition"
-        >
-          <BarChart3 className="w-8 h-8 mb-3" />
-          <div className="text-xl font-bold">Mes Rapports</div>
-          <div className="text-sm text-green-100 mt-1">Analyses de performance</div>
-        </button>
+        </Card>
       </div>
+
+      {/* Payout Modal */}
+      <Modal 
+        isOpen={showPayoutModal} 
+        onClose={() => setShowPayoutModal(false)}
+        title="Demander un Paiement"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-600">
+            Votre solde actuel est de <span className="font-bold">{(stats?.balance || 4250).toLocaleString()} €</span>.
+            Le montant minimum de retrait est de 50 €.
+          </p>
+          <div>
+            <label htmlFor="payoutAmount" className="block text-sm font-medium text-gray-700">
+              Montant à Retirer (€)
+            </label>
+            <input
+              type="number"
+              id="payoutAmount"
+              value={payoutAmount}
+              onChange={(e) => setPayoutAmount(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+              placeholder="Ex: 1000"
+              min="50"
+              step="0.01"
+            />
+          </div>
+          <div>
+            <label htmlFor="payoutMethod" className="block text-sm font-medium text-gray-700">
+              Méthode de Paiement
+            </label>
+            <select
+              id="payoutMethod"
+              value={payoutMethod}
+              onChange={(e) => setPayoutMethod(e.target.value)}
+              className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
+            >
+              <option value="bank_transfer">Virement Bancaire (SEPA)</option>
+              <option value="paypal">PayPal</option>
+            </select>
+          </div>
+          <div className="flex justify-end space-x-3 pt-4">
+            <button
+              onClick={() => setShowPayoutModal(false)}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleRequestPayout}
+              disabled={payoutSubmitting}
+              className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 disabled:opacity-50 flex items-center"
+            >
+              {payoutSubmitting ? 'Envoi...' : 'Confirmer la Demande'}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };
 
 export default InfluencerDashboard;
+

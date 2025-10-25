@@ -1791,6 +1791,8 @@ async def get_platform_revenue(
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
+# INTÉGRATION DES ENDPOINTS AVANCÉS
+# ============================================
 try:
     from advanced_endpoints import integrate_all_endpoints
     integrate_all_endpoints(app, verify_token)
@@ -1799,6 +1801,21 @@ except ImportError as e:
     print(f"⚠️  Les endpoints avancés n'ont pas pu être chargés: {e}")
 except Exception as e:
     print(f"⚠️  Erreur lors du chargement des endpoints avancés: {e}")
+
+# ============================================
+# INTÉGRATION DU SYSTÈME D'ABONNEMENT SaaS
+# ============================================
+try:
+    from subscription_endpoints import router as subscription_router
+    app.include_router(subscription_router)
+    print("✅ Système d'abonnement SaaS chargé avec succès")
+    print("   📦 Plans d'abonnement disponibles")
+    print("   💳 Paiements récurrents activés")
+    print("   📄 Facturation automatique configurée")
+except ImportError as e:
+    print(f"⚠️  Le système d'abonnement n'a pas pu être chargé: {e}")
+except Exception as e:
+    print(f"⚠️  Erreur lors du chargement du système d'abonnement: {e}")
 
 # ============================================
 # ÉVÉNEMENTS STARTUP/SHUTDOWN
@@ -2956,14 +2973,20 @@ async def send_payment_reminders(payload: dict = Depends(verify_token)):
         print(f"❌ Error sending reminders: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Démarrage du serveur Supabase...")
+    print("\n" + "="*60)
+    print("🚀 Démarrage du serveur ShareYourSales API")
+    print("="*60)
     print("📊 Base de données: Supabase PostgreSQL")
-    print("💰 Paiements automatiques: ACTIVÉS")
+    print("🔐 Authentification: JWT + 2FA")
+    print("💰 Système d'abonnement SaaS: Activé")
+    print("💳 Paiements automatiques: ACTIVÉS")
     print("🔗 Tracking: ACTIVÉ (endpoint /r/{short_code})")
     print("📡 Webhooks: ACTIVÉS (Shopify, WooCommerce, TikTok Shop)")
     print("💳 Gateways: CMI, PayZen, Société Générale Maroc")
     print("📄 Facturation: AUTOMATIQUE (PDF + Emails)")
+    print("🌐 API disponible sur: http://localhost:8001")
+    print("📖 Documentation: http://localhost:8001/docs")
+    print("="*60 + "\n")
     uvicorn.run(app, host="0.0.0.0", port=8001)
