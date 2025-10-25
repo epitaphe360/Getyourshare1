@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import { useToast } from '../../context/ToastContext';
+import api from '../../utils/api';
 
 const RegistrationSettings = () => {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
     allow_affiliate_registration: true,
     allow_advertiser_registration: true,
@@ -12,9 +16,18 @@ const RegistrationSettings = () => {
     company_name_required: true,
   });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Saving registration settings:', settings);
+    setSaving(true);
+    try {
+      await api.post('/api/settings/registration', settings);
+      toast.success('Paramètres d\'inscription sauvegardés avec succès');
+    } catch (error) {
+      console.error('Error saving registration settings:', error);
+      toast.error('Erreur lors de la sauvegarde des paramètres');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -92,8 +105,8 @@ const RegistrationSettings = () => {
             </div>
 
             <div className="flex justify-end">
-              <Button type="submit">
-                Enregistrer les modifications
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Sauvegarde...' : 'Enregistrer les modifications'}
               </Button>
             </div>
           </div>
