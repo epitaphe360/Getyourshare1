@@ -30,6 +30,13 @@ import MyLinks from './pages/influencer/MyLinks';
 import Contact from './pages/Contact';
 import AdminSocialDashboard from './pages/admin/AdminSocialDashboard';
 
+// New Pages V3 - Subscription System
+import PricingV3 from './pages/PricingV3';
+import MarketplaceFourTabs from './pages/MarketplaceFourTabs';
+import SubscriptionDashboard from './pages/company/SubscriptionDashboard';
+import TeamManagement from './pages/company/TeamManagement';
+import CompanyLinksDashboard from './pages/company/CompanyLinksDashboard';
+
 // Products
 import ProductsListPage from './pages/products/ProductsListPage';
 import CreateProductPage from './pages/products/CreateProductPage';
@@ -110,6 +117,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/pricing-v3" element={<PricingV3 />} />
+          <Route path="/marketplace-4tabs" element={<MarketplaceFourTabs />} />
 
           {/* Protected Routes */}
           <Route
@@ -426,6 +435,32 @@ function App() {
             element={
               <ProtectedRoute>
                 <AdminSocialDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Company/Subscription Routes */}
+          <Route
+            path="/subscription"
+            element={
+              <ProtectedRoute>
+                <SubscriptionDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/team"
+            element={
+              <ProtectedRoute>
+                <TeamManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company-links"
+            element={
+              <ProtectedRoute>
+                <CompanyLinksDashboard />
               </ProtectedRoute>
             }
           />
