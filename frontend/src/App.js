@@ -22,6 +22,14 @@ import InfluencerProfilePage from './pages/influencers/InfluencerProfilePage';
 // Messaging
 import MessagingPage from './pages/MessagingPage';
 
+// New Pages V2
+import HomepageV2 from './pages/HomepageV2';
+import MarketplaceV2 from './pages/MarketplaceV2';
+import ProductDetail from './pages/ProductDetail';
+import MyLinks from './pages/influencer/MyLinks';
+import Contact from './pages/Contact';
+import AdminSocialDashboard from './pages/admin/AdminSocialDashboard';
+
 // Products
 import ProductsListPage from './pages/products/ProductsListPage';
 import CreateProductPage from './pages/products/CreateProductPage';
@@ -97,7 +105,8 @@ function App() {
         <BrowserRouter>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<HomepageV2 />} />
+          <Route path="/landing-old" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/pricing" element={<Pricing />} />
@@ -376,6 +385,47 @@ function App() {
             element={
               <ProtectedRoute>
                 <Marketplace />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* New Marketplace V2 Routes */}
+          <Route
+            path="/marketplace-v2"
+            element={
+              <ProtectedRoute>
+                <MarketplaceV2 />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/marketplace/product/:productId"
+            element={
+              <ProtectedRoute>
+                <ProductDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Influencer Routes */}
+          <Route
+            path="/my-links"
+            element={
+              <ProtectedRoute>
+                <MyLinks />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Contact Page (Public) */}
+          <Route path="/contact" element={<Contact />} />
+
+          {/* Admin Routes */}
+          <Route
+            path="/admin/social-dashboard"
+            element={
+              <ProtectedRoute>
+                <AdminSocialDashboard />
               </ProtectedRoute>
             }
           />
