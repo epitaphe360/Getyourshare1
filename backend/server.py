@@ -220,6 +220,7 @@ from domain_endpoints import router as domain_router
 from stripe_webhook_handler import router as stripe_webhook_router
 from commercials_directory_endpoints import router as commercials_router
 from influencers_directory_endpoints import router as influencers_router
+from company_links_management import router as company_links_router
 
 # Include all routers in the app
 app.include_router(marketplace_router)
@@ -236,6 +237,7 @@ app.include_router(domain_router)
 app.include_router(stripe_webhook_router)
 app.include_router(commercials_router)
 app.include_router(influencers_router)
+app.include_router(company_links_router)  # New company-only link generation
 
 # Security
 security = HTTPBearer()
