@@ -124,6 +124,15 @@ def send_subscription_confirmation_email(
     ))
 
 
+@celery_app.task(name="send_2fa_code_email")
+def send_2fa_code_email(to_email: str, user_name: str, code: str):
+    """Envoyer email avec code 2FA"""
+    from services.email_service import EmailTemplates
+    import asyncio
+
+    return asyncio.run(EmailTemplates.send_2fa_code_email(to_email, user_name, code))
+
+
 # ============================================
 # SOCIAL MEDIA TASKS
 # ============================================
