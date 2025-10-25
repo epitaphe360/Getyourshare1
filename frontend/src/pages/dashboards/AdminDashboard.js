@@ -1,26 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
 import SkeletonDashboard from '../../components/common/SkeletonLoader';
-import { 
-  TrendingUp, Users, DollarSign, ShoppingBag, 
-  Sparkles, BarChart3, Target, Eye, Settings, FileText, Bell
+import EmptyState from '../../components/common/EmptyState';
+import {
+  TrendingUp, Users, DollarSign, ShoppingBag,
+  Sparkles, BarChart3, Target, Eye, Settings, FileText, Bell, Download, RefreshCw
 } from 'lucide-react';
-import { 
+import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer 
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [stats, setStats] = useState(null);
   const [merchants, setMerchants] = useState([]);
   const [influencers, setInfluencers] = useState([]);
   const [revenueData, setRevenueData] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [exportingPDF, setExportingPDF] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -28,7 +33,9 @@ const AdminDashboard = () => {
 
   const fetchData = async () => {
     try {
-      const [statsRes, merchantsRes, influencersRes, revenueRes, categoriesRes, metricsRes] = await Promise.all([
+      setError(null);
+      // Utiliser Promise.allSettled au lieu de Promise.all pour gérer les erreurs partielles
+      const results = await Promise.allSettled([
         api.get('/api/analytics/overview'),
         api.get('/api/merchants'),
         api.get('/api/influencers'),
@@ -36,38 +43,165 @@ const AdminDashboard = () => {
         api.get('/api/analytics/admin/categories'),
         api.get('/api/analytics/admin/platform-metrics')
       ]);
-      
-      setStats({
-        ...statsRes.data,
-        platformMetrics: metricsRes.data
-      });
-      setMerchants(merchantsRes.data.merchants || []);
-      setInfluencers(influencersRes.data.influencers || []);
-      
-      // Transformer les données de revenus en format mensuel (simplification pour l'exemple)
-      const dailyData = revenueRes.data.data || [];
-      setRevenueData(dailyData.map((day, idx) => ({
-        month: day.date,
-        revenue: day.revenus
-      })));
-      
-      // CategoryData: données réelles depuis l'API
-      const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#14b8a6'];
-      const categoriesData = categoriesRes.data.data || [];
-      setCategoryData(categoriesData.map((cat, idx) => ({
-        name: cat.category,
-        value: cat.count,
-        color: colors[idx % colors.length]
-      })));
+
+      // Gérer les statistiques
+      const [statsRes, merchantsRes, influencersRes, revenueRes, categoriesRes, metricsRes] = results;
+
+      if (statsRes.status === 'fulfilled' && metricsRes.status === 'fulfilled') {
+        setStats({
+          ...statsRes.value.data,
+          platformMetrics: metricsRes.value.data
+        });
+      } else {
+        console.error('Error loading stats:', statsRes.reason || metricsRes.reason);
+        toast.error('Erreur lors du chargement des statistiques');
+        setStats({
+          total_revenue: 0,
+          total_merchants: 0,
+          total_influencers: 0,
+          total_products: 0,
+          platformMetrics: {
+            avg_conversion_rate: 0,
+            monthly_clicks: 0,
+            quarterly_growth: 0
+          }
+        });
+      }
+
+      // Gérer les merchants
+      if (merchantsRes.status === 'fulfilled') {
+        setMerchants(merchantsRes.value.data.merchants || []);
+      } else {
+        console.error('Error loading merchants:', merchantsRes.reason);
+        setMerchants([]);
+      }
+
+      // Gérer les influencers
+      if (influencersRes.status === 'fulfilled') {
+        setInfluencers(influencersRes.value.data.influencers || []);
+      } else {
+        console.error('Error loading influencers:', influencersRes.reason);
+        setInfluencers([]);
+      }
+
+      // Gérer les données de revenus
+      if (revenueRes.status === 'fulfilled') {
+        const dailyData = revenueRes.value.data.data || [];
+        setRevenueData(dailyData.map((day, idx) => ({
+          month: day.date,
+          revenue: day.revenus
+        })));
+      } else {
+        console.error('Error loading revenue chart:', revenueRes.reason);
+        setRevenueData([]);
+      }
+
+      // Gérer les catégories
+      if (categoriesRes.status === 'fulfilled') {
+        const colors = ['#6366f1', '#8b5cf6', '#ec4899', '#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#14b8a6'];
+        const categoriesData = categoriesRes.value.data.data || [];
+        setCategoryData(categoriesData.map((cat, idx) => ({
+          name: cat.category,
+          value: cat.count,
+          color: colors[idx % colors.length]
+        })));
+      } else {
+        console.error('Error loading categories:', categoriesRes.reason);
+        setCategoryData([]);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
+      toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
   };
 
+  const handleExportPDF = async () => {
+    try {
+      setExportingPDF(true);
+
+      // Créer un rapport PDF simple avec les stats
+      const report = {
+        title: 'Rapport Dashboard Admin',
+        date: new Date().toLocaleDateString('fr-FR'),
+        stats: {
+          revenue: stats?.total_revenue || 0,
+          merchants: stats?.total_merchants || 0,
+          influencers: stats?.total_influencers || 0,
+          products: stats?.total_products || 0
+        },
+        merchants: merchants.slice(0, 10),
+        influencers: influencers.slice(0, 10)
+      };
+
+      // Créer un blob avec les données
+      const content = `
+RAPPORT DASHBOARD ADMINISTRATEUR
+================================
+Date: ${report.date}
+
+STATISTIQUES GÉNÉRALES
+----------------------
+Revenus Total: ${report.stats.revenue.toLocaleString()} €
+Entreprises: ${report.stats.merchants}
+Influenceurs: ${report.stats.influencers}
+Produits: ${report.stats.products}
+
+TOP ENTREPRISES
+--------------
+${report.merchants.map((m, i) => `${i + 1}. ${m.company_name} - ${(m.total_sales || 0).toLocaleString()} €`).join('\n')}
+
+TOP INFLUENCEURS
+---------------
+${report.influencers.map((inf, i) => `${i + 1}. ${inf.full_name} (@${inf.username}) - ${(inf.total_earnings || 0).toLocaleString()} €`).join('\n')}
+
+Généré par ShareYourSales
+      `.trim();
+
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `rapport-admin-${new Date().toISOString().split('T')[0]}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast.success('Rapport exporté avec succès!');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Erreur lors de l\'export du rapport');
+    } finally {
+      setExportingPDF(false);
+    }
+  };
+
   if (loading) {
     return <SkeletonDashboard />;
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center max-w-md">
+          <div className="text-red-500 text-6xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Erreur de chargement</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => {
+              setLoading(true);
+              fetchData();
+            }}
+            className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2 mx-auto"
+          >
+            <RefreshCw size={18} />
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -79,6 +213,22 @@ const AdminDashboard = () => {
           <p className="text-gray-600 mt-2">Vue d'ensemble complète de la plateforme</p>
         </div>
         <div className="flex space-x-3">
+          <button
+            onClick={() => fetchData()}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition flex items-center gap-2"
+            title="Rafraîchir les données"
+          >
+            <RefreshCw size={18} />
+            Actualiser
+          </button>
+          <button
+            onClick={handleExportPDF}
+            disabled={exportingPDF}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2 disabled:opacity-50"
+          >
+            <Download size={18} />
+            {exportingPDF ? 'Export...' : 'Export Rapport'}
+          </button>
           <button 
             onClick={() => navigate('/admin/users/create')}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
@@ -93,13 +243,6 @@ const AdminDashboard = () => {
             <BarChart3 size={18} />
             Générer Rapport
           </button>
-          <button 
-            onClick={() => window.print()}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
-          >
-            <TrendingUp size={18} />
-            Export PDF
-          </button>
         </div>
       </div>
 
@@ -110,7 +253,7 @@ const AdminDashboard = () => {
           value={stats?.total_revenue || 502000}
           isCurrency={true}
           icon={<DollarSign className="text-green-600" size={24} />}
-          trend={12.5}
+          trend={stats?.platformMetrics?.quarterly_growth || 12.5}
         />
         <StatCard
           title="Entreprises"
@@ -181,148 +324,127 @@ const AdminDashboard = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Top Merchants */}
         <Card title="Top Entreprises" icon={<ShoppingBag size={20} />}>
-          <div className="space-y-3">
-            {merchants.slice(0, 5).map((merchant, index) => (
-              <div 
-                key={merchant.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer"
-                onClick={() => navigate(`/merchants/${merchant.id}`)}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="bg-indigo-100 text-indigo-600 w-10 h-10 rounded-full flex items-center justify-center font-bold">
-                    #{index + 1}
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900">{merchant.company_name}</div>
-                    <div className="text-sm text-gray-500">{merchant.category}</div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-gray-900">
-                    {merchant.total_sales?.toLocaleString() || 0} €
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {merchant.products_count || 0} produits
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+          {merchants.length === 0 ? (
+            <EmptyState
+              icon={<ShoppingBag />}
+              title="Aucune entreprise"
+              description="Aucune entreprise n'a encore été enregistrée sur la plateforme."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Entreprise
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Ventes
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Statut
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {merchants.slice(0, 5).map((merchant) => (
+                    <tr key={merchant.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {merchant.company_name}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {(merchant.total_sales || 0).toLocaleString()} €
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${merchant.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          {merchant.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
 
         {/* Top Influencers */}
-        <Card title="Top Influenceurs" icon={<Users size={20} />}>
-          <div className="space-y-3">
-            {influencers.slice(0, 5).map((influencer, index) => (
-              <div 
-                key={influencer.id}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition cursor-pointer"
-                onClick={() => navigate(`/influencers/${influencer.id}`)}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="bg-purple-100 text-purple-600 w-10 h-10 rounded-full flex items-center justify-center font-bold">
-                    #{index + 1}
-                  </div>
-                  <div>
-                    <div className="font-semibold text-gray-900">{influencer.full_name}</div>
-                    <div className="text-sm text-gray-500">
-                      @{influencer.username} · {influencer.influencer_type}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="font-bold text-gray-900">
-                    {influencer.total_earnings?.toLocaleString() || 0} €
-                  </div>
-                  <div className="text-sm text-gray-500">
-                    {influencer.total_sales || 0} ventes
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
+        <Card title="Top Influenceurs" icon={<Target size={20} />}>
+          {influencers.length === 0 ? (
+            <EmptyState
+              icon={<Users />}
+              title="Aucun influenceur"
+              description="Aucun influenceur n'a encore été enregistré sur la plateforme."
+            />
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Influenceur
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Gains
+                    </th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Statut
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {influencers.slice(0, 5).map((influencer) => (
+                    <tr key={influencer.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {influencer.full_name} (@{influencer.username})
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {(influencer.total_earnings || 0).toLocaleString()} €
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${influencer.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
+                          {influencer.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </Card>
       </div>
 
-      {/* Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card>
-          <div className="text-center">
-            <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Target className="text-green-600" size={32} />
-            </div>
-            <div className="text-3xl font-bold text-gray-900">
-              {stats?.platformMetrics?.avg_conversion_rate || 14.2}%
-            </div>
-            <div className="text-gray-600 mt-1">Taux de Conversion Moyen</div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="text-center">
-            <div className="bg-blue-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Eye className="text-blue-600" size={32} />
-            </div>
-            <div className="text-3xl font-bold text-gray-900">
-              {((stats?.platformMetrics?.monthly_clicks || 285000) / 1000).toFixed(0)}K
-            </div>
-            <div className="text-gray-600 mt-1">Clics Totaux ce Mois</div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="text-center">
-            <div className="bg-purple-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-              <TrendingUp className="text-purple-600" size={32} />
-            </div>
-            <div className="text-3xl font-bold text-gray-900">
-              +{stats?.platformMetrics?.quarterly_growth || 32}%
-            </div>
-            <div className="text-gray-600 mt-1">Croissance ce Trimestre</div>
-          </div>
-        </Card>
-      </div>
-
-      {/* Quick Actions for Admin */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <button
-          onClick={() => navigate('/admin/users')}
-          className="p-6 bg-gradient-to-br from-indigo-500 to-indigo-600 text-white rounded-xl hover:from-indigo-600 hover:to-indigo-700 transition"
-        >
-          <Users className="w-8 h-8 mb-3" />
-          <div className="text-xl font-bold">Gestion Utilisateurs</div>
-          <div className="text-sm text-indigo-100 mt-1">Admins, Marchands, Influenceurs</div>
-        </button>
-
-        <button
-          onClick={() => navigate('/admin/gateway-stats')}
-          className="p-6 bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-xl hover:from-purple-600 hover:to-purple-700 transition"
-        >
-          <DollarSign className="w-8 h-8 mb-3" />
-          <div className="text-xl font-bold">Paiements Gateway</div>
-          <div className="text-sm text-purple-100 mt-1">CMI, PayZen, SG Maroc</div>
-        </button>
-
-        <button
-          onClick={() => navigate('/settings/company')}
-          className="p-6 bg-gradient-to-br from-green-500 to-green-600 text-white rounded-xl hover:from-green-600 hover:to-green-700 transition"
-        >
-          <Settings className="w-8 h-8 mb-3" />
-          <div className="text-xl font-bold">Configuration</div>
-          <div className="text-sm text-green-100 mt-1">Paramètres plateforme</div>
-        </button>
-
-        <button
-          onClick={() => navigate('/admin/invoices')}
-          className="p-6 bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-xl hover:from-orange-600 hover:to-orange-700 transition"
-        >
-          <FileText className="w-8 h-8 mb-3" />
-          <div className="text-xl font-bold">Facturation</div>
-          <div className="text-sm text-orange-100 mt-1">Gérer les factures</div>
-        </button>
-      </div>
+      {/* Platform Metrics Row */}
+      <Card title="Métriques de la Plateforme" icon={<BarChart3 size={20} />}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <StatCard
+            title="Utilisateurs Actifs (24h)"
+            value={stats?.platformMetrics?.active_users_24h || 0}
+            icon={<Eye className="text-blue-600" size={24} />}
+            trend={stats?.platformMetrics?.user_growth_rate || 0}
+            trendType="percentage"
+          />
+          <StatCard
+            title="Taux de Conversion"
+            value={stats?.platformMetrics?.conversion_rate || 0}
+            isCurrency={false}
+            icon={<Target className="text-red-600" size={24} />}
+            trend={stats?.platformMetrics?.conversion_trend || 0}
+            trendType="percentage"
+          />
+          <StatCard
+            title="Nouvelles Inscriptions (30j)"
+            value={stats?.platformMetrics?.new_signups_30d || 0}
+            icon={<Users className="text-teal-600" size={24} />}
+            trend={stats?.platformMetrics?.signup_trend || 0}
+            trendType="percentage"
+          />
+        </div>
+      </Card>
     </div>
   );
 };
 
 export default AdminDashboard;
+

@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Créer virtual environment
@@ -62,19 +63,20 @@ WORKDIR /app
 # Copier code application
 COPY --chown=appuser:appuser . .
 
-# Créer répertoires nécessaires
-RUN mkdir -p /app/logs /app/uploads && \
+# Créer répertoires nécessaires (incluant ceux de la branche en conflit)
+RUN mkdir -p /app/logs /app/uploads /app/invoices && \
     chown -R appuser:appuser /app
 
 # Passer à utilisateur non-root
 USER appuser
 
-# Exposer port
-EXPOSE 8000
+# Exposer port (Utilisation du port 8001 pour l'environnement Railway)
+EXPOSE 8001
 
-# Health check
+# Health check (Ajusté pour le port 8001)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:8001/health || exit 1
 
-# Commande de démarrage
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+# Commande de démarrage (Ajusté pour le port 8001)
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "4"]
+

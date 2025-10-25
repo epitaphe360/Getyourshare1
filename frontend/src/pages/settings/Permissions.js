@@ -1,8 +1,12 @@
 import React, { useState } from 'react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import { useToast } from '../../context/ToastContext';
+import api from '../../utils/api';
 
 const Permissions = () => {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
   const [permissions, setPermissions] = useState({
     visible_screens: {
       performance: true,
@@ -35,9 +39,18 @@ const Permissions = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Saving permissions:', permissions);
+    setSaving(true);
+    try {
+      await api.post('/api/settings/permissions', permissions);
+      toast.success('Permissions sauvegardées avec succès');
+    } catch (error) {
+      console.error('Error saving permissions:', error);
+      toast.error('Erreur lors de la sauvegarde des permissions');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -107,8 +120,8 @@ const Permissions = () => {
           </Card>
 
           <div className="flex justify-end">
-            <Button type="submit">
-              Enregistrer les modifications
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Sauvegarde...' : 'Enregistrer les modifications'}
             </Button>
           </div>
         </div>

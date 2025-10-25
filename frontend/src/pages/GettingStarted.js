@@ -29,7 +29,7 @@ const GettingStarted = () => {
   return (
     <div className="space-y-8" data-testid="getting-started">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Bienvenue sur Tracknow!</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Bienvenue sur ShareYourSales!</h1>
         <p className="text-gray-600 mt-2">Suivez ces étapes pour commencer</p>
       </div>
 
