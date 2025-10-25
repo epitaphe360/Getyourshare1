@@ -214,6 +214,10 @@ from affiliation_requests_endpoints import router as affiliation_requests_router
 from kyc_endpoints import router as kyc_router
 from twofa_endpoints import router as twofa_router
 from ai_bot_endpoints import router as ai_bot_router
+from subscription_endpoints import router as subscription_router
+from team_endpoints import router as team_router
+from domain_endpoints import router as domain_router
+from stripe_webhook_handler import router as stripe_webhook_router
 
 # Include all routers in the app
 app.include_router(marketplace_router)
@@ -224,6 +228,10 @@ app.include_router(affiliation_requests_router)
 app.include_router(kyc_router)
 app.include_router(twofa_router)
 app.include_router(ai_bot_router)
+app.include_router(subscription_router)
+app.include_router(team_router)
+app.include_router(domain_router)
+app.include_router(stripe_webhook_router)
 
 # Security
 security = HTTPBearer()
