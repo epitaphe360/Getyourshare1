@@ -22,13 +22,20 @@ from auth import get_current_user
 router = APIRouter(prefix="/api/commercials", tags=["Commercials Directory"])
 
 # ============================================
+# ENVIRONMENT VARIABLES VALIDATION
+# ============================================
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+
+if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    raise ValueError("Missing required Supabase environment variables")
+
+# ============================================
 # SUPABASE CLIENT
 # ============================================
 
-supabase: Client = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_SERVICE_KEY")
-)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 # ============================================
 # PYDANTIC MODELS
