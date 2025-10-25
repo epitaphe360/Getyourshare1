@@ -14,7 +14,11 @@ from typing import Generator, AsyncGenerator
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
 import os
+import sys
 from datetime import datetime, timedelta
+
+# Add backend directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
 
 # Mock environment variables pour tests
 os.environ["TESTING"] = "1"

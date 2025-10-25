@@ -23,19 +23,31 @@ from auth import get_current_user, get_current_admin
 router = APIRouter(prefix="/api/subscriptions", tags=["Subscriptions"])
 
 # ============================================
+# ENVIRONMENT VARIABLES VALIDATION
+# ============================================
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+
+if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
+    raise ValueError("Missing required Supabase environment variables")
+
+if not STRIPE_SECRET_KEY or not STRIPE_SECRET_KEY.startswith("sk_"):
+    raise ValueError("Missing or invalid STRIPE_SECRET_KEY")
+
+# ============================================
 # SUPABASE CLIENT
 # ============================================
 
-supabase: Client = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_SERVICE_KEY")
-)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 # ============================================
 # STRIPE CONFIGURATION
 # ============================================
 
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
+stripe.api_key = STRIPE_SECRET_KEY
+stripe.max_network_retries = 2
 
 # ============================================
 # PYDANTIC MODELS
