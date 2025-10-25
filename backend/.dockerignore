@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 *.so
 .Python
+env/
+venv/
+ENV/
 build/
 develop-eggs/
 dist/
@@ -28,7 +31,7 @@ ENV/
 env.bak/
 venv.bak/
 
-# Tests
+# Testing
 .pytest_cache/
 .coverage
 htmlcov/
@@ -36,20 +39,23 @@ htmlcov/
 .hypothesis/
 tests/
 
-# IDEs
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+
+# OS
 .DS_Store
+Thumbs.db
 
 # Git
 .git/
 .gitignore
 .gitattributes
 
-# Docker
+# Docker (Ignore files that are used to build the image)
 Dockerfile
 .dockerignore
 docker-compose*.yml
@@ -69,9 +75,19 @@ logs/
 # Environment
 .env
 .env.local
+.env.development
+.env.test
 .env.*.local
 
-# Temporary files
+# Temporary files and Uploads
 tmp/
 temp/
 *.tmp
+uploads/*
+invoices/*
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
