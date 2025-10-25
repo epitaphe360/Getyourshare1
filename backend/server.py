@@ -21,7 +21,167 @@ from supabase_client import supabase
 # Charger les variables d'environnement
 load_dotenv()
 
-app = FastAPI(title="ShareYourSales API - Supabase Edition")
+# ============================================
+# API METADATA & DOCUMENTATION
+# ============================================
+
+app = FastAPI(
+    title="ShareYourSales API",
+    description="""
+# ShareYourSales - Plateforme d'Affiliation Marocaine 🇲🇦
+
+API complète pour la gestion d'une plateforme SaaS d'affiliation entre influenceurs et marchands.
+
+## 🎯 Fonctionnalités Principales
+
+### 💳 Abonnements & Paiements
+- Système d'abonnement SaaS (Free, Starter, Pro, Enterprise)
+- Intégration Stripe pour paiements
+- Gestion des quotas par plan
+- Facturation automatique
+
+### 📱 Intégrations Réseaux Sociaux
+- **Instagram** - Graph API avec statistiques automatiques
+- **TikTok** - Creator API avec métriques d'engagement
+- **Facebook** - Pages Business et groupes
+
+### 🤖 Bot IA Conversationnel
+- Assistant intelligent multilingue (FR, EN, AR)
+- Détection d'intentions
+- Recommandations personnalisées
+- Intégration Claude AI / GPT-4
+
+### 🔗 Système d'Affiliation
+- Génération de liens trackables
+- Suivi des clics et conversions en temps réel
+- Commissions automatiques
+- Dashboard analytics
+
+### 👤 KYC & Conformité
+- Vérification d'identité (CIN, Passeport)
+- Documents d'entreprise (RC, ICE, TVA)
+- Conformité fiscale marocaine
+- Validation IBAN bancaire
+
+### 🔐 Sécurité Enterprise
+- Rate limiting distribué (Redis)
+- Protection CSRF
+- Headers de sécurité (OWASP)
+- Monitoring Sentry
+- Logs structurés (JSON)
+
+## 📊 Architecture
+
+- **Backend**: FastAPI + Python 3.11
+- **Database**: PostgreSQL 15 + Supabase
+- **Cache**: Redis 7
+- **Monitoring**: Sentry + Structlog
+- **Queue**: Celery + Redis
+- **Paiements**: Stripe
+- **AI**: Anthropic Claude / OpenAI
+
+## 🔑 Authentification
+
+Utiliser JWT Bearer Token dans le header Authorization:
+
+```bash
+Authorization: Bearer <your_jwt_token>
+```
+
+Pour obtenir un token, utilisez l'endpoint `/api/auth/login`.
+
+## 🌐 Environnements
+
+- **Production**: https://api.shareyoursales.ma
+- **Staging**: https://staging-api.shareyoursales.ma
+- **Development**: http://localhost:8000
+
+## 📚 Resources
+
+- [Documentation complète](https://docs.shareyoursales.ma)
+- [Guide d'intégration](https://docs.shareyoursales.ma/integration)
+- [Status Page](https://status.shareyoursales.ma)
+- [Support](mailto:support@shareyoursales.ma)
+
+## ⚡ Rate Limits
+
+| Endpoint Type | Limite |
+|--------------|--------|
+| Authentification | 10 req/min |
+| API Standard | 100 req/min |
+| Webhooks | 1000 req/min |
+
+Les limites peuvent varier selon votre plan d'abonnement.
+    """,
+    version="1.0.0",
+    terms_of_service="https://shareyoursales.ma/terms",
+    contact={
+        "name": "ShareYourSales Support",
+        "url": "https://shareyoursales.ma/contact",
+        "email": "support@shareyoursales.ma",
+    },
+    license_info={
+        "name": "Proprietary",
+        "url": "https://shareyoursales.ma/license",
+    },
+    openapi_tags=[
+        {
+            "name": "Authentication",
+            "description": "Endpoints d'authentification (login, register, 2FA, JWT)",
+        },
+        {
+            "name": "Users",
+            "description": "Gestion des utilisateurs (influenceurs, marchands, admins)",
+        },
+        {
+            "name": "Stripe",
+            "description": "Gestion des abonnements et paiements Stripe",
+        },
+        {
+            "name": "Social Media",
+            "description": "Intégrations réseaux sociaux (Instagram, TikTok, Facebook)",
+        },
+        {
+            "name": "AI Bot",
+            "description": "Assistant IA conversationnel multilingue",
+        },
+        {
+            "name": "Products",
+            "description": "Catalogue produits et services des marchands",
+        },
+        {
+            "name": "Affiliates",
+            "description": "Système d'affiliation et demandes de partenariat",
+        },
+        {
+            "name": "Tracking",
+            "description": "Liens trackables et suivi des conversions",
+        },
+        {
+            "name": "Analytics",
+            "description": "Statistiques et rapports de performance",
+        },
+        {
+            "name": "KYC",
+            "description": "Vérification d'identité et conformité (Know Your Customer)",
+        },
+        {
+            "name": "Payments",
+            "description": "Paiements de commissions aux influenceurs",
+        },
+        {
+            "name": "Webhooks",
+            "description": "Webhooks entrants (Stripe, réseaux sociaux)",
+        },
+        {
+            "name": "Health",
+            "description": "Health checks et monitoring",
+        },
+    ],
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
+)
 
 # Importer le scheduler et les services
 from scheduler import start_scheduler, stop_scheduler
@@ -40,6 +200,44 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============================================
+# INCLUDE ROUTERS (Modular Endpoints)
+# ============================================
+
+# Import endpoint routers
+from marketplace_endpoints import router as marketplace_router
+from affiliate_links_endpoints import router as affiliate_links_router
+from contact_endpoints import router as contact_router
+from admin_social_endpoints import router as admin_social_router
+from affiliation_requests_endpoints import router as affiliation_requests_router
+from kyc_endpoints import router as kyc_router
+from twofa_endpoints import router as twofa_router
+from ai_bot_endpoints import router as ai_bot_router
+from subscription_endpoints import router as subscription_router
+from team_endpoints import router as team_router
+from domain_endpoints import router as domain_router
+from stripe_webhook_handler import router as stripe_webhook_router
+from commercials_directory_endpoints import router as commercials_router
+from influencers_directory_endpoints import router as influencers_router
+from company_links_management import router as company_links_router
+
+# Include all routers in the app
+app.include_router(marketplace_router)
+app.include_router(affiliate_links_router)
+app.include_router(contact_router)
+app.include_router(admin_social_router)
+app.include_router(affiliation_requests_router)
+app.include_router(kyc_router)
+app.include_router(twofa_router)
+app.include_router(ai_bot_router)
+app.include_router(subscription_router)
+app.include_router(team_router)
+app.include_router(domain_router)
+app.include_router(stripe_webhook_router)
+app.include_router(commercials_router)
+app.include_router(influencers_router)
+app.include_router(company_links_router)  # New company-only link generation
 
 # Security
 security = HTTPBearer()
