@@ -48,7 +48,7 @@ JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
 
 if JWT_SECRET == "fallback-secret-please-set-env-variable":
-    print("⚠️  WARNING: JWT_SECRET not set in environment!")
+    print("WARNING: JWT_SECRET not set in environment!")
 
 # Pydantic Models
 class LoginRequest(BaseModel):
@@ -111,6 +111,67 @@ class CompanySettingsUpdate(BaseModel):
     phone: Optional[str] = Field(None, max_length=20)
     website: Optional[str] = Field(None, max_length=255)
     logo_url: Optional[str] = Field(None, max_length=500)
+
+class PersonalSettingsUpdate(BaseModel):
+    first_name: Optional[str] = Field(None, max_length=100)
+    last_name: Optional[str] = Field(None, max_length=100)
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = Field(None, max_length=20)
+    timezone: Optional[str] = Field(None, max_length=50)
+    language: Optional[str] = Field(None, pattern="^(fr|en|es)$")
+
+class SMTPSettingsUpdate(BaseModel):
+    host: Optional[str] = Field(None, max_length=255)
+    port: Optional[int] = Field(None, ge=1, le=65535)
+    username: Optional[str] = Field(None, max_length=255)
+    password: Optional[str] = Field(None, max_length=255)
+    from_email: Optional[EmailStr] = None
+    from_name: Optional[str] = Field(None, max_length=255)
+    encryption: Optional[str] = Field(None, pattern="^(tls|ssl|none)$")
+
+class PermissionsUpdate(BaseModel):
+    visible_screens: Optional[dict] = None
+    visible_fields: Optional[dict] = None
+    authorized_actions: Optional[dict] = None
+
+class AffiliateSettingsUpdate(BaseModel):
+    min_withdrawal: Optional[float] = Field(None, ge=0)
+    auto_approval: Optional[bool] = None
+    email_verification: Optional[bool] = None
+    payment_mode: Optional[str] = Field(None, pattern="^(on_demand|automatic)$")
+    single_campaign_mode: Optional[bool] = None
+
+class RegistrationSettingsUpdate(BaseModel):
+    allow_affiliate_registration: Optional[bool] = None
+    allow_advertiser_registration: Optional[bool] = None
+    require_invitation: Optional[bool] = None
+    require_2fa: Optional[bool] = None
+    country_required: Optional[bool] = None
+    company_name_required: Optional[bool] = None
+
+# Modèles pour le système de demandes d'affiliation
+class AffiliationRequestCreate(BaseModel):
+    product_id: str = Field(..., min_length=1)
+    message: Optional[str] = Field(None, max_length=5000)
+    stats: Optional[dict] = None  # {followers: int, engagement_rate: float, platforms: list}
+
+class AffiliationRequestResponse(BaseModel):
+    status: str = Field(..., pattern="^(approved|rejected)$")
+    merchant_response: Optional[str] = Field(None, max_length=2000)
+
+class MLMSettingsUpdate(BaseModel):
+    mlm_enabled: Optional[bool] = None
+    levels: Optional[list] = None
+
+class WhiteLabelSettingsUpdate(BaseModel):
+    logo_url: Optional[str] = Field(None, max_length=500)
+    primary_color: Optional[str] = Field(None, pattern="^#[0-9a-fA-F]{6}$")
+    secondary_color: Optional[str] = Field(None, pattern="^#[0-9a-fA-F]{6}$")
+    accent_color: Optional[str] = Field(None, pattern="^#[0-9a-fA-F]{6}$")
+    company_name: Optional[str] = Field(None, max_length=255)
+    custom_domain: Optional[str] = Field(None, max_length=255)
+    ssl_enabled: Optional[bool] = None
+    custom_email_domain: Optional[EmailStr] = None
 
 # Helper Functions
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -197,7 +258,7 @@ async def login(login_data: LoginRequest):
             expires_delta=timedelta(minutes=5)
         )
 
-        print(f"📱 Code 2FA pour {user['email']}: {code}")
+        print(f"[2FA] Code 2FA pour {user['email']}: {code}")
 
         return {
             "requires_2fa": True,
@@ -728,7 +789,14 @@ async def get_influencer_earnings_chart(payload: dict = Depends(verify_token)):
     try:
         from datetime import datetime, timedelta
         
-        user_id = payload.get("user_id")
+        user_id = payload.get("sub")
+        
+        # Récupérer l'influencer_id
+        influencer = get_influencer_by_user_id(user_id)
+        if not influencer:
+            raise HTTPException(status_code=404, detail="Influencer profile not found")
+        
+        influencer_id = influencer['id']
         today = datetime.now()
         days_data = []
         
@@ -736,14 +804,14 @@ async def get_influencer_earnings_chart(payload: dict = Depends(verify_token)):
             target_date = today - timedelta(days=i)
             date_str = target_date.strftime('%Y-%m-%d')
             
-            # Query: commissions gagnées ce jour
-            query = supabase.table('sales').select('commission').eq('affiliate_id', user_id)
+            # Query: commissions gagnées ce jour (influencer_commission dans sales)
+            query = supabase.table('sales').select('influencer_commission').eq('influencer_id', influencer_id)
             query = query.gte('created_at', f'{date_str}T00:00:00').lt('created_at', f'{date_str}T23:59:59')
             
             response = query.execute()
             sales = response.data if response.data else []
             
-            gains_total = sum(float(s.get('commission', 0)) for s in sales)
+            gains_total = sum(float(s.get('influencer_commission', 0)) for s in sales)
             
             days_data.append({
                 'date': target_date.strftime('%d/%m'),
@@ -755,6 +823,70 @@ async def get_influencer_earnings_chart(payload: dict = Depends(verify_token)):
     except Exception as e:
         print(f"Error fetching influencer earnings chart: {e}")
         return {"data": [{"date": f"0{i}/01", "gains": 0} for i in range(1, 8)]}
+
+@app.get("/api/analytics/influencer/performance-chart")
+async def get_influencer_performance_chart(payload: dict = Depends(verify_token)):
+    """
+    Données de clics et conversions des 7 derniers jours pour l'influenceur connecté
+    Format: [{date: '01/06', clics: 120, conversions: 8}, ...]
+    """
+    try:
+        from datetime import datetime, timedelta
+        
+        user_id = payload.get("sub")
+        
+        # Récupérer l'influencer_id
+        influencer = get_influencer_by_user_id(user_id)
+        if not influencer:
+            raise HTTPException(status_code=404, detail="Influencer profile not found")
+        
+        influencer_id = influencer['id']
+        today = datetime.now()
+        days_data = []
+        
+        for i in range(6, -1, -1):
+            target_date = today - timedelta(days=i)
+            date_str = target_date.strftime('%Y-%m-%d')
+            
+            # Query: clics du jour (depuis click_tracking via trackable_links)
+            links_response = supabase.table('trackable_links').select('id').eq('influencer_id', influencer_id).execute()
+            link_ids = [link['id'] for link in links_response.data] if links_response.data else []
+            
+            clicks_count = 0
+            if link_ids:
+                for link_id in link_ids:
+                    clicks_response = supabase.table('click_tracking').select('id', count='exact')\
+                        .eq('link_id', link_id)\
+                        .gte('clicked_at', f'{date_str}T00:00:00')\
+                        .lt('clicked_at', f'{date_str}T23:59:59')\
+                        .execute()
+                    clicks_count += clicks_response.count if clicks_response.count else 0
+            
+            # Query: conversions (ventes) du jour
+            sales_response = supabase.table('sales').select('id', count='exact')\
+                .eq('influencer_id', influencer_id)\
+                .gte('created_at', f'{date_str}T00:00:00')\
+                .lt('created_at', f'{date_str}T23:59:59')\
+                .execute()
+            conversions_count = sales_response.count if sales_response.count else 0
+            
+            days_data.append({
+                'date': target_date.strftime('%d/%m'),
+                'clics': clicks_count,
+                'conversions': conversions_count
+            })
+        
+        return {"data": days_data}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching influencer performance chart: {e}")
+        # Fallback avec données estimées
+        return {"data": [
+            {"date": f"0{i}/01", "clics": 0, "conversions": 0} 
+            for i in range(1, 8)
+        ]}
 
 @app.get("/api/analytics/admin/revenue-chart")
 async def get_admin_revenue_chart(payload: dict = Depends(verify_token)):
@@ -912,7 +1044,7 @@ async def get_company_settings(payload: dict = Depends(verify_token)):
                 "logo_url": ""
             }
     except Exception as e:
-        print(f"❌ Erreur lors de la récupération des paramètres: {e}")
+        print(f"[ERROR] Erreur lors de la récupération des paramètres: {e}")
         raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
 
 @app.put("/api/settings/company")
@@ -942,8 +1074,415 @@ async def update_company_settings(settings: CompanySettingsUpdate, payload: dict
             "data": response.data[0] if response.data else update_data
         }
     except Exception as e:
-        print(f"❌ Erreur lors de la mise à jour des paramètres: {e}")
+        print(f"[ERROR] Erreur lors de la mise à jour des paramètres: {e}")
         raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
+
+@app.get("/api/settings/personal")
+async def get_personal_settings(payload: dict = Depends(verify_token)):
+    """Récupère les paramètres personnels de l'utilisateur connecté"""
+    user_id = payload.get("sub")
+    
+    try:
+        # Récupérer les infos utilisateur depuis la table users
+        response = supabase.table('users').select('*').eq('id', user_id).execute()
+        
+        if response.data and len(response.data) > 0:
+            user_data = response.data[0]
+            return {
+                "first_name": user_data.get("first_name", ""),
+                "last_name": user_data.get("last_name", ""),
+                "email": user_data.get("email", ""),
+                "phone": user_data.get("phone", ""),
+                "timezone": user_data.get("timezone", "Europe/Paris"),
+                "language": user_data.get("language", "fr")
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    except Exception as e:
+        print(f"[ERROR] Erreur lors de la récupération des paramètres personnels: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
+
+@app.put("/api/settings/personal")
+async def update_personal_settings(settings: PersonalSettingsUpdate, payload: dict = Depends(verify_token)):
+    """Met à jour les paramètres personnels de l'utilisateur"""
+    user_id = payload.get("sub")
+    
+    try:
+        # Préparer les données à mettre à jour (exclure les valeurs None)
+        update_data = {k: v for k, v in settings.dict().items() if v is not None}
+        update_data['updated_at'] = datetime.now().isoformat()
+        
+        # Mettre à jour la table users
+        response = supabase.table('users').update(update_data).eq('id', user_id).execute()
+        
+        if response.data and len(response.data) > 0:
+            return {
+                "message": "Paramètres personnels enregistrés avec succès",
+                "data": response.data[0]
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    except Exception as e:
+        print(f"[ERROR] Erreur lors de la mise à jour des paramètres personnels: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
+
+# ============================================
+# SMTP SETTINGS ENDPOINTS
+# ============================================
+
+@app.get("/api/settings/smtp")
+async def get_smtp_settings(payload: dict = Depends(verify_token)):
+    """Récupère les paramètres SMTP de l'utilisateur"""
+    try:
+        user_id = payload.get("user_id")
+        
+        # Récupérer les paramètres SMTP depuis la table smtp_settings
+        response = supabase.table('smtp_settings').select('*').eq('user_id', user_id).execute()
+        
+        if response.data and len(response.data) > 0:
+            return response.data[0]
+        else:
+            # Retourner des valeurs par défaut
+            return {
+                "host": "smtp.gmail.com",
+                "port": 587,
+                "username": "",
+                "password": "",
+                "from_email": "noreply@shareyoursales.com",
+                "from_name": "Share Your Sales",
+                "encryption": "tls"
+            }
+    except Exception as e:
+        print(f"[ERROR] Erreur lors de la récupération des paramètres SMTP: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
+
+@app.put("/api/settings/smtp")
+async def update_smtp_settings(settings: SMTPSettingsUpdate, payload: dict = Depends(verify_token)):
+    """Met à jour les paramètres SMTP"""
+    try:
+        user_id = payload.get("user_id")
+        
+        # Préparer les données à mettre à jour
+        update_data = {k: v for k, v in settings.dict().items() if v is not None}
+        update_data['user_id'] = user_id
+        update_data['updated_at'] = datetime.now().isoformat()
+        
+        # Vérifier si une configuration existe déjà
+        check = supabase.table('smtp_settings').select('id').eq('user_id', user_id).execute()
+        
+        if check.data and len(check.data) > 0:
+            # Mise à jour
+            response = supabase.table('smtp_settings').update(update_data).eq('user_id', user_id).execute()
+        else:
+            # Insertion
+            update_data['created_at'] = datetime.now().isoformat()
+            response = supabase.table('smtp_settings').insert(update_data).execute()
+        
+        if response.data and len(response.data) > 0:
+            return {
+                "message": "Configuration SMTP enregistrée avec succès",
+                "data": response.data[0]
+            }
+        else:
+            raise HTTPException(status_code=400, detail="Impossible d'enregistrer la configuration")
+    except Exception as e:
+        print(f"[ERROR] Erreur lors de la mise à jour des paramètres SMTP: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
+
+@app.post("/api/settings/smtp/test")
+async def test_smtp_connection(settings: SMTPSettingsUpdate, payload: dict = Depends(verify_token)):
+    """Teste la connexion SMTP"""
+    import smtplib
+    from email.mime.text import MIMEText
+    
+    try:
+        # Construire le serveur SMTP
+        if settings.encryption == "ssl":
+            server = smtplib.SMTP_SSL(settings.host, settings.port, timeout=10)
+        else:
+            server = smtplib.SMTP(settings.host, settings.port, timeout=10)
+            if settings.encryption == "tls":
+                server.starttls()
+        
+        # Authentification
+        if settings.username and settings.password:
+            server.login(settings.username, settings.password)
+        
+        # Fermer la connexion
+        server.quit()
+        
+        return {
+            "success": True,
+            "message": "Connexion SMTP réussie !"
+        }
+    except smtplib.SMTPAuthenticationError:
+        raise HTTPException(status_code=401, detail="Échec de l'authentification SMTP")
+    except smtplib.SMTPConnectError:
+        raise HTTPException(status_code=503, detail="Impossible de se connecter au serveur SMTP")
+    except Exception as e:
+        print(f"[ERROR] Erreur test SMTP: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur lors du test: {str(e)}")
+
+# ============================================
+# PERMISSIONS SETTINGS ENDPOINTS
+# ============================================
+
+@app.get("/api/settings/permissions")
+async def get_permissions(payload: dict = Depends(verify_token)):
+    """Récupère les permissions par défaut"""
+    try:
+        user_id = payload.get("user_id")
+        response = supabase.table('permissions_settings').select('*').eq('user_id', user_id).execute()
+        
+        if response.data and len(response.data) > 0:
+            return response.data[0]
+        else:
+            return {
+                "visible_screens": {
+                    "performance": True,
+                    "clicks": True,
+                    "impressions": False,
+                    "conversions": True,
+                    "leads": True,
+                    "references": True,
+                    "campaigns": True,
+                    "lost_orders": False
+                },
+                "visible_fields": {
+                    "conversion_amount": True,
+                    "short_link": True,
+                    "conversion_order_id": True
+                },
+                "authorized_actions": {
+                    "api_access": True,
+                    "view_personal_info": True
+                }
+            }
+    except Exception as e:
+        print(f"[ERROR] Erreur récupération permissions: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
+
+@app.put("/api/settings/permissions")
+async def update_permissions(settings: PermissionsUpdate, payload: dict = Depends(verify_token)):
+    """Met à jour les permissions"""
+    try:
+        user_id = payload.get("user_id")
+        update_data = settings.dict(exclude_none=True)
+        update_data['user_id'] = user_id
+        update_data['updated_at'] = datetime.now().isoformat()
+        
+        check = supabase.table('permissions_settings').select('id').eq('user_id', user_id).execute()
+        
+        if check.data and len(check.data) > 0:
+            response = supabase.table('permissions_settings').update(update_data).eq('user_id', user_id).execute()
+        else:
+            update_data['created_at'] = datetime.now().isoformat()
+            response = supabase.table('permissions_settings').insert(update_data).execute()
+        
+        return {"message": "Permissions enregistrées", "data": response.data[0] if response.data else {}}
+    except Exception as e:
+        print(f"[ERROR] Erreur permissions: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+# ============================================
+# AFFILIATE SETTINGS ENDPOINTS
+# ============================================
+
+@app.get("/api/settings/affiliate")
+async def get_affiliate_settings(payload: dict = Depends(verify_token)):
+    """Récupère les paramètres affiliés"""
+    try:
+        user_id = payload.get("user_id")
+        response = supabase.table('affiliate_settings').select('*').eq('user_id', user_id).execute()
+        
+        if response.data and len(response.data) > 0:
+            return response.data[0]
+        else:
+            return {
+                "min_withdrawal": 50,
+                "auto_approval": False,
+                "email_verification": True,
+                "payment_mode": "on_demand",
+                "single_campaign_mode": False
+            }
+    except Exception as e:
+        print(f"[ERROR] Erreur récupération affiliate settings: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+@app.put("/api/settings/affiliate")
+async def update_affiliate_settings(settings: AffiliateSettingsUpdate, payload: dict = Depends(verify_token)):
+    """Met à jour les paramètres affiliés"""
+    try:
+        user_id = payload.get("user_id")
+        update_data = settings.dict(exclude_none=True)
+        update_data['user_id'] = user_id
+        update_data['updated_at'] = datetime.now().isoformat()
+        
+        check = supabase.table('affiliate_settings').select('id').eq('user_id', user_id).execute()
+        
+        if check.data and len(check.data) > 0:
+            response = supabase.table('affiliate_settings').update(update_data).eq('user_id', user_id).execute()
+        else:
+            update_data['created_at'] = datetime.now().isoformat()
+            response = supabase.table('affiliate_settings').insert(update_data).execute()
+        
+        return {"message": "Paramètres affiliés enregistrés", "data": response.data[0] if response.data else {}}
+    except Exception as e:
+        print(f"[ERROR] Erreur affiliate settings: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+# ============================================
+# REGISTRATION SETTINGS ENDPOINTS
+# ============================================
+
+@app.get("/api/settings/registration")
+async def get_registration_settings(payload: dict = Depends(verify_token)):
+    """Récupère les paramètres d'inscription"""
+    try:
+        user_id = payload.get("user_id")
+        response = supabase.table('registration_settings').select('*').eq('user_id', user_id).execute()
+        
+        if response.data and len(response.data) > 0:
+            return response.data[0]
+        else:
+            return {
+                "allow_affiliate_registration": True,
+                "allow_advertiser_registration": True,
+                "require_invitation": False,
+                "require_2fa": False,
+                "country_required": True,
+                "company_name_required": True
+            }
+    except Exception as e:
+        print(f"[ERROR] Erreur récupération registration settings: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+@app.put("/api/settings/registration")
+async def update_registration_settings(settings: RegistrationSettingsUpdate, payload: dict = Depends(verify_token)):
+    """Met à jour les paramètres d'inscription"""
+    try:
+        user_id = payload.get("user_id")
+        update_data = settings.dict(exclude_none=True)
+        update_data['user_id'] = user_id
+        update_data['updated_at'] = datetime.now().isoformat()
+        
+        check = supabase.table('registration_settings').select('id').eq('user_id', user_id).execute()
+        
+        if check.data and len(check.data) > 0:
+            response = supabase.table('registration_settings').update(update_data).eq('user_id', user_id).execute()
+        else:
+            update_data['created_at'] = datetime.now().isoformat()
+            response = supabase.table('registration_settings').insert(update_data).execute()
+        
+        return {"message": "Paramètres d'inscription enregistrés", "data": response.data[0] if response.data else {}}
+    except Exception as e:
+        print(f"[ERROR] Erreur registration settings: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+# ============================================
+# MLM SETTINGS ENDPOINTS
+# ============================================
+
+@app.get("/api/settings/mlm")
+async def get_mlm_settings(payload: dict = Depends(verify_token)):
+    """Récupère les paramètres MLM"""
+    try:
+        user_id = payload.get("user_id")
+        response = supabase.table('mlm_settings').select('*').eq('user_id', user_id).execute()
+        
+        if response.data and len(response.data) > 0:
+            return response.data[0]
+        else:
+            return {
+                "mlm_enabled": True,
+                "levels": [
+                    {"level": 1, "percentage": 10, "enabled": True},
+                    {"level": 2, "percentage": 5, "enabled": True},
+                    {"level": 3, "percentage": 2.5, "enabled": True},
+                    {"level": 4, "percentage": 0, "enabled": False},
+                    {"level": 5, "percentage": 0, "enabled": False},
+                    {"level": 6, "percentage": 0, "enabled": False},
+                    {"level": 7, "percentage": 0, "enabled": False},
+                    {"level": 8, "percentage": 0, "enabled": False},
+                    {"level": 9, "percentage": 0, "enabled": False},
+                    {"level": 10, "percentage": 0, "enabled": False}
+                ]
+            }
+    except Exception as e:
+        print(f"[ERROR] Erreur récupération MLM settings: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+@app.put("/api/settings/mlm")
+async def update_mlm_settings(settings: MLMSettingsUpdate, payload: dict = Depends(verify_token)):
+    """Met à jour les paramètres MLM"""
+    try:
+        user_id = payload.get("user_id")
+        update_data = settings.dict(exclude_none=True)
+        update_data['user_id'] = user_id
+        update_data['updated_at'] = datetime.now().isoformat()
+        
+        check = supabase.table('mlm_settings').select('id').eq('user_id', user_id).execute()
+        
+        if check.data and len(check.data) > 0:
+            response = supabase.table('mlm_settings').update(update_data).eq('user_id', user_id).execute()
+        else:
+            update_data['created_at'] = datetime.now().isoformat()
+            response = supabase.table('mlm_settings').insert(update_data).execute()
+        
+        return {"message": "Paramètres MLM enregistrés", "data": response.data[0] if response.data else {}}
+    except Exception as e:
+        print(f"[ERROR] Erreur MLM settings: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+# ============================================
+# WHITE LABEL SETTINGS ENDPOINTS
+# ============================================
+
+@app.get("/api/settings/whitelabel")
+async def get_whitelabel_settings(payload: dict = Depends(verify_token)):
+    """Récupère les paramètres white label"""
+    try:
+        user_id = payload.get("user_id")
+        response = supabase.table('whitelabel_settings').select('*').eq('user_id', user_id).execute()
+        
+        if response.data and len(response.data) > 0:
+            return response.data[0]
+        else:
+            return {
+                "logo_url": "",
+                "primary_color": "#3b82f6",
+                "secondary_color": "#1e40af",
+                "accent_color": "#10b981",
+                "company_name": "Share Your Sales Platform",
+                "custom_domain": "track.votredomaine.com",
+                "ssl_enabled": True,
+                "custom_email_domain": "noreply@votredomaine.com"
+            }
+    except Exception as e:
+        print(f"[ERROR] Erreur récupération white label: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
+
+@app.put("/api/settings/whitelabel")
+async def update_whitelabel_settings(settings: WhiteLabelSettingsUpdate, payload: dict = Depends(verify_token)):
+    """Met à jour les paramètres white label"""
+    try:
+        user_id = payload.get("user_id")
+        update_data = settings.dict(exclude_none=True)
+        update_data['user_id'] = user_id
+        update_data['updated_at'] = datetime.now().isoformat()
+        
+        check = supabase.table('whitelabel_settings').select('id').eq('user_id', user_id).execute()
+        
+        if check.data and len(check.data) > 0:
+            response = supabase.table('whitelabel_settings').update(update_data).eq('user_id', user_id).execute()
+        else:
+            update_data['created_at'] = datetime.now().isoformat()
+            response = supabase.table('whitelabel_settings').insert(update_data).execute()
+        
+        return {"message": "Paramètres white label enregistrés", "data": response.data[0] if response.data else {}}
+    except Exception as e:
+        print(f"[ERROR] Erreur white label: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
 
 # ============================================
 # AI MARKETING ENDPOINTS
@@ -984,7 +1523,7 @@ async def generate_ai_content(data: AIContentGenerate, payload: dict = Depends(v
         tone_text = {
             "friendly": f"Hey ! {emoji} Vous allez adorer{product_mention} ! C'est exactement ce qu'il vous faut pour vous démarquer. Ne passez pas à côté ! 💯",
             "professional": f"Découvrez{product_mention} {emoji}. Une solution innovante qui répond à vos besoins. Qualité et excellence garanties.",
-            "casual": f"Franchement {emoji} {product_mention} c'est trop bien ! Foncez avant qu'il soit trop tard 🚀",
+            "casual": f"Franchement {emoji} {product_mention} c'est trop bien ! Foncez avant qu'il soit trop tard [START]",
             "enthusiastic": f"WAOUH ! {emoji} Vous DEVEZ voir{product_mention} ! C'est tout simplement INCROYABLE ! 🤩🎉 Ne ratez pas ça !!"
         }.get(data.tone, f"Découvrez{product_mention} {emoji}")
         
@@ -1486,7 +2025,7 @@ async def get_platform_revenue(
     payload: dict = Depends(verify_token)
 ):
     """
-    📊 Revenus de la plateforme (commission 5%)
+    [DATABASE] Revenus de la plateforme (commission 5%)
     
     Affiche:
     - Total des commissions plateforme
@@ -1596,11 +2135,11 @@ async def get_platform_revenue(
 try:
     from advanced_endpoints import integrate_all_endpoints
     integrate_all_endpoints(app, verify_token)
-    print("✅ Endpoints avancés chargés avec succès")
+    print("[OK] Endpoints avancés chargés avec succès")
 except ImportError as e:
-    print(f"⚠️  Les endpoints avancés n'ont pas pu être chargés: {e}")
+    print(f"[WARNING]  Les endpoints avancés n'ont pas pu être chargés: {e}")
 except Exception as e:
-    print(f"⚠️  Erreur lors du chargement des endpoints avancés: {e}")
+    print(f"[WARNING]  Erreur lors du chargement des endpoints avancés: {e}")
 
 # ============================================
 # ÉVÉNEMENTS STARTUP/SHUTDOWN
@@ -1609,18 +2148,18 @@ except Exception as e:
 @app.on_event("startup")
 async def startup_event():
     """Événement de démarrage - Lance le scheduler"""
-    print("🚀 Démarrage du serveur...")
-    print("📊 Base de données: Supabase PostgreSQL")
-    print("⏰ Lancement du scheduler de paiements automatiques...")
+    print("[START] Démarrage du serveur...")
+    print("[DATABASE] Base de données: Supabase PostgreSQL")
+    print("[SCHEDULER] Lancement du scheduler de paiements automatiques...")
     start_scheduler()
-    print("✅ Scheduler actif")
+    print("[OK] Scheduler actif")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Événement d'arrêt - Arrête le scheduler"""
-    print("🛑 Arrêt du serveur...")
+    print("[STOP] Arrêt du serveur...")
     stop_scheduler()
-    print("✅ Scheduler arrêté")
+    print("[OK] Scheduler arrêté")
 
 # ============================================
 # ENDPOINTS PAIEMENTS AUTOMATIQUES
@@ -1788,7 +2327,7 @@ async def redirect_tracking_link(short_code: str, request: Request, response: Re
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Erreur tracking: {e}")
+        print(f"[ERROR] Erreur tracking: {e}")
         raise HTTPException(status_code=500, detail="Erreur lors du tracking")
 
 
@@ -1849,7 +2388,93 @@ async def generate_tracking_link(data: AffiliateLinkGenerate, payload: dict = De
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Erreur génération lien: {e}")
+        print(f"[ERROR] Erreur génération lien: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/influencer/tracking-links")
+async def get_influencer_tracking_links(payload: dict = Depends(verify_token)):
+    """
+    Récupère tous les liens de tracking de l'influenceur connecté
+    
+    Returns:
+    [
+        {
+            "id": "uuid",
+            "name": "Produit X",
+            "campaign": "Campagne Y",
+            "full_link": "http://localhost:8001/r/ABC123",
+            "short_link": "http://localhost:8001/r/ABC123",
+            "short_code": "ABC123",
+            "clicks": 150,
+            "conversions": 12,
+            "revenue": 1250.50,
+            "status": "active",
+            "created_at": "2024-03-15T10:00:00Z"
+        }
+    ]
+    """
+    try:
+        user_id = payload.get("sub")
+        
+        # Récupérer l'influenceur
+        influencer = supabase.table('influencers').select('id').eq('user_id', user_id).execute()
+        
+        if not influencer.data:
+            raise HTTPException(status_code=404, detail="Influenceur introuvable")
+        
+        influencer_id = influencer.data[0]['id']
+        
+        # Récupérer les liens avec les produits et campagnes
+        links_response = supabase.table('trackable_links')\
+            .select('*, products(name, commission_rate), campaigns(name)')\
+            .eq('influencer_id', influencer_id)\
+            .order('created_at', desc=True)\
+            .execute()
+        
+        links = []
+        for link in links_response.data:
+            # Calculer les statistiques
+            clicks_response = supabase.table('click_tracking')\
+                .select('id', count='exact')\
+                .eq('link_id', link['id'])\
+                .execute()
+            
+            sales_response = supabase.table('sales')\
+                .select('influencer_commission', count='exact')\
+                .eq('link_id', link['id'])\
+                .execute()
+            
+            clicks = clicks_response.count or 0
+            conversions = sales_response.count or 0
+            revenue = sum([s.get('influencer_commission', 0) for s in (sales_response.data or [])]) or 0
+            
+            product_name = link.get('products', {}).get('name', 'Produit') if link.get('products') else 'Produit'
+            campaign_name = link.get('campaigns', {}).get('name', '-') if link.get('campaigns') else '-'
+            
+            base_url = "http://localhost:8001"  # ou config.BASE_URL
+            
+            links.append({
+                'id': link['id'],
+                'name': product_name,
+                'campaign': campaign_name,
+                'full_link': f"{base_url}/r/{link['short_code']}",
+                'short_link': f"{base_url}/r/{link['short_code']}",
+                'short_code': link['short_code'],
+                'clicks': clicks,
+                'conversions': conversions,
+                'revenue': float(revenue),
+                'status': 'active' if link.get('is_active', True) else 'paused',
+                'performance': round((conversions / clicks * 100), 1) if clicks > 0 else 0,
+                'created_at': link['created_at']
+            })
+        
+        return links
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Erreur récupération liens: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1878,7 +2503,7 @@ async def get_tracking_link_stats(link_id: str, payload: dict = Depends(verify_t
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Erreur stats lien: {e}")
+        print(f"[ERROR] Erreur stats lien: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -1921,7 +2546,7 @@ async def shopify_webhook(merchant_id: str, request: Request):
             }
             
     except Exception as e:
-        print(f"❌ Erreur webhook Shopify: {e}")
+        print(f"[ERROR] Erreur webhook Shopify: {e}")
         return {
             "status": "error",
             "message": str(e)
@@ -1959,7 +2584,7 @@ async def woocommerce_webhook(merchant_id: str, request: Request):
             }
             
     except Exception as e:
-        print(f"❌ Erreur webhook WooCommerce: {e}")
+        print(f"[ERROR] Erreur webhook WooCommerce: {e}")
         return {
             "status": "error",
             "message": str(e)
@@ -2034,7 +2659,7 @@ async def tiktok_shop_webhook(merchant_id: str, request: Request):
             }
             
     except Exception as e:
-        print(f"❌ Erreur webhook TikTok Shop: {e}")
+        print(f"[ERROR] Erreur webhook TikTok Shop: {e}")
         return {
             "code": 1,
             "message": str(e),
@@ -2103,7 +2728,7 @@ async def create_payment(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Payment creation error: {e}")
+        print(f"[ERROR] Payment creation error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2138,7 +2763,7 @@ async def get_payment_status(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error getting transaction status: {e}")
+        print(f"[ERROR] Error getting transaction status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2188,7 +2813,7 @@ async def cmi_webhook(merchant_id: str, request: Request):
             return {"status": "error", "message": result.get('error')}
             
     except Exception as e:
-        print(f"❌ CMI webhook error: {e}")
+        print(f"[ERROR] CMI webhook error: {e}")
         return {"status": "error", "message": str(e)}
 
 
@@ -2255,7 +2880,7 @@ async def payzen_webhook(merchant_id: str, request: Request):
             return {"status": "error", "message": result.get('error')}
             
     except Exception as e:
-        print(f"❌ PayZen webhook error: {e}")
+        print(f"[ERROR] PayZen webhook error: {e}")
         return {"status": "error", "message": str(e)}
 
 
@@ -2304,7 +2929,7 @@ async def sg_maroc_webhook(merchant_id: str, request: Request):
             return {"status": "error", "message": result.get('error')}
             
     except Exception as e:
-        print(f"❌ SG Maroc webhook error: {e}")
+        print(f"[ERROR] SG Maroc webhook error: {e}")
         return {"status": "error", "message": str(e)}
 
 
@@ -2346,7 +2971,7 @@ async def get_gateway_statistics(payload: dict = Depends(verify_token)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error getting gateway stats: {e}")
+        print(f"[ERROR] Error getting gateway stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2402,7 +3027,7 @@ async def get_merchant_payment_config(payload: dict = Depends(verify_token)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error getting payment config: {e}")
+        print(f"[ERROR] Error getting payment config: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2462,7 +3087,7 @@ async def update_merchant_payment_config(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error updating payment config: {e}")
+        print(f"[ERROR] Error updating payment config: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2510,7 +3135,7 @@ async def generate_monthly_invoices(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error generating invoices: {e}")
+        print(f"[ERROR] Error generating invoices: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2556,7 +3181,7 @@ async def get_all_invoices(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error getting invoices: {e}")
+        print(f"[ERROR] Error getting invoices: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2582,7 +3207,7 @@ async def get_invoice_details_admin(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error getting invoice details: {e}")
+        print(f"[ERROR] Error getting invoice details: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2619,7 +3244,7 @@ async def mark_invoice_paid_admin(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error marking invoice as paid: {e}")
+        print(f"[ERROR] Error marking invoice as paid: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2653,7 +3278,7 @@ async def get_merchant_invoices(payload: dict = Depends(verify_token)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error getting merchant invoices: {e}")
+        print(f"[ERROR] Error getting merchant invoices: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2684,7 +3309,7 @@ async def get_invoice_details_merchant(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error getting invoice details: {e}")
+        print(f"[ERROR] Error getting invoice details: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2735,7 +3360,7 @@ async def pay_invoice_merchant(
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error initiating invoice payment: {e}")
+        print(f"[ERROR] Error initiating invoice payment: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -2755,17 +3380,434 @@ async def send_payment_reminders(payload: dict = Depends(verify_token)):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Error sending reminders: {e}")
+        print(f"[ERROR] Error sending reminders: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ================================================================
+# SYSTÈME DE DEMANDES D'AFFILIATION
+# ================================================================
+
+@app.post("/api/affiliation/request")
+async def create_affiliation_request(
+    request_data: AffiliationRequestCreate,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Créer une demande d'affiliation (Influenceur) - SYSTÈME UNIFIÉ
+
+    Body:
+    {
+      "product_id": "uuid",
+      "message": "Message au marchand..."
+    }
+
+    Returns:
+    {
+      "success": true,
+      "request_id": "uuid",
+      "status": "pending_approval",
+      "message": "Demande envoyée au marchand"
+    }
+    """
+    try:
+        user = get_user_by_id(payload["sub"])
+
+        if user["role"] != "influencer":
+            raise HTTPException(status_code=403, detail="Influenceurs uniquement")
+
+        # Récupérer l'influenceur
+        influencer = get_influencer_by_user_id(user["id"])
+        if not influencer:
+            raise HTTPException(status_code=404, detail="Profil influencer non trouvé")
+
+        # Vérifier que le produit existe
+        product_query = supabase.table("products").select("*").eq("id", request_data.product_id).execute()
+
+        if not product_query.data:
+            raise HTTPException(status_code=404, detail="Produit non trouvé")
+
+        product = product_query.data[0]
+        merchant_id = product.get("merchant_id")
+
+        if not merchant_id:
+            raise HTTPException(status_code=400, detail="Produit sans marchand associé")
+
+        # Vérifier si une demande existe déjà pour ce produit
+        existing_query = supabase.table("trackable_links").select("*").eq(
+            "influencer_id", influencer["id"]
+        ).eq("product_id", request_data.product_id).execute()
+
+        if existing_query.data:
+            existing_request = existing_query.data[0]
+            if existing_request["status"] == "pending_approval":
+                raise HTTPException(status_code=400, detail="Vous avez déjà une demande en attente pour ce produit")
+            elif existing_request["status"] == "active":
+                raise HTTPException(status_code=400, detail="Vous avez déjà accès à ce produit")
+            elif existing_request["status"] == "rejected":
+                # Vérifier si moins de 30 jours
+                from datetime import datetime, timedelta
+                created_at = datetime.fromisoformat(existing_request["created_at"].replace('Z', '+00:00'))
+                if datetime.now(created_at.tzinfo) - created_at < timedelta(days=30):
+                    raise HTTPException(status_code=400, detail="Vous devez attendre 30 jours avant de redemander ce produit")
+
+        # Créer la demande dans trackable_links
+        affiliation_data = {
+            "influencer_id": influencer["id"],
+            "product_id": request_data.product_id,
+            "status": "pending_approval",
+            "influencer_message": request_data.message,
+            "is_active": False  # Pas encore actif
+        }
+
+        result = supabase.table("trackable_links").insert(affiliation_data).execute()
+
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Erreur lors de la création de la demande")
+
+        request_id = result.data[0]["id"]
+
+        # TODO: Envoyer notification au marchand
+
+        return {
+            "success": True,
+            "request_id": request_id,
+            "status": "pending_approval",
+            "message": "Demande envoyée au marchand avec succès"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Error creating affiliation request: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/influencer/affiliation-requests")
+async def get_influencer_affiliation_requests(
+    status: Optional[str] = None,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Récupérer les demandes d'affiliation de l'influenceur - SYSTÈME UNIFIÉ
+
+    Query params:
+    - status: pending_approval, active, rejected (optionnel)
+
+    Returns:
+    [
+      {
+        "id": "uuid",
+        "product_name": "T-shirt Vintage",
+        "product_image": "url",
+        "merchant_company": "FashionCo",
+        "status": "pending_approval",
+        "influencer_message": "Mon message...",
+        "merchant_response": null,
+        "commission_rate": 15,
+        "created_at": "2025-10-23T10:00:00Z",
+        "reviewed_at": null
+      }
+    ]
+    """
+    try:
+        user = get_user_by_id(payload["sub"])
+
+        if user["role"] != "influencer":
+            raise HTTPException(status_code=403, detail="Influenceurs uniquement")
+
+        # Récupérer l'influenceur
+        influencer = get_influencer_by_user_id(user["id"])
+        if not influencer:
+            raise HTTPException(status_code=404, detail="Profil influencer non trouvé")
+
+        # Utiliser la vue SQL créée (merchant_affiliation_requests) mais filtrer par influencer
+        query = supabase.table("merchant_affiliation_requests").select("*").eq("influencer_id", influencer["id"])
+
+        if status:
+            query = query.eq("status", status)
+
+        result = query.order("created_at", desc=True).execute()
+
+        return result.data or []
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Error getting influencer affiliation requests: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/affiliation/request/{request_id}")
+async def cancel_affiliation_request(
+    request_id: str,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Annuler une demande d'affiliation en attente (Influenceur) - SYSTÈME UNIFIÉ
+
+    Returns:
+    {
+      "success": true,
+      "message": "Demande annulée"
+    }
+    """
+    try:
+        user = get_user_by_id(payload["sub"])
+
+        if user["role"] != "influencer":
+            raise HTTPException(status_code=403, detail="Influenceurs uniquement")
+
+        # Récupérer l'influenceur
+        influencer = get_influencer_by_user_id(user["id"])
+        if not influencer:
+            raise HTTPException(status_code=404, detail="Profil influencer non trouvé")
+
+        # Vérifier que la demande existe et appartient à l'influenceur
+        request_query = supabase.table("trackable_links").select("*").eq("id", request_id).eq("influencer_id", influencer["id"]).execute()
+
+        if not request_query.data:
+            raise HTTPException(status_code=404, detail="Demande non trouvée")
+
+        request_data = request_query.data[0]
+
+        if request_data["status"] != "pending_approval":
+            raise HTTPException(status_code=400, detail="Seules les demandes en attente peuvent être annulées")
+
+        # Supprimer la demande (au lieu de mettre à jour le statut)
+        supabase.table("trackable_links").delete().eq("id", request_id).execute()
+
+        return {
+            "success": True,
+            "message": "Demande annulée avec succès"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Error cancelling affiliation request: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/merchant/affiliation-requests")
+async def get_merchant_affiliation_requests(
+    status: Optional[str] = None,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Récupérer les demandes d'affiliation reçues (Marchand) - SYSTÈME UNIFIÉ
+
+    Query params:
+    - status: pending_approval, active, rejected (optionnel)
+
+    Returns:
+    [
+      {
+        "id": "uuid",
+        "influencer_name": "Emma Style",
+        "influencer_email": "emma@example.com",
+        "influencer_avatar": "url",
+        "product_name": "T-shirt Vintage",
+        "commission_rate": 15,
+        "influencer_message": "Bonjour...",
+        "merchant_response": null,
+        "status": "pending_approval",
+        "created_at": "2025-10-23T10:00:00Z"
+      }
+    ]
+    """
+    try:
+        user = get_user_by_id(payload["sub"])
+
+        if user["role"] != "merchant":
+            raise HTTPException(status_code=403, detail="Marchands uniquement")
+
+        # Utiliser la vue SQL créée
+        query = supabase.table("merchant_affiliation_requests").select("*").eq("merchant_id", user["id"])
+
+        if status:
+            query = query.eq("status", status)
+
+        result = query.order("created_at", desc=True).execute()
+
+        return result.data or []
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Error getting merchant affiliation requests: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/merchant/affiliation-requests/{request_id}/approve")
+async def approve_affiliation_request(
+    request_id: str,
+    response_data: AffiliationRequestResponse,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Approuver une demande d'affiliation (Marchand) - SYSTÈME UNIFIÉ
+
+    Body:
+    {
+      "merchant_response": "Bienvenue dans notre programme!"
+    }
+
+    Returns:
+    {
+      "success": true,
+      "message": "Demande approuvée",
+      "tracking_link": {
+        "id": "uuid",
+        "short_code": "ABC12345",
+        "url": "http://localhost:8001/r/ABC12345"
+      }
+    }
+    """
+    try:
+        user = get_user_by_id(payload["sub"])
+
+        if user["role"] != "merchant":
+            raise HTTPException(status_code=403, detail="Marchands uniquement")
+
+        # Utiliser la fonction SQL pour approuver
+        result = supabase.rpc('approve_affiliation_request', {
+            'p_request_id': request_id,
+            'p_merchant_response': response_data.merchant_response,
+            'p_reviewed_by': user["id"]
+        }).execute()
+
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Erreur lors de l'approbation")
+
+        # Récupérer le lien créé
+        link_query = supabase.table("trackable_links").select("*").eq("id", request_id).execute()
+
+        tracking_link = None
+        if link_query.data:
+            link = link_query.data[0]
+            tracking_link = {
+                "id": link["id"],
+                "short_code": link["unique_code"],
+                "url": f"http://localhost:8001/r/{link['unique_code']}"
+            }
+
+        # TODO: Envoyer notification à l'influenceur
+
+        return {
+            "success": True,
+            "message": "Demande approuvée avec succès",
+            "tracking_link": tracking_link
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Error approving affiliation request: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/merchant/affiliation-requests/{request_id}/reject")
+async def reject_affiliation_request(
+    request_id: str,
+    response_data: AffiliationRequestResponse,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Refuser une demande d'affiliation (Marchand) - SYSTÈME UNIFIÉ
+
+    Body:
+    {
+      "merchant_response": "Merci pour votre intérêt, mais..."
+    }
+
+    Returns:
+    {
+      "success": true,
+      "message": "Demande refusée"
+    }
+    """
+    try:
+        user = get_user_by_id(payload["sub"])
+
+        if user["role"] != "merchant":
+            raise HTTPException(status_code=403, detail="Marchands uniquement")
+
+        # Utiliser la fonction SQL pour refuser
+        result = supabase.rpc('reject_affiliation_request', {
+            'p_request_id': request_id,
+            'p_merchant_response': response_data.merchant_response,
+            'p_reviewed_by': user["id"]
+        }).execute()
+
+        if not result.data:
+            raise HTTPException(status_code=500, detail="Erreur lors du refus")
+
+        # TODO: Envoyer notification à l'influenceur
+
+        return {
+            "success": True,
+            "message": "Demande refusée"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Error rejecting affiliation request: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/merchant/affiliation-requests/stats")
+async def get_affiliation_requests_stats(payload: dict = Depends(verify_token)):
+    """
+    Statistiques des demandes d'affiliation (Marchand) - SYSTÈME UNIFIÉ
+
+    Returns:
+    {
+      "total_requests": 65,
+      "pending_requests": 12,
+      "approved_requests": 45,
+      "rejected_requests": 8,
+      "approval_rate": 84.9,
+      "avg_response_time_hours": 48
+    }
+    """
+    try:
+        user = get_user_by_id(payload["sub"])
+
+        if user["role"] != "merchant":
+            raise HTTPException(status_code=403, detail="Marchands uniquement")
+
+        # Utiliser la vue SQL créée
+        stats_query = supabase.table("affiliation_requests_stats").select("*").eq("merchant_id", user["id"]).execute()
+
+        if stats_query.data:
+            stats = stats_query.data[0]
+            return stats
+        else:
+            return {
+                "total_requests": 0,
+                "pending_requests": 0,
+                "approved_requests": 0,
+                "rejected_requests": 0,
+                "approval_rate": 0,
+                "avg_response_time_hours": 0
+            }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[ERROR] Error getting affiliation stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
     import uvicorn
-    print("🚀 Démarrage du serveur Supabase...")
-    print("📊 Base de données: Supabase PostgreSQL")
-    print("💰 Paiements automatiques: ACTIVÉS")
-    print("🔗 Tracking: ACTIVÉ (endpoint /r/{short_code})")
-    print("📡 Webhooks: ACTIVÉS (Shopify, WooCommerce, TikTok Shop)")
-    print("💳 Gateways: CMI, PayZen, Société Générale Maroc")
-    print("📄 Facturation: AUTOMATIQUE (PDF + Emails)")
+    print("[START] Démarrage du serveur Supabase...")
+    print("[DATABASE] Base de données: Supabase PostgreSQL")
+    print("[PAYMENT] Paiements automatiques: ACTIVÉS")
+    print("[TRACKING] Tracking: ACTIVÉ (endpoint /r/{short_code})")
+    print("[WEBHOOK] Webhooks: ACTIVÉS (Shopify, WooCommerce, TikTok Shop)")
+    print("[GATEWAY] Gateways: CMI, PayZen, Société Générale Maroc")
+    print("[INVOICE] Facturation: AUTOMATIQUE (PDF + Emails)")
     uvicorn.run(app, host="0.0.0.0", port=8001)
