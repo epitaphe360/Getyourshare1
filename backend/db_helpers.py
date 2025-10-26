@@ -432,7 +432,8 @@ def update_payout_status(payout_id: str, status: str) -> bool:
     """Met à jour le statut d'un payout"""
     try:
         update_data = {"status": status}
-        if status == "paid":
+        # Mettre la date paid_at pour "approved" ou "paid"
+        if status in ["approved", "paid"]:
             update_data["paid_at"] = datetime.now().isoformat()
 
         supabase.table("commissions").update(update_data).eq("id", payout_id).execute()
