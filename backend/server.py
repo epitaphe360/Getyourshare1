@@ -222,6 +222,13 @@ from commercials_directory_endpoints import router as commercials_router
 from influencers_directory_endpoints import router as influencers_router
 from company_links_management import router as company_links_router
 
+# Nouveaux routers - 6 Features Marketables
+from ai_content_endpoints import router as ai_content_router
+from mobile_payment_endpoints import router as mobile_payment_router
+from smart_match_endpoints import router as smart_match_router
+from trust_score_endpoints import router as trust_score_router
+from predictive_dashboard_endpoints import router as predictive_dashboard_router
+
 # Include all routers in the app
 app.include_router(marketplace_router)
 app.include_router(affiliate_links_router)
@@ -238,6 +245,13 @@ app.include_router(stripe_webhook_router)
 app.include_router(commercials_router)
 app.include_router(influencers_router)
 app.include_router(company_links_router)  # New company-only link generation
+
+# Nouveaux routers - 6 Features Marketables
+app.include_router(ai_content_router)
+app.include_router(mobile_payment_router)
+app.include_router(smart_match_router)
+app.include_router(trust_score_router)
+app.include_router(predictive_dashboard_router)
 
 # Security
 security = HTTPBearer()
