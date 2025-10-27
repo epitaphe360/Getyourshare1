@@ -1,27 +1,27 @@
-# Railway configuration for a multi-service project
-# This file defines both the backend and frontend services.
+# Railway configuration for a multi-service project (monorepo)
+# This file explicitly defines the backend and frontend services.
 
 [build]
 builder = "NIXPACKS"
 
 # Backend Service Configuration
-[[services]]
-name = "backend"
-src = "./backend"
-[services.build]
-command = "pip install --upgrade pip && pip install -r requirements.txt"
-[services.start]
-command = "gunicorn server:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120"
-[services.healthcheck]
-path = "/health"
+[services.backend]
+[services.backend.build]
+# The root of the backend service is in the 'backend' directory
+watchPatterns = ["./backend/**"]
+buildCommand = "cd backend && pip install --upgrade pip && pip install -r requirements.txt"
+[services.backend.deploy]
+startCommand = "cd backend && gunicorn server:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120"
+healthcheckPath = "/health"
+healthcheckTimeout = 120
 
 # Frontend Service Configuration
-[[services]]
-name = "frontend"
-src = "./frontend"
-[services.build]
-command = "npm ci && npm run build"
-[services.start]
-command = "npx serve -s build -l $PORT"
-[services.healthcheck]
-path = "/"
+[services.frontend]
+[services.frontend.build]
+# The root of the frontend service is in the 'frontend' directory
+watchPatterns = ["./frontend/**"]
+buildCommand = "cd frontend && npm ci && npm run build"
+[services.frontend.deploy]
+startCommand = "cd frontend && npx serve -s build -l $PORT"
+healthcheckPath = "/"
+healthcheckTimeout = 120
