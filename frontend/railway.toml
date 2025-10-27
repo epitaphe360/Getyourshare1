@@ -1,14 +1,9 @@
-[build][build]
-
-builder = "NIXPACKS"builder = "NIXPACKS"
-
+[build]
+builder = "NIXPACKS"
 buildCommand = "npm ci && npm run build"
 
 [deploy]
-
-[deploy]startCommand = "bash start.sh"
-
-startCommand = "npx serve -s build -l $PORT"healthcheckPath = "/"
-
-healthcheckPath = "/"restartPolicyType = "ON_FAILURE"
+startCommand = "npx serve -s build -l $PORT"
+healthcheckPath = "/"
+restartPolicyType = "ON_FAILURE"
 
