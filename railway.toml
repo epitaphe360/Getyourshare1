@@ -1,0 +1,17 @@
+# Railway Auto Configuration
+# Automatically defines backend and frontend services
+
+[project]
+name = "shareyoursales"
+
+[services.backend]
+directory = "backend"
+buildCommand = "pip install --upgrade pip && pip install -r requirements.txt"
+startCommand = "gunicorn server:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120"
+healthcheckPath = "/health"
+
+[services.frontend]
+directory = "frontend"
+buildCommand = "npm ci && npm run build"
+startCommand = "npx serve -s build -l $PORT"
+healthcheckPath = "/"
