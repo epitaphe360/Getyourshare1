@@ -10,7 +10,7 @@ const Users = () => {
     {
       id: 'user_1',
       name: 'Admin Manager',
-      email: 'admin@tracknow.io',
+      email: 'admin@shareyoursales.com',
       country: 'FR',
       role: 'Manager',
       status: 'active',
@@ -19,7 +19,7 @@ const Users = () => {
     {
       id: 'user_2',
       name: 'Support Team',
-      email: 'support@tracknow.io',
+      email: 'support@shareyoursales.com',
       country: 'FR',
       role: 'Manager',
       status: 'active',

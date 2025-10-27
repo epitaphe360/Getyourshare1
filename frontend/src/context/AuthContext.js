@@ -69,12 +69,14 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await api.post('/api/auth/login', { email, password });
 
-      // Check if 2FA is required
-      if (response.data.requires_2fa) {
+      // Check if 2FA is required (support both snake_case and camelCase)
+      if (response.data.requires_2fa || response.data.requires2FA) {
         return {
           success: false,
           requires2FA: true,
+          requires_2fa: true, // Support both naming conventions
           tempToken: response.data.temp_token,
+          temp_token: response.data.temp_token, // Support both naming conventions
           message: response.data.message || 'Code 2FA envoyé'
         };
       }

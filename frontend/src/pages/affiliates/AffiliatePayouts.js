@@ -48,6 +48,13 @@ const AffiliatePayouts = () => {
     {
       header: 'Affilié',
       accessor: 'affiliate_name',
+      render: (row) => {
+        // Les données viennent de la relation influencers:influencer_id
+        if (row.influencers) {
+          return row.influencers.full_name || row.influencers.username || 'N/A';
+        }
+        return row.affiliate_name || 'N/A';
+      },
     },
     {
       header: 'Montant',
@@ -57,6 +64,7 @@ const AffiliatePayouts = () => {
     {
       header: 'Méthode',
       accessor: 'method',
+      render: (row) => row.payment_method || row.method || 'N/A',
     },
     {
       header: 'Statut',
@@ -66,12 +74,18 @@ const AffiliatePayouts = () => {
     {
       header: 'Demandé le',
       accessor: 'requested_at',
-      render: (row) => formatDate(row.requested_at),
+      render: (row) => {
+        const date = row.created_at || row.requested_at;
+        return date ? formatDate(date) : 'N/A';
+      },
     },
     {
       header: 'Traité le',
       accessor: 'processed_at',
-      render: (row) => row.processed_at ? formatDate(row.processed_at) : '-',
+      render: (row) => {
+        const date = row.paid_at || row.processed_at;
+        return date ? formatDate(date) : '-';
+      },
     },
     {
       header: 'Actions',
@@ -86,7 +100,7 @@ const AffiliatePayouts = () => {
               <X size={16} />
             </Button>
           </div>
-        ) : null
+        ) : '-'
       ),
     },
   ];

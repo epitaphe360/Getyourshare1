@@ -1,0 +1,30 @@
+# Railway Auto-Configuration Template
+# Ce fichier sera automatiquement détecté par Railway
+#
+# Placez ce fichier à la racine de votre repository si vous voulez
+# configurer plusieurs services d'un coup
+
+[[services]]
+name = "backend"
+source = "./backend"
+
+[services.build]
+builder = "NIXPACKS"
+
+[services.deploy]
+startCommand = "gunicorn server:app --bind 0.0.0.0:$PORT --workers 4"
+healthcheckPath = "/health"
+
+[[services]]
+name = "frontend"
+source = "./frontend"
+
+[services.build]
+builder = "NIXPACKS"
+
+[services.deploy]
+startCommand = "npx serve -s build -l $PORT"
+healthcheckPath = "/"
+
+# Note: Railway préfère les fichiers railway.toml individuels dans chaque dossier
+# Ce fichier monorepo est optionnel

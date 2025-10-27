@@ -12,12 +12,18 @@ import News from './pages/News';
 import Marketplace from './pages/Marketplace';
 import TrackingLinks from './pages/TrackingLinks';
 import Integrations from './pages/Integrations';
-import LandingPage from './pages/LandingPage';
+import LandingPageNew from './pages/LandingPageNew';
 import AIMarketing from './pages/AIMarketing';
+import Subscription from './pages/Subscription';
 import MerchantsList from './pages/merchants/MerchantsList';
 import InfluencersList from './pages/influencers/InfluencersList';
 import InfluencerSearchPage from './pages/influencers/InfluencerSearchPage';
 import InfluencerProfilePage from './pages/influencers/InfluencerProfilePage';
+
+// Resources
+import Documentation from './pages/Documentation';
+import VideoTutorials from './pages/VideoTutorials';
+import Support from './pages/Support';
 
 // Messaging
 import MessagingPage from './pages/MessagingPage';
@@ -97,7 +103,7 @@ function App() {
         <BrowserRouter>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<LandingPageNew />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/pricing" element={<Pricing />} />
@@ -386,6 +392,42 @@ function App() {
             element={
               <ProtectedRoute>
                 <AIMarketing />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Subscription */}
+          <Route
+            path="/subscription"
+            element={
+              <ProtectedRoute>
+                <Subscription />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Resources Routes */}
+          <Route
+            path="/documentation"
+            element={
+              <ProtectedRoute>
+                <Documentation />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/video-tutorials"
+            element={
+              <ProtectedRoute>
+                <VideoTutorials />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/support"
+            element={
+              <ProtectedRoute>
+                <Support />
               </ProtectedRoute>
             }
           />

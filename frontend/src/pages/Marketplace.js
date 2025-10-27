@@ -277,37 +277,83 @@ const MarketplaceNew = () => {
               className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-xl transition-all duration-300 group"
             >
               {/* Product Image */}
-              <div className="relative h-48 bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center overflow-hidden">
+              <div className={`relative h-48 flex items-center justify-center overflow-hidden ${
+                (() => {
+                  const images = getProductImages(product);
+                  if (images.length > 0) return 'bg-gray-100';
+                  
+                  // Gradients par catégorie
+                  const categoryGradients = {
+                    'Mode': 'bg-gradient-to-br from-pink-200 via-purple-200 to-indigo-200',
+                    'Beauté': 'bg-gradient-to-br from-rose-200 via-pink-200 to-fuchsia-200',
+                    'Technologie': 'bg-gradient-to-br from-blue-200 via-cyan-200 to-teal-200',
+                    'Sport': 'bg-gradient-to-br from-orange-200 via-amber-200 to-yellow-200',
+                    'Alimentation': 'bg-gradient-to-br from-green-200 via-emerald-200 to-lime-200',
+                    'Maison': 'bg-gradient-to-br from-indigo-200 via-violet-200 to-purple-200'
+                  };
+                  return categoryGradients[product.category] || 'bg-gradient-to-br from-purple-100 to-pink-100';
+                })()
+              }`}>
                 {(() => {
                   const images = getProductImages(product);
                   const hasImage = images.length > 0;
 
-                  return hasImage ? (
-                    <>
+                  if (hasImage) {
+                    return (
                       <img
                         src={images[0]}
                         alt={product.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                         onError={(e) => {
+                          // Si l'image ne charge pas, afficher le placeholder
                           e.target.style.display = 'none';
+                          const placeholder = e.target.nextElementSibling;
+                          if (placeholder) placeholder.style.display = 'block';
                         }}
                       />
-                      <Package className="w-24 h-24 text-purple-300 absolute" style={{display: 'none'}} />
-                    </>
-                  ) : (
-                    <Package className="w-24 h-24 text-purple-300" />
+                    );
+                  }
+                  
+                  // Icône par catégorie pour placeholder
+                  const categoryIcons = {
+                    'Mode': '👕',
+                    'Beauté': '💄',
+                    'Technologie': '📱',
+                    'Sport': '⚽',
+                    'Alimentation': '🍔',
+                    'Maison': '🏠'
+                  };
+                  
+                  const icon = categoryIcons[product.category] || '📦';
+                  
+                  return (
+                    <div className="text-center">
+                      <div className="text-7xl mb-3 animate-bounce">{icon}</div>
+                      <div className="text-lg font-semibold text-gray-700">{product.category}</div>
+                    </div>
                   );
                 })()}
+                
+                {/* Badges et boutons */}
                 <div className="absolute top-3 right-3">
-                  <button className="bg-white p-2 rounded-full shadow-lg hover:bg-pink-50 transition">
+                  <button className="bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg hover:bg-pink-50 transition">
                     <Heart className="w-5 h-5 text-gray-600" />
                   </button>
                 </div>
                 <div className="absolute top-3 left-3">
-                  <span className="bg-white px-3 py-1 rounded-full text-sm font-semibold text-purple-600">
+                  <span className="bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-sm font-semibold text-purple-600 shadow">
                     {product.category}
                   </span>
                 </div>
+                
+                {/* Badge Commission si élevée */}
+                {product.commission_rate >= 20 && (
+                  <div className="absolute bottom-3 left-3">
+                    <span className="bg-green-500 text-white px-3 py-1 rounded-full text-xs font-bold shadow-lg animate-pulse">
+                      🔥 {product.commission_rate}% Commission
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Product Info */}

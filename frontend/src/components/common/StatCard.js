@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { formatNumber, formatCurrency } from '../../utils/helpers';
 
-const StatCard = ({ title, value, icon, trend, isCurrency = false, suffix = '' }) => {
+const StatCard = memo(({ title, value, icon, trend, isCurrency = false, suffix = '' }) => {
   // Handle different value types
   let displayValue;
   
@@ -36,6 +36,8 @@ const StatCard = ({ title, value, icon, trend, isCurrency = false, suffix = '' }
       </div>
     </div>
   );
-};
+});
+
+StatCard.displayName = 'StatCard';
 
 export default StatCard;

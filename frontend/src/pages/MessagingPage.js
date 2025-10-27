@@ -100,11 +100,30 @@ const MessagingPage = () => {
     }
   };
 
-  const getOtherUserName = (conversation) => {
-    if (!conversation) return '';
+  const getOtherUserInfo = (conversation) => {
+    if (!conversation) return { name: '', role: '', badge: '' };
     const isUser1 = conversation.user1_id === user?.id;
     const otherType = isUser1 ? conversation.user2_type : conversation.user1_type;
-    return `${otherType.charAt(0).toUpperCase() + otherType.slice(1)} #${isUser1 ? conversation.user2_id.substring(0, 8) : conversation.user1_id.substring(0, 8)}`;
+    const otherId = isUser1 ? conversation.user2_id : conversation.user1_id;
+    
+    // Traduire les rôles
+    const roleLabels = {
+      influencer: { name: 'Influenceur', badge: 'bg-green-100 text-green-800' },
+      merchant: { name: 'Marchand', badge: 'bg-blue-100 text-blue-800' },
+      admin: { name: 'Admin', badge: 'bg-purple-100 text-purple-800' }
+    };
+    
+    const roleInfo = roleLabels[otherType] || { name: otherType, badge: 'bg-gray-100 text-gray-800' };
+    
+    return {
+      name: conversation.other_user_name || `${roleInfo.name} #${otherId.substring(0, 8)}`,
+      role: roleInfo.name,
+      badge: roleInfo.badge
+    };
+  };
+
+  const getOtherUserName = (conversation) => {
+    return getOtherUserInfo(conversation).name;
   };
 
   const filteredConversations = conversations.filter(conv =>
@@ -148,39 +167,57 @@ const MessagingPage = () => {
                 <div className="p-6 text-center text-gray-500">
                   <MessageSquare size={48} className="mx-auto mb-3 text-gray-300" />
                   <p>Aucune conversation</p>
-                  <p className="text-sm mt-1">Commencez à échanger avec des influenceurs</p>
+                  {user?.role === 'merchant' && (
+                    <p className="text-sm mt-1">Les influenceurs vous contacteront pour vos campagnes</p>
+                  )}
+                  {user?.role === 'influencer' && (
+                    <p className="text-sm mt-1">Contactez les marchands depuis leurs campagnes</p>
+                  )}
+                  {user?.role === 'admin' && (
+                    <p className="text-sm mt-1">Gérez les conversations entre marchands et influenceurs</p>
+                  )}
                 </div>
               ) : (
-                filteredConversations.map((conv) => (
-                  <div
-                    key={conv.id}
-                    onClick={() => navigate(`/messages/${conv.id}`)}
-                    className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition ${
-                      activeConversation?.id === conv.id ? 'bg-indigo-50 border-l-4 border-indigo-600' : ''
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-1">
-                      <div className="flex items-center gap-2">
-                        <User size={20} className="text-gray-600" />
-                        <span className="font-semibold text-sm">{getOtherUserName(conv)}</span>
+                filteredConversations.map((conv) => {
+                  const otherUser = getOtherUserInfo(conv);
+                  return (
+                    <div
+                      key={conv.id}
+                      onClick={() => navigate(`/messages/${conv.id}`)}
+                      className={`p-4 border-b cursor-pointer hover:bg-gray-50 transition ${
+                        activeConversation?.id === conv.id ? 'bg-indigo-50 border-l-4 border-indigo-600' : ''
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2 flex-1">
+                          <User size={20} className="text-gray-600" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-sm truncate">{otherUser.name}</span>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${otherUser.badge}`}>
+                                {otherUser.role}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        {conv.unread_count > 0 && (
+                          <span className="bg-indigo-600 text-white text-xs rounded-full px-2 py-0.5 flex-shrink-0">
+                            {conv.unread_count}
+                          </span>
+                        )}
                       </div>
-                      {conv.unread_count > 0 && (
-                        <span className="bg-indigo-600 text-white text-xs rounded-full px-2 py-0.5">
-                          {conv.unread_count}
-                        </span>
+                      <p className="text-sm text-gray-600 font-medium mb-1 truncate">{conv.subject}</p>
+                      {conv.last_message && (
+                        <p className="text-xs text-gray-500 truncate">
+                          {conv.last_message.content}
+                        </p>
                       )}
-                    </div>
-                    <p className="text-sm text-gray-600 font-medium mb-1">{conv.subject}</p>
-                    {conv.last_message && (
-                      <p className="text-xs text-gray-500 truncate">
-                        {conv.last_message.content}
+                      <p className="text-xs text-gray-400 mt-1">
+                        {formatDate(conv.last_message_at)}
                       </p>
-                    )}
-                    <p className="text-xs text-gray-400 mt-1">
-                      {formatDate(conv.last_message_at)}
-                    </p>
-                  </div>
-                ))
+                    </div>
+                  );
+                })
               )}
             </div>
           </Card>
@@ -203,7 +240,12 @@ const MessagingPage = () => {
                     <User size={20} className="text-indigo-600" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">{getOtherUserName(activeConversation)}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold">{getOtherUserInfo(activeConversation).name}</h3>
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${getOtherUserInfo(activeConversation).badge}`}>
+                        {getOtherUserInfo(activeConversation).role}
+                      </span>
+                    </div>
                     <p className="text-sm text-gray-500">{activeConversation.subject}</p>
                   </div>
                 </div>
@@ -267,10 +309,41 @@ const MessagingPage = () => {
             </Card>
           ) : (
             <Card className="h-full flex items-center justify-center">
-              <div className="text-center text-gray-500">
+              <div className="text-center text-gray-500 max-w-md mx-auto">
                 <MessageSquare size={64} className="mx-auto mb-4 text-gray-300" />
-                <p className="text-xl font-semibold mb-2">Sélectionnez une conversation</p>
-                <p>Choisissez une conversation dans la liste pour commencer à échanger</p>
+                <p className="text-xl font-semibold mb-2">Messagerie Professionnelle</p>
+                
+                {user?.role === 'merchant' && (
+                  <div className="space-y-2 text-sm">
+                    <p className="font-medium text-gray-700">💼 En tant que Marchand :</p>
+                    <p>• Les influenceurs vous contacteront via vos campagnes</p>
+                    <p>• Vous recevrez des messages pour des collaborations</p>
+                    <p>• Gérez les questions sur vos produits et commissions</p>
+                  </div>
+                )}
+                
+                {user?.role === 'influencer' && (
+                  <div className="space-y-2 text-sm">
+                    <p className="font-medium text-gray-700">🌟 En tant qu'Influenceur :</p>
+                    <p>• Contactez les marchands depuis le Marketplace</p>
+                    <p>• Posez vos questions sur les campagnes</p>
+                    <p>• Négociez vos conditions de collaboration</p>
+                    <div className="mt-4">
+                      <Button onClick={() => navigate('/marketplace')}>
+                        Découvrir les Campagnes
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                
+                {user?.role === 'admin' && (
+                  <div className="space-y-2 text-sm">
+                    <p className="font-medium text-gray-700">👑 En tant qu'Admin :</p>
+                    <p>• Supervisez toutes les conversations</p>
+                    <p>• Résolvez les litiges entre parties</p>
+                    <p>• Assistez marchands et influenceurs</p>
+                  </div>
+                )}
               </div>
             </Card>
           )}

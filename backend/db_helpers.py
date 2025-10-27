@@ -44,11 +44,60 @@ def create_user(email: str, password: str, role: str, **kwargs) -> Optional[Dict
             "is_active": kwargs.get("is_active", True)
         }
 
+        if "email_verified" in kwargs:
+            user_data["email_verified"] = kwargs.get("email_verified")
+        if kwargs.get("verification_token"):
+            user_data["verification_token"] = kwargs.get("verification_token")
+        if kwargs.get("verification_expires"):
+            user_data["verification_expires"] = kwargs.get("verification_expires")
+        if kwargs.get("verification_sent_at"):
+            user_data["verification_sent_at"] = kwargs.get("verification_sent_at")
+
         result = supabase.table("users").insert(user_data).execute()
         return result.data[0] if result.data else None
     except Exception as e:
         print(f"Error creating user: {e}")
         return None
+
+
+def get_user_by_verification_token(token: str) -> Optional[Dict]:
+    """Récupère un utilisateur via son token de vérification"""
+    try:
+        result = supabase.table("users").select("*").eq("verification_token", token).limit(1).execute()
+        return result.data[0] if result.data else None
+    except Exception as e:
+        print(f"Error getting user by verification token: {e}")
+        return None
+
+
+def set_verification_token(user_id: str, token: str, expires_at: str, sent_at: str) -> bool:
+    """Met à jour le token de vérification pour un utilisateur"""
+    try:
+        supabase.table("users").update({
+            "verification_token": token,
+            "verification_expires": expires_at,
+            "verification_sent_at": sent_at,
+            "email_verified": False
+        }).eq("id", user_id).execute()
+        return True
+    except Exception as e:
+        print(f"Error setting verification token: {e}")
+        return False
+
+
+def mark_email_verified(user_id: str) -> bool:
+    """Marque l'email d'un utilisateur comme vérifié"""
+    try:
+        supabase.table("users").update({
+            "email_verified": True,
+            "verification_token": None,
+            "verification_expires": None,
+            "verification_sent_at": None
+        }).eq("id", user_id).execute()
+        return True
+    except Exception as e:
+        print(f"Error marking email as verified: {e}")
+        return False
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Vérifie si le mot de passe correspond au hash"""
@@ -431,11 +480,17 @@ def get_payouts() -> List[Dict]:
 def update_payout_status(payout_id: str, status: str) -> bool:
     """Met à jour le statut d'un payout"""
     try:
-        update_data = {"status": status}
-        # Mettre la date paid_at pour "approved" ou "paid"
-        if status in ["approved", "paid"]:
-            update_data["paid_at"] = datetime.now().isoformat()
+        if status in {"approved", "paid", "rejected", "pending"}:
+            result = supabase.rpc("approve_payout_transaction", {
+                "p_commission_id": payout_id,
+                "p_status": status
+            }).execute()
+            data = result.data
+            if isinstance(data, list):
+                return bool(data and data[0])
+            return bool(data)
 
+        update_data = {"status": status}
         supabase.table("commissions").update(update_data).eq("id", payout_id).execute()
         return True
     except Exception as e:

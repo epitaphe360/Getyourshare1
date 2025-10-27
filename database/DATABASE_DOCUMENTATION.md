@@ -544,3 +544,91 @@ Performance optimisÃ©e sur:
 **Type de Base:** PostgreSQL 14+ / Supabase  
 **Total Tables:** 16  
 **Total Vues:** 3
+
+##  FONCTIONS TRANSACTIONNELLES PL/pgSQL
+
+### 1. **create_sale_transaction** - Création atomique de vente
+
+Crée une vente complète avec commission, met à jour tous les compteurs et métriques en une seule transaction atomique.
+
+#### Signature
+```sql
+CREATE OR REPLACE FUNCTION create_sale_transaction(
+    p_link_id UUID,
+    p_product_id UUID,
+    p_influencer_id UUID,
+    p_merchant_id UUID,
+    p_amount NUMERIC,
+    p_currency TEXT DEFAULT ''EUR'',
+    p_quantity INTEGER DEFAULT 1,
+    p_customer_email TEXT DEFAULT NULL,
+    p_customer_name TEXT DEFAULT NULL,
+    p_payment_status TEXT DEFAULT ''pending'',
+    p_status TEXT DEFAULT ''completed''
+)
+RETURNS sales
+```
+
+#### Paramètres
+
+| Paramètre | Type | Obligatoire | Description |
+|-----------|------|-------------|-------------|
+| p_link_id | UUID |  | ID du lien tracké utilisé |
+| p_product_id | UUID |  | ID du produit vendu |
+| p_influencer_id | UUID |  | ID de l''influenceur |
+| p_merchant_id | UUID |  | ID du merchant |
+| p_amount | NUMERIC |  | Montant total de la vente |
+
+#### Validations automatiques
+
+ Montant > 0  
+ Quantité > 0  
+ Statuts valides uniquement  
+ Produit appartient au merchant  
+ Lien correspond au produit ET à l''influenceur  
+
+#### Opérations atomiques
+
+1. Insertion dans `sales` avec calculs de commissions
+2. Création commission dans `commissions` (status: pending)
+3. Mise à jour `trackable_links`, `influencers`, `merchants`, `products`
+
+---
+
+### 2. **approve_payout_transaction** - Gestion des paiements
+
+Gère les transitions de statut des commissions avec ajustement automatique du solde.
+
+#### Signature
+```sql
+CREATE OR REPLACE FUNCTION approve_payout_transaction(
+    p_commission_id UUID,
+    p_status TEXT DEFAULT ''approved''
+)
+RETURNS BOOLEAN
+```
+
+#### Transitions autorisées
+
+pending  approved  paid  
+pending  rejected  
+approved  pending (annulation)  
+
+---
+
+##  TESTS DES FONCTIONS
+
+Fichier : `database/tests/test_transaction_functions.sql`
+
+Exécution :
+```bash
+psql -U postgres -d shareyoursales -f database/tests/test_transaction_functions.sql
+```
+
+Le script valide le workflow complet vente  commission  paiement avec ROLLBACK automatique.
+
+---
+
+**Version:** 1.1  
+**Date:** Octobre 2025  
+**Total Fonctions:** 2
