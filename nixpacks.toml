@@ -1,0 +1,17 @@
+# nixpacks.toml
+
+[phases.backend]
+# Installs backend dependencies
+installCmd = "cd backend && pip install --upgrade pip && pip install -r requirements.txt"
+# Starts the backend server
+startCmd = "cd backend && gunicorn server:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120"
+
+[phases.frontend]
+# Installs frontend dependencies and builds the app
+installCmd = "cd frontend && npm ci && npm run build"
+# Starts the frontend server
+startCmd = "cd frontend && npx serve -s build -l $PORT"
+
+[start]
+# This specifies the order to run the start commands
+cmd = "npm run start:all"
