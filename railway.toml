@@ -1,0 +1,27 @@
+# Railway configuration for a multi-service project
+# This file defines both the backend and frontend services.
+
+[build]
+builder = "NIXPACKS"
+
+# Backend Service Configuration
+[[services]]
+name = "backend"
+src = "./backend"
+[services.build]
+command = "pip install --upgrade pip && pip install -r requirements.txt"
+[services.start]
+command = "gunicorn server:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120"
+[services.healthcheck]
+path = "/health"
+
+# Frontend Service Configuration
+[[services]]
+name = "frontend"
+src = "./frontend"
+[services.build]
+command = "npm ci && npm run build"
+[services.start]
+command = "npx serve -s build -l $PORT"
+[services.healthcheck]
+path = "/"
