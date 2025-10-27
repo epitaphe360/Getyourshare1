@@ -1,0 +1,26 @@
+# Ignore patterns for Prettier
+
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+build/
+dist/
+.cache/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+
+# Testing
+coverage/
+
+# Misc
+*.log
+.DS_Store

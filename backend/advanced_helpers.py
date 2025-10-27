@@ -178,54 +178,28 @@ def create_sale(link_id: str, product_id: str, influencer_id: str, merchant_id: 
     """Crée une nouvelle vente et calcule les commissions"""
     try:
         # Récupérer le taux de commission du produit
-        product = supabase.table("products").select("commission_rate, commission_type").eq("id", product_id).execute()
-        
-        if not product.data:
-            return None
-        
-        commission_rate = product.data[0]["commission_rate"]
-        commission_type = product.data[0].get("commission_type", "percentage")
-        
-        # Calculer les commissions
-        influencer_commission = calculate_commission(amount, commission_rate, commission_type)
-        platform_commission = round(amount * 0.05, 2)  # 5% pour la plateforme
-        merchant_revenue = round(amount - influencer_commission - platform_commission, 2)
-        
-        sale_data = {
-            "link_id": link_id,
-            "product_id": product_id,
-            "influencer_id": influencer_id,
-            "merchant_id": merchant_id,
-            "customer_email": kwargs.get("customer_email"),
-            "customer_name": kwargs.get("customer_name"),
-            "quantity": kwargs.get("quantity", 1),
-            "amount": amount,
-            "currency": kwargs.get("currency", "EUR"),
-            "influencer_commission": influencer_commission,
-            "platform_commission": platform_commission,
-            "merchant_revenue": merchant_revenue,
-            "status": "completed",
-            "payment_status": kwargs.get("payment_status", "pending"),
-            "sale_timestamp": datetime.now().isoformat()
+        payload = {
+            "p_link_id": link_id,
+            "p_product_id": product_id,
+            "p_influencer_id": influencer_id,
+            "p_merchant_id": merchant_id,
+            "p_amount": amount,
+            "p_currency": kwargs.get("currency", "EUR"),
+            "p_quantity": kwargs.get("quantity", 1),
+            "p_customer_email": kwargs.get("customer_email"),
+            "p_customer_name": kwargs.get("customer_name"),
+            "p_payment_status": kwargs.get("payment_status", "pending"),
+            "p_status": kwargs.get("status", "completed"),
+            "p_metadata": kwargs.get("metadata")
         }
 
-        result = supabase.table("sales").insert(sale_data).execute()
-        
-        if result.data:
-            # Créer la commission correspondante
-            commission_data = {
-                "sale_id": result.data[0]["id"],
-                "influencer_id": influencer_id,
-                "amount": influencer_commission,
-                "currency": "EUR",
-                "status": "pending"
-            }
-            supabase.table("commissions").insert(commission_data).execute()
-            
-            # Mettre à jour les statistiques du lien
-            update_link_stats(link_id, amount, influencer_commission)
-            
-        return result.data[0] if result.data else None
+        result = supabase.rpc("create_sale_transaction", payload).execute()
+
+        if not result.data:
+            return None
+
+        sale_data = result.data if isinstance(result.data, dict) else result.data[0]
+        return sale_data
     except Exception as e:
         print(f"Error creating sale: {e}")
         return None
@@ -278,23 +252,14 @@ def create_payout_request(influencer_id: str, amount: float, payment_method: str
 def approve_payout(payout_id: str) -> bool:
     """Approuve une demande de paiement"""
     try:
-        result = update_payout_status(payout_id, "approved")
-        
-        if result:
-            # Déduire du solde de l'influencer
-            payout = supabase.table("commissions").select("influencer_id, amount").eq("id", payout_id).execute()
-            
-            if payout.data:
-                influencer_id = payout.data[0]["influencer_id"]
-                amount = payout.data[0]["amount"]
-                
-                influencer = supabase.table("influencers").select("balance").eq("id", influencer_id).execute()
-                
-                if influencer.data:
-                    new_balance = influencer.data[0]["balance"] - amount
-                    supabase.table("influencers").update({"balance": new_balance}).eq("id", influencer_id).execute()
-        
-        return result
+        result = supabase.rpc("approve_payout_transaction", {
+            "p_commission_id": payout_id,
+            "p_status": "approved"
+        }).execute()
+        data = result.data
+        if isinstance(data, list):
+            return bool(data and data[0])
+        return bool(data)
     except Exception as e:
         print(f"Error approving payout: {e}")
         return False

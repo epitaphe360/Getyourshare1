@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import api from '../../utils/api';
 
 const MLMSettings = () => {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState({ type: '', text: '' });
   const [mlmEnabled, setMlmEnabled] = useState(true);
   const [levels, setLevels] = useState([
     { level: 1, percentage: 10, enabled: true },
@@ -17,16 +21,62 @@ const MLMSettings = () => {
     { level: 10, percentage: 0, enabled: false },
   ]);
 
+  useEffect(() => {
+    loadMLMSettings();
+  }, []);
+
+  const loadMLMSettings = async () => {
+    setLoading(true);
+    try {
+      const response = await api.get('/api/settings/mlm');
+      if (response.data) {
+        setMlmEnabled(response.data.mlm_enabled ?? true);
+        if (response.data.levels && response.data.levels.length > 0) {
+          setLevels(response.data.levels);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur chargement MLM settings:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLevelChange = (index, field, value) => {
     const newLevels = [...levels];
     newLevels[index][field] = value;
     setLevels(newLevels);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Saving MLM settings:', { mlmEnabled, levels });
+    setSaving(true);
+    setMessage({ type: '', text: '' });
+
+    try {
+      await api.put('/api/settings/mlm', { mlm_enabled: mlmEnabled, levels });
+      setMessage({ type: 'success', text: '✅ Paramètres MLM enregistrés avec succès !' });
+      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+    } catch (error) {
+      console.error('Erreur sauvegarde MLM settings:', error);
+      setMessage({ 
+        type: 'error', 
+        text: error.response?.data?.detail || '❌ Erreur lors de l\'enregistrement' 
+      });
+    } finally {
+      setSaving(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6" data-testid="mlm-settings">
@@ -34,6 +84,16 @@ const MLMSettings = () => {
         <h1 className="text-3xl font-bold text-gray-900">Paramètres MLM</h1>
         <p className="text-gray-600 mt-2">Configurez le Multi-Level Marketing</p>
       </div>
+
+      {message.text && (
+        <div className={`p-4 rounded-lg ${
+          message.type === 'success' 
+            ? 'bg-green-50 text-green-800 border border-green-200' 
+            : 'bg-red-50 text-red-800 border border-red-200'
+        }`}>
+          {message.text}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <Card title="Configuration MLM">
@@ -94,8 +154,8 @@ const MLMSettings = () => {
             )}
 
             <div className="flex justify-end">
-              <Button type="submit">
-                Enregistrer les modifications
+              <Button type="submit" disabled={saving}>
+                {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
               </Button>
             </div>
           </div>

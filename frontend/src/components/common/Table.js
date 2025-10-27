@@ -1,6 +1,15 @@
-import React from 'react';
+import React, { memo, useMemo } from 'react';
 
-const Table = ({ columns, data, onRowClick }) => {
+const Table = memo(({ columns, data, onRowClick }) => {
+  // Memoize empty state to prevent re-renders
+  const emptyState = useMemo(() => (
+    <tr>
+      <td colSpan={columns.length} className="px-6 py-8 text-center text-gray-500">
+        Aucune donnée disponible
+      </td>
+    </tr>
+  ), [columns.length]);
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full divide-y divide-gray-200">
@@ -18,11 +27,7 @@ const Table = ({ columns, data, onRowClick }) => {
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {data.length === 0 ? (
-            <tr>
-              <td colSpan={columns.length} className="px-6 py-8 text-center text-gray-500">
-                Aucune donnée disponible
-              </td>
-            </tr>
+            emptyState
           ) : (
             data.map((row, rowIndex) => (
               <tr
@@ -42,6 +47,8 @@ const Table = ({ columns, data, onRowClick }) => {
       </table>
     </div>
   );
-};
+});
+
+Table.displayName = 'Table';
 
 export default Table;

@@ -24,10 +24,10 @@ const Login = () => {
     
     if (result.success) {
       navigate('/dashboard');
-    } else if (result.requires2FA) {
-      // 2FA requis
+    } else if (result.requires_2fa || result.requires2FA) {
+      // 2FA requis (support snake_case et camelCase)
       setRequires2FA(true);
-      setTempToken(result.tempToken);
+      setTempToken(result.temp_token || result.tempToken);
       setError('');
     } else {
       setError(result.error);
@@ -46,9 +46,9 @@ const Login = () => {
     
     if (result.success) {
       navigate('/dashboard');
-    } else if (result.requires2FA) {
+    } else if (result.requires_2fa || result.requires2FA) {
       setRequires2FA(true);
-      setTempToken(result.tempToken);
+      setTempToken(result.temp_token || result.tempToken);
       setError('');
     } else {
       setError(result.error);

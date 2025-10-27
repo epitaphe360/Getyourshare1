@@ -5,23 +5,71 @@ Tous les endpoints utilisent Supabase au lieu de MOCK_DATA
 
 from fastapi import FastAPI, HTTPException, Depends, status, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, List
 from datetime import datetime, timedelta
+import secrets
 import jwt
 import os
+import logging
 from dotenv import load_dotenv
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from fastapi import Query
 
 # Importer les helpers Supabase
 from db_helpers import *
 from supabase_client import supabase
+from email_service import send_verification_email
+from services.affiliation.router import router as affiliation_router, get_token_payload as affiliation_token_dependency
+from services.sales.router import router as sales_router
+from services.payments.router import router as payments_router
 
 # Charger les variables d'environnement
 load_dotenv()
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("shareyoursales")
+
+# Initialize rate limiter
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(title="ShareYourSales API - Supabase Edition")
+
+# Add rate limiter to app state
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Global Exception Handler for security
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception on {request.url}: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error. Please contact support if the problem persists."}
+    )
+
+# Health check endpoint for Railway
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for monitoring"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.utcnow().isoformat(),
+        "service": "ShareYourSales API"
+    }
+
+@app.get("/")
+async def root():
+    """Root endpoint - redirect to docs"""
+    return RedirectResponse(url="/docs")
 
 # Importer le scheduler et les services
 from scheduler import start_scheduler, stop_scheduler
@@ -32,28 +80,44 @@ from webhook_service import webhook_service
 # Initialiser les services
 payment_service = AutoPaymentService()
 
-# CORS configuration - Allow all localhost origins
+# CORS configuration - Secured
+ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins in development
+    allow_origins=ALLOWED_ORIGINS,  # Only allow specified origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Security
+# Security - CRITICAL: JWT_SECRET must be set
 security = HTTPBearer()
-JWT_SECRET = os.getenv("JWT_SECRET", "fallback-secret-please-set-env-variable")
-JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
-JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "24"))
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise ValueError("🔴 CRITICAL: JWT_SECRET environment variable MUST be set! Application cannot start without it.")
 
-if JWT_SECRET == "fallback-secret-please-set-env-variable":
-    print("WARNING: JWT_SECRET not set in environment!")
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+JWT_EXPIRATION_HOURS = int(os.getenv("JWT_EXPIRATION_HOURS", "4"))  # Reduced from 24h to 4h for security
+
+print(f"✅ JWT configured: Algorithm={JWT_ALGORITHM}, Expiration={JWT_EXPIRATION_HOURS}h")
+print(f"✅ CORS Origins: {ALLOWED_ORIGINS}")
+
+# Helpers
+def parse_iso_datetime(value: Optional[str]) -> Optional[datetime]:
+    """Parse ISO date strings returned by Supabase (handles trailing Z)."""
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 # Pydantic Models
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=6, max_length=100)
+    password: str = Field(..., min_length=8, max_length=100, description="Minimum 8 characters required")
 
 class TwoFAVerifyRequest(BaseModel):
     email: EmailStr
@@ -62,9 +126,20 @@ class TwoFAVerifyRequest(BaseModel):
 
 class RegisterRequest(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=8, description="Minimum 8 characters: 1 uppercase, 1 lowercase, 1 number")
     role: str = Field(..., pattern="^(merchant|influencer)$")
     phone: Optional[str] = None
+    gdpr_consent: bool = Field(..., description="RGPD consent is mandatory")
+    
+    @validator('gdpr_consent')
+    def consent_must_be_true(cls, v):
+        if not v:
+            raise ValueError('RGPD consent is mandatory to create an account')
+        return v
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
 
 class AdvertiserCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
@@ -149,16 +224,6 @@ class RegistrationSettingsUpdate(BaseModel):
     country_required: Optional[bool] = None
     company_name_required: Optional[bool] = None
 
-# Modèles pour le système de demandes d'affiliation
-class AffiliationRequestCreate(BaseModel):
-    product_id: str = Field(..., min_length=1)
-    message: Optional[str] = Field(None, max_length=5000)
-    stats: Optional[dict] = None  # {followers: int, engagement_rate: float, platforms: list}
-
-class AffiliationRequestResponse(BaseModel):
-    status: str = Field(..., pattern="^(approved|rejected)$")
-    merchant_response: Optional[str] = Field(None, max_length=2000)
-
 class MLMSettingsUpdate(BaseModel):
     mlm_enabled: Optional[bool] = None
     levels: Optional[list] = None
@@ -200,6 +265,12 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
             detail="Invalid authentication credentials"
         )
 
+# Mount service routers
+app.include_router(affiliation_router)
+app.include_router(sales_router)
+app.include_router(payments_router)
+app.dependency_overrides[affiliation_token_dependency] = verify_token
+
 # ============================================
 # AUTHENTICATION ENDPOINTS
 # ============================================
@@ -224,8 +295,9 @@ async def health_check():
     }
 
 @app.post("/api/auth/login")
-async def login(login_data: LoginRequest):
-    """Login avec email et mot de passe"""
+@limiter.limit("5/minute")  # Maximum 5 tentatives par minute par IP
+async def login(request: Request, login_data: LoginRequest):
+    """Login avec email et mot de passe - Protection anti-brute force"""
     # Trouver l'utilisateur dans Supabase
     user = get_user_by_email(login_data.email)
 
@@ -247,6 +319,12 @@ async def login(login_data: LoginRequest):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Compte désactivé"
+        )
+
+    if not user.get("email_verified", False):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Veuillez vérifier votre adresse email avant de vous connecter."
         )
 
     # Si 2FA activé
@@ -287,8 +365,9 @@ async def login(login_data: LoginRequest):
     }
 
 @app.post("/api/auth/verify-2fa")
-async def verify_2fa(data: TwoFAVerifyRequest):
-    """Vérification du code 2FA"""
+@limiter.limit("10/minute")  # 10 tentatives de vérification par minute
+async def verify_2fa(request: Request, data: TwoFAVerifyRequest):
+    """Vérification du code 2FA - Protection anti-brute force"""
     # Vérifier le temp_token
     try:
         payload = jwt.decode(data.temp_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
@@ -344,12 +423,17 @@ async def logout(payload: dict = Depends(verify_token)):
     return {"message": "Logged out successfully"}
 
 @app.post("/api/auth/register")
-async def register(data: RegisterRequest):
-    """Inscription d'un nouvel utilisateur"""
+@limiter.limit("3/hour")  # Maximum 3 inscriptions par heure par IP
+async def register(request: Request, data: RegisterRequest):
+    """Inscription d'un nouvel utilisateur - Protection anti-spam"""
     # Vérifier si l'email existe déjà
     existing_user = get_user_by_email(data.email)
     if existing_user:
         raise HTTPException(status_code=400, detail="Email déjà utilisé")
+
+    verification_token = secrets.token_urlsafe(32)
+    expires_at = (datetime.utcnow() + timedelta(hours=48)).isoformat()
+    sent_at = datetime.utcnow().isoformat()
 
     # Créer l'utilisateur
     user = create_user(
@@ -357,7 +441,11 @@ async def register(data: RegisterRequest):
         password=data.password,
         role=data.role,
         phone=data.phone,
-        two_fa_enabled=False
+        two_fa_enabled=False,
+        email_verified=False,
+        verification_token=verification_token,
+        verification_expires=expires_at,
+        verification_sent_at=sent_at
     )
 
     if not user:
@@ -387,7 +475,67 @@ async def register(data: RegisterRequest):
         print(f"Warning: Could not create profile for {data.role}: {e}")
         # Continue anyway, profile can be created later
 
-    return {"message": "Compte créé avec succès", "user_id": user["id"]}
+    send_verification_email(data.email, verification_token)
+
+    return {
+        "message": "Compte créé avec succès. Un email de confirmation vous a été envoyé.",
+        "user_id": user["id"],
+        "verification_required": True
+    }
+
+
+@app.get("/api/auth/verify-email/{token}")
+@limiter.limit("20/hour")
+async def verify_email(token: str):
+    """Valide l'adresse email lorsqu'un utilisateur clique sur le lien de vérification."""
+    user = get_user_by_verification_token(token)
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Lien de vérification invalide ou expiré.")
+
+    if user.get("email_verified"):
+        return {"message": "Adresse email déjà vérifiée."}
+
+    expires_at = parse_iso_datetime(user.get("verification_expires"))
+    if expires_at and datetime.utcnow() > expires_at:
+        raise HTTPException(status_code=400, detail="Lien de vérification expiré. Veuillez demander un nouvel email.")
+
+    if not mark_email_verified(user["id"]):
+        raise HTTPException(status_code=500, detail="Impossible de vérifier l'email pour le moment.")
+
+    return {"message": "Adresse email vérifiée avec succès."}
+
+
+@app.post("/api/auth/resend-verification")
+@limiter.limit("5/hour")
+async def resend_verification(data: ResendVerificationRequest):
+    """Récupère un nouveau lien de vérification pour les utilisateurs non confirmés."""
+    user = get_user_by_email(data.email)
+
+    if not user:
+        # Masquer l'existence du compte pour éviter l'énumération
+        return {"message": "Si un compte existe, un email de vérification a été envoyé."}
+
+    if user.get("email_verified"):
+        return {"message": "Adresse email déjà vérifiée."}
+
+    last_sent = parse_iso_datetime(user.get("verification_sent_at"))
+    if last_sent and (datetime.utcnow() - last_sent) < timedelta(minutes=5):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Un email vient d'être envoyé. Veuillez patienter quelques minutes avant de réessayer."
+        )
+
+    token = secrets.token_urlsafe(32)
+    expires_at = (datetime.utcnow() + timedelta(hours=48)).isoformat()
+    sent_at = datetime.utcnow().isoformat()
+
+    if not set_verification_token(user["id"], token, expires_at, sent_at):
+        raise HTTPException(status_code=500, detail="Impossible de générer un nouveau lien pour le moment.")
+
+    send_verification_email(user["email"], token)
+
+    return {"message": "Email de vérification envoyé."}
 
 # ============================================
 # DASHBOARD & ANALYTICS
@@ -505,10 +653,38 @@ async def get_influencer_stats(influencer_id: str, payload: dict = Depends(verif
 # ============================================
 
 @app.get("/api/products")
-async def get_products(category: Optional[str] = None, merchant_id: Optional[str] = None):
-    """Liste tous les produits avec filtres optionnels"""
-    products = get_all_products(category=category, merchant_id=merchant_id)
-    return {"products": products, "total": len(products)}
+async def get_products(
+    category: Optional[str] = None,
+    merchant_id: Optional[str] = None,
+    limit: int = Query(default=20, ge=1, le=100, description="Nombre de résultats par page"),
+    offset: int = Query(default=0, ge=0, description="Nombre de résultats à ignorer")
+):
+    """Liste tous les produits avec filtres optionnels et pagination"""
+    try:
+        # Construction de la requête avec filtres
+        query = supabase.table('products').select('*', count='exact')
+        
+        if category:
+            query = query.eq('category', category)
+        if merchant_id:
+            query = query.eq('merchant_id', merchant_id)
+        
+        # Appliquer la pagination
+        query = query.range(offset, offset + limit - 1).order('created_at', desc=True)
+        
+        result = query.execute()
+        
+        return {
+            "products": result.data,
+            "pagination": {
+                "limit": limit,
+                "offset": offset,
+                "total": result.count if hasattr(result, 'count') else len(result.data)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error fetching products: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la récupération des produits")
 
 @app.get("/api/products/{product_id}")
 async def get_product(product_id: str):
@@ -575,17 +751,37 @@ async def generate_affiliate_link(data: AffiliateLinkGenerate, payload: dict = D
 # ============================================
 
 @app.get("/api/campaigns")
-async def get_campaigns_endpoint(payload: dict = Depends(verify_token)):
-    """Liste toutes les campagnes"""
+async def get_campaigns_endpoint(
+    payload: dict = Depends(verify_token),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0)
+):
+    """Liste toutes les campagnes avec pagination"""
     user = get_user_by_id(payload["sub"])
 
-    if user["role"] == "merchant":
-        merchant = get_merchant_by_user_id(user["id"])
-        campaigns = get_all_campaigns(merchant_id=merchant["id"]) if merchant else []
-    else:
-        campaigns = get_all_campaigns()
-
-    return {"data": campaigns, "total": len(campaigns)}
+    try:
+        query = supabase.table('campaigns').select('*', count='exact')
+        
+        if user["role"] == "merchant":
+            merchant = get_merchant_by_user_id(user["id"])
+            if merchant:
+                query = query.eq('merchant_id', merchant["id"])
+        
+        # Pagination
+        query = query.range(offset, offset + limit - 1).order('created_at', desc=True)
+        result = query.execute()
+        
+        return {
+            "data": result.data,
+            "pagination": {
+                "limit": limit,
+                "offset": offset,
+                "total": result.count if hasattr(result, 'count') else len(result.data)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error fetching campaigns: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la récupération des campagnes")
 
 @app.post("/api/campaigns")
 async def create_campaign_endpoint(campaign_data: CampaignCreate, payload: dict = Depends(verify_token)):
@@ -673,10 +869,30 @@ async def update_campaign_status(
 # ============================================
 
 @app.get("/api/conversions")
-async def get_conversions_endpoint(payload: dict = Depends(verify_token)):
-    """Liste des conversions"""
-    conversions = get_conversions(limit=20)
-    return {"data": conversions, "total": len(conversions)}
+async def get_conversions_endpoint(
+    payload: dict = Depends(verify_token),
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0)
+):
+    """Liste des conversions avec pagination"""
+    try:
+        query = supabase.table('sales').select('*', count='exact')
+        query = query.eq('status', 'completed')
+        query = query.range(offset, offset + limit - 1).order('created_at', desc=True)
+        
+        result = query.execute()
+        
+        return {
+            "data": result.data,
+            "pagination": {
+                "limit": limit,
+                "offset": offset,
+                "total": result.count if hasattr(result, 'count') else len(result.data)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error fetching conversions: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la récupération des conversions")
 
 @app.get("/api/leads")
 async def get_leads_endpoint(payload: dict = Depends(verify_token)):
@@ -721,10 +937,29 @@ async def get_leads_endpoint(payload: dict = Depends(verify_token)):
         return {"data": [], "total": 0}
 
 @app.get("/api/clicks")
-async def get_clicks_endpoint(payload: dict = Depends(verify_token)):
-    """Liste des clics"""
-    clicks = get_clicks(limit=50)
-    return {"data": clicks, "total": len(clicks)}
+async def get_clicks_endpoint(
+    payload: dict = Depends(verify_token),
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0)
+):
+    """Liste des clics avec pagination"""
+    try:
+        query = supabase.table('click_tracking').select('*', count='exact')
+        query = query.range(offset, offset + limit - 1).order('clicked_at', desc=True)
+        
+        result = query.execute()
+        
+        return {
+            "data": result.data,
+            "pagination": {
+                "limit": limit,
+                "offset": offset,
+                "total": result.count if hasattr(result, 'count') else len(result.data)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error fetching clicks: {e}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la récupération des clics")
 
 # ============================================
 # ANALYTICS ENDPOINTS
@@ -3384,423 +3619,6 @@ async def send_payment_reminders(payload: dict = Depends(verify_token)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ================================================================
-# SYSTÈME DE DEMANDES D'AFFILIATION
-# ================================================================
-
-@app.post("/api/affiliation/request")
-async def create_affiliation_request(
-    request_data: AffiliationRequestCreate,
-    payload: dict = Depends(verify_token)
-):
-    """
-    Créer une demande d'affiliation (Influenceur) - SYSTÈME UNIFIÉ
-
-    Body:
-    {
-      "product_id": "uuid",
-      "message": "Message au marchand..."
-    }
-
-    Returns:
-    {
-      "success": true,
-      "request_id": "uuid",
-      "status": "pending_approval",
-      "message": "Demande envoyée au marchand"
-    }
-    """
-    try:
-        user = get_user_by_id(payload["sub"])
-
-        if user["role"] != "influencer":
-            raise HTTPException(status_code=403, detail="Influenceurs uniquement")
-
-        # Récupérer l'influenceur
-        influencer = get_influencer_by_user_id(user["id"])
-        if not influencer:
-            raise HTTPException(status_code=404, detail="Profil influencer non trouvé")
-
-        # Vérifier que le produit existe
-        product_query = supabase.table("products").select("*").eq("id", request_data.product_id).execute()
-
-        if not product_query.data:
-            raise HTTPException(status_code=404, detail="Produit non trouvé")
-
-        product = product_query.data[0]
-        merchant_id = product.get("merchant_id")
-
-        if not merchant_id:
-            raise HTTPException(status_code=400, detail="Produit sans marchand associé")
-
-        # Vérifier si une demande existe déjà pour ce produit
-        existing_query = supabase.table("trackable_links").select("*").eq(
-            "influencer_id", influencer["id"]
-        ).eq("product_id", request_data.product_id).execute()
-
-        if existing_query.data:
-            existing_request = existing_query.data[0]
-            if existing_request["status"] == "pending_approval":
-                raise HTTPException(status_code=400, detail="Vous avez déjà une demande en attente pour ce produit")
-            elif existing_request["status"] == "active":
-                raise HTTPException(status_code=400, detail="Vous avez déjà accès à ce produit")
-            elif existing_request["status"] == "rejected":
-                # Vérifier si moins de 30 jours
-                from datetime import datetime, timedelta
-                created_at = datetime.fromisoformat(existing_request["created_at"].replace('Z', '+00:00'))
-                if datetime.now(created_at.tzinfo) - created_at < timedelta(days=30):
-                    raise HTTPException(status_code=400, detail="Vous devez attendre 30 jours avant de redemander ce produit")
-
-        # Créer la demande dans trackable_links
-        affiliation_data = {
-            "influencer_id": influencer["id"],
-            "product_id": request_data.product_id,
-            "status": "pending_approval",
-            "influencer_message": request_data.message,
-            "is_active": False  # Pas encore actif
-        }
-
-        result = supabase.table("trackable_links").insert(affiliation_data).execute()
-
-        if not result.data:
-            raise HTTPException(status_code=500, detail="Erreur lors de la création de la demande")
-
-        request_id = result.data[0]["id"]
-
-        # TODO: Envoyer notification au marchand
-
-        return {
-            "success": True,
-            "request_id": request_id,
-            "status": "pending_approval",
-            "message": "Demande envoyée au marchand avec succès"
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[ERROR] Error creating affiliation request: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/influencer/affiliation-requests")
-async def get_influencer_affiliation_requests(
-    status: Optional[str] = None,
-    payload: dict = Depends(verify_token)
-):
-    """
-    Récupérer les demandes d'affiliation de l'influenceur - SYSTÈME UNIFIÉ
-
-    Query params:
-    - status: pending_approval, active, rejected (optionnel)
-
-    Returns:
-    [
-      {
-        "id": "uuid",
-        "product_name": "T-shirt Vintage",
-        "product_image": "url",
-        "merchant_company": "FashionCo",
-        "status": "pending_approval",
-        "influencer_message": "Mon message...",
-        "merchant_response": null,
-        "commission_rate": 15,
-        "created_at": "2025-10-23T10:00:00Z",
-        "reviewed_at": null
-      }
-    ]
-    """
-    try:
-        user = get_user_by_id(payload["sub"])
-
-        if user["role"] != "influencer":
-            raise HTTPException(status_code=403, detail="Influenceurs uniquement")
-
-        # Récupérer l'influenceur
-        influencer = get_influencer_by_user_id(user["id"])
-        if not influencer:
-            raise HTTPException(status_code=404, detail="Profil influencer non trouvé")
-
-        # Utiliser la vue SQL créée (merchant_affiliation_requests) mais filtrer par influencer
-        query = supabase.table("merchant_affiliation_requests").select("*").eq("influencer_id", influencer["id"])
-
-        if status:
-            query = query.eq("status", status)
-
-        result = query.order("created_at", desc=True).execute()
-
-        return result.data or []
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[ERROR] Error getting influencer affiliation requests: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.delete("/api/affiliation/request/{request_id}")
-async def cancel_affiliation_request(
-    request_id: str,
-    payload: dict = Depends(verify_token)
-):
-    """
-    Annuler une demande d'affiliation en attente (Influenceur) - SYSTÈME UNIFIÉ
-
-    Returns:
-    {
-      "success": true,
-      "message": "Demande annulée"
-    }
-    """
-    try:
-        user = get_user_by_id(payload["sub"])
-
-        if user["role"] != "influencer":
-            raise HTTPException(status_code=403, detail="Influenceurs uniquement")
-
-        # Récupérer l'influenceur
-        influencer = get_influencer_by_user_id(user["id"])
-        if not influencer:
-            raise HTTPException(status_code=404, detail="Profil influencer non trouvé")
-
-        # Vérifier que la demande existe et appartient à l'influenceur
-        request_query = supabase.table("trackable_links").select("*").eq("id", request_id).eq("influencer_id", influencer["id"]).execute()
-
-        if not request_query.data:
-            raise HTTPException(status_code=404, detail="Demande non trouvée")
-
-        request_data = request_query.data[0]
-
-        if request_data["status"] != "pending_approval":
-            raise HTTPException(status_code=400, detail="Seules les demandes en attente peuvent être annulées")
-
-        # Supprimer la demande (au lieu de mettre à jour le statut)
-        supabase.table("trackable_links").delete().eq("id", request_id).execute()
-
-        return {
-            "success": True,
-            "message": "Demande annulée avec succès"
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[ERROR] Error cancelling affiliation request: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/merchant/affiliation-requests")
-async def get_merchant_affiliation_requests(
-    status: Optional[str] = None,
-    payload: dict = Depends(verify_token)
-):
-    """
-    Récupérer les demandes d'affiliation reçues (Marchand) - SYSTÈME UNIFIÉ
-
-    Query params:
-    - status: pending_approval, active, rejected (optionnel)
-
-    Returns:
-    [
-      {
-        "id": "uuid",
-        "influencer_name": "Emma Style",
-        "influencer_email": "emma@example.com",
-        "influencer_avatar": "url",
-        "product_name": "T-shirt Vintage",
-        "commission_rate": 15,
-        "influencer_message": "Bonjour...",
-        "merchant_response": null,
-        "status": "pending_approval",
-        "created_at": "2025-10-23T10:00:00Z"
-      }
-    ]
-    """
-    try:
-        user = get_user_by_id(payload["sub"])
-
-        if user["role"] != "merchant":
-            raise HTTPException(status_code=403, detail="Marchands uniquement")
-
-        # Utiliser la vue SQL créée
-        query = supabase.table("merchant_affiliation_requests").select("*").eq("merchant_id", user["id"])
-
-        if status:
-            query = query.eq("status", status)
-
-        result = query.order("created_at", desc=True).execute()
-
-        return result.data or []
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[ERROR] Error getting merchant affiliation requests: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/api/merchant/affiliation-requests/{request_id}/approve")
-async def approve_affiliation_request(
-    request_id: str,
-    response_data: AffiliationRequestResponse,
-    payload: dict = Depends(verify_token)
-):
-    """
-    Approuver une demande d'affiliation (Marchand) - SYSTÈME UNIFIÉ
-
-    Body:
-    {
-      "merchant_response": "Bienvenue dans notre programme!"
-    }
-
-    Returns:
-    {
-      "success": true,
-      "message": "Demande approuvée",
-      "tracking_link": {
-        "id": "uuid",
-        "short_code": "ABC12345",
-        "url": "http://localhost:8001/r/ABC12345"
-      }
-    }
-    """
-    try:
-        user = get_user_by_id(payload["sub"])
-
-        if user["role"] != "merchant":
-            raise HTTPException(status_code=403, detail="Marchands uniquement")
-
-        # Utiliser la fonction SQL pour approuver
-        result = supabase.rpc('approve_affiliation_request', {
-            'p_request_id': request_id,
-            'p_merchant_response': response_data.merchant_response,
-            'p_reviewed_by': user["id"]
-        }).execute()
-
-        if not result.data:
-            raise HTTPException(status_code=500, detail="Erreur lors de l'approbation")
-
-        # Récupérer le lien créé
-        link_query = supabase.table("trackable_links").select("*").eq("id", request_id).execute()
-
-        tracking_link = None
-        if link_query.data:
-            link = link_query.data[0]
-            tracking_link = {
-                "id": link["id"],
-                "short_code": link["unique_code"],
-                "url": f"http://localhost:8001/r/{link['unique_code']}"
-            }
-
-        # TODO: Envoyer notification à l'influenceur
-
-        return {
-            "success": True,
-            "message": "Demande approuvée avec succès",
-            "tracking_link": tracking_link
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[ERROR] Error approving affiliation request: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/api/merchant/affiliation-requests/{request_id}/reject")
-async def reject_affiliation_request(
-    request_id: str,
-    response_data: AffiliationRequestResponse,
-    payload: dict = Depends(verify_token)
-):
-    """
-    Refuser une demande d'affiliation (Marchand) - SYSTÈME UNIFIÉ
-
-    Body:
-    {
-      "merchant_response": "Merci pour votre intérêt, mais..."
-    }
-
-    Returns:
-    {
-      "success": true,
-      "message": "Demande refusée"
-    }
-    """
-    try:
-        user = get_user_by_id(payload["sub"])
-
-        if user["role"] != "merchant":
-            raise HTTPException(status_code=403, detail="Marchands uniquement")
-
-        # Utiliser la fonction SQL pour refuser
-        result = supabase.rpc('reject_affiliation_request', {
-            'p_request_id': request_id,
-            'p_merchant_response': response_data.merchant_response,
-            'p_reviewed_by': user["id"]
-        }).execute()
-
-        if not result.data:
-            raise HTTPException(status_code=500, detail="Erreur lors du refus")
-
-        # TODO: Envoyer notification à l'influenceur
-
-        return {
-            "success": True,
-            "message": "Demande refusée"
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[ERROR] Error rejecting affiliation request: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.get("/api/merchant/affiliation-requests/stats")
-async def get_affiliation_requests_stats(payload: dict = Depends(verify_token)):
-    """
-    Statistiques des demandes d'affiliation (Marchand) - SYSTÈME UNIFIÉ
-
-    Returns:
-    {
-      "total_requests": 65,
-      "pending_requests": 12,
-      "approved_requests": 45,
-      "rejected_requests": 8,
-      "approval_rate": 84.9,
-      "avg_response_time_hours": 48
-    }
-    """
-    try:
-        user = get_user_by_id(payload["sub"])
-
-        if user["role"] != "merchant":
-            raise HTTPException(status_code=403, detail="Marchands uniquement")
-
-        # Utiliser la vue SQL créée
-        stats_query = supabase.table("affiliation_requests_stats").select("*").eq("merchant_id", user["id"]).execute()
-
-        if stats_query.data:
-            stats = stats_query.data[0]
-            return stats
-        else:
-            return {
-                "total_requests": 0,
-                "pending_requests": 0,
-                "approved_requests": 0,
-                "rejected_requests": 0,
-                "approval_rate": 0,
-                "avg_response_time_hours": 0
-            }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"[ERROR] Error getting affiliation stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 if __name__ == "__main__":
     import uvicorn
     print("[START] Démarrage du serveur Supabase...")
@@ -3810,4 +3628,7 @@ if __name__ == "__main__":
     print("[WEBHOOK] Webhooks: ACTIVÉS (Shopify, WooCommerce, TikTok Shop)")
     print("[GATEWAY] Gateways: CMI, PayZen, Société Générale Maroc")
     print("[INVOICE] Facturation: AUTOMATIQUE (PDF + Emails)")
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    
+    port = int(os.getenv("PORT", 8001))
+    print(f"[PORT] Démarrage sur le port {port}")
+    uvicorn.run(app, host="0.0.0.0", port=port)

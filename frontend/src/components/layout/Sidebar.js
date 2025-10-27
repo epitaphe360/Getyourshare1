@@ -18,7 +18,8 @@ import {
   X,
   Link as LinkIcon,
   Zap,
-  MessageSquare
+  MessageSquare,
+  CreditCard
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -71,14 +72,14 @@ const Sidebar = () => {
         path: '/marketplace',
       },
       {
-        title: 'Mes Campagnes',
-        icon: <Target size={20} />,
-        path: '/campaigns',
-      },
-      {
         title: 'Mes Liens',
         icon: <LinkIcon size={20} />,
         path: '/tracking-links',
+      },
+      {
+        title: 'Mon Abonnement',
+        icon: <CreditCard size={20} />,
+        path: '/subscription',
       },
       {
         title: 'Performance',
@@ -126,6 +127,11 @@ const Sidebar = () => {
         title: 'Mes Campagnes',
         icon: <Target size={20} />,
         path: '/campaigns',
+      },
+      {
+        title: 'Mon Abonnement',
+        icon: <CreditCard size={20} />,
+        path: '/subscription',
       },
       {
         title: 'Mes Affiliés',
@@ -378,7 +384,7 @@ const Sidebar = () => {
       >
         <div className="p-6">
           <div className="flex items-center justify-between mb-8">
-            <h1 className={`text-2xl font-bold ${collapsed ? 'hidden' : 'block'}`}>Tracknow</h1>
+            <h1 className={`text-2xl font-bold ${collapsed ? 'hidden' : 'block'}`}>Share Your Sales</h1>
           </div>
 
           {/* User Info */}

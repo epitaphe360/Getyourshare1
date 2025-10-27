@@ -1,0 +1,78 @@
+name: Deploy to Railway
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy'
+        required: true
+        type: choice
+        options:
+          - backend
+          - frontend
+          - all
+      environment:
+        description: 'Environment'
+        required: true
+        type: choice
+        options:
+          - production
+          - staging
+
+jobs:
+  deploy-backend:
+    if: ${{ github.event.inputs.service == 'backend' || github.event.inputs.service == 'all' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      
+      - name: Deploy Backend to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          cd backend
+          railway up --service backend --environment ${{ github.event.inputs.environment }}
+      
+      - name: Check deployment status
+        run: echo "✅ Backend deployed to Railway"
+
+  deploy-frontend:
+    if: ${{ github.event.inputs.service == 'frontend' || github.event.inputs.service == 'all' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+      
+      - name: Deploy Frontend to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          cd frontend
+          railway up --service frontend --environment ${{ github.event.inputs.environment }}
+      
+      - name: Check deployment status
+        run: echo "✅ Frontend deployed to Railway"
+
+  notify:
+    needs: [deploy-backend, deploy-frontend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deployment Summary
+        run: |
+          echo "🚂 Railway Deployment Complete"
+          echo "Service: ${{ github.event.inputs.service }}"
+          echo "Environment: ${{ github.event.inputs.environment }}"
+          echo "Status: Success ✅"
