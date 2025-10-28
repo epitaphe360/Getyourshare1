@@ -15,6 +15,7 @@ import Integrations from './pages/Integrations';
 import LandingPageNew from './pages/LandingPageNew';
 import AIMarketing from './pages/AIMarketing';
 import Subscription from './pages/Subscription';
+import Demo from './pages/Demo';
 import MerchantsList from './pages/merchants/MerchantsList';
 import InfluencersList from './pages/influencers/InfluencersList';
 import InfluencerSearchPage from './pages/influencers/InfluencerSearchPage';
@@ -107,6 +108,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/demo" element={<Demo />} />
 
           {/* Protected Routes */}
           <Route
