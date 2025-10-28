@@ -34,7 +34,7 @@
     "indent": ["error", 2, { "SwitchCase": 1 }],
     "quotes": ["error", "single", { "avoidEscape": true }],
     "semi": ["error", "always"],
-    "comma-dangle": ["error", "es5"],
+    "comma-dangle": ["error", "always-multiline"],
     "no-trailing-spaces": "error",
     "object-curly-spacing": ["error", "always"],
     "array-bracket-spacing": ["error", "never"],
