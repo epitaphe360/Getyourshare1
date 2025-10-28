@@ -176,18 +176,17 @@ const Login = () => {
                 </p>
               </div>
 
-              {/* Connexion rapide - Uniquement en développement */}
-              {process.env.NODE_ENV === 'development' && (
-                <>
-                  <div className="mt-6">
-                    <div className="relative">
-                      <div className="absolute inset-0 flex items-center">
-                        <div className="w-full border-t border-gray-300"></div>
-                      </div>
-                      <div className="relative flex justify-center text-sm">
-                        <span className="px-2 bg-white text-gray-500">Connexion rapide (démo)</span>
-                      </div>
+              {/* Connexion rapide - Toujours visible pour les tests */}
+              <>
+                <div className="mt-6">
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-300"></div>
                     </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-gray-500">Connexion rapide (démo)</span>
+                    </div>
+                  </div>
 
                     <div className="mt-6 space-y-3">
                       <button
@@ -253,7 +252,6 @@ const Login = () => {
                     </div>
                   </div>
                 </>
-              )}
             </>
           ) : (
             // Step 2: 2FA Verification
