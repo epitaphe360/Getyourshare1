@@ -35,7 +35,7 @@ Il essaie de build depuis la racine et échoue car il ne trouve pas de package.j
 3. **IMPORTANT** : Dans les paramètres du service :
    - Va dans "Settings" → "Service Settings"
    - **Root Directory** : Change de `/` à `/frontend`
-   - **Build Command** : `npm ci && npm run build`
+   - **Build Command** : `npm install && npm run build`
    - **Start Command** : `npx serve -s build -l $PORT`
 4. Ajoute les variables d'environnement :
    ```
