@@ -81,7 +81,7 @@ from webhook_service import webhook_service
 payment_service = AutoPaymentService()
 
 # CORS configuration - Secured
-ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
+ALLOWED_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,https://considerate-luck-production.up.railway.app").split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,  # Only allow specified origins
