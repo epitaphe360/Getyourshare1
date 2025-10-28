@@ -205,7 +205,7 @@ const LandingPage = () => {
                 Démarrer Maintenant
                 <ArrowRight className="ml-2" size={20} />
               </Button>
-              <Button size="lg" variant="outline" className="text-lg px-8 py-4">
+              <Button size="lg" variant="outline" className="text-lg px-8 py-4" onClick={() => navigate('/demo')}>
                 Voir la Démo
               </Button>
             </div>
