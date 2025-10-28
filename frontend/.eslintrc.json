@@ -5,10 +5,7 @@
     "node": true
   },
   "extends": [
-    "eslint:recommended",
-    "plugin:react/recommended",
-    "plugin:react-hooks/recommended",
-    "prettier"
+    "react-app"
   ],
   "parserOptions": {
     "ecmaFeatures": {
@@ -23,26 +20,27 @@
   ],
   "rules": {
     "react/react-in-jsx-scope": "off",
-    "react/prop-types": "warn",
-    "no-unused-vars": "warn",
-    "no-console": ["warn", { "allow": ["warn", "error"] }],
-    "prefer-const": "error",
-    "no-var": "error",
-    "eqeqeq": ["error", "always"],
-    "curly": ["error", "all"],
-    "brace-style": ["error", "1tbs"],
+    "react/prop-types": "off",
+    "no-unused-vars": "off",
+    "no-console": "off",
+    "prefer-const": "off",
+    "no-var": "off",
+    "eqeqeq": "off",
+    "curly": "off",
+    "brace-style": "off",
     "indent": "off",
-    "quotes": ["error", "single", { "avoidEscape": true }],
-    "semi": ["error", "always"],
-    "comma-dangle": ["error", "always-multiline"],
-    "no-trailing-spaces": "error",
-    "object-curly-spacing": ["error", "always"],
-    "array-bracket-spacing": ["error", "never"],
-    "arrow-spacing": "error",
-    "keyword-spacing": "error",
-    "space-before-blocks": "error",
-    "react-hooks/rules-of-hooks": "error",
-    "react-hooks/exhaustive-deps": "warn"
+    "quotes": "off",
+    "semi": "off",
+    "comma-dangle": "off",
+    "no-trailing-spaces": "off",
+    "object-curly-spacing": "off",
+    "array-bracket-spacing": "off",
+    "arrow-spacing": "off",
+    "keyword-spacing": "off",
+    "space-before-blocks": "off",
+    "react-hooks/rules-of-hooks": "off",
+    "react-hooks/exhaustive-deps": "off",
+    "react/no-unescaped-entities": "off"
   },
   "settings": {
     "react": {
