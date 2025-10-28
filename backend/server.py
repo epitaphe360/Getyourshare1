@@ -486,7 +486,7 @@ async def register(request: Request, data: RegisterRequest):
 
 @app.get("/api/auth/verify-email/{token}")
 @limiter.limit("20/hour")
-async def verify_email(token: str):
+async def verify_email(token: str, request: Request):
     """Valide l'adresse email lorsqu'un utilisateur clique sur le lien de vérification."""
     user = get_user_by_verification_token(token)
 
