@@ -23,7 +23,16 @@ export const WebSocketProvider = ({ children }) => {
   const { user } = useAuth();
   const { success, info, warning } = useNotification();
 
-  const wsUrl = process.env.REACT_APP_WS_URL || 'ws://localhost:8080/ws';
+  // Construire l'URL WebSocket à partir de l'URL backend
+  const getWebSocketUrl = () => {
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+    // Convertir http(s) en ws(s)
+    const wsProtocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
+    const wsBase = backendUrl.replace(/^https?:\/\//, '');
+    return `${wsProtocol}://${wsBase}/ws`;
+  };
+
+  const wsUrl = getWebSocketUrl();
 
   const ws = useWebSocket(wsUrl, {
     onOpen: () => {
