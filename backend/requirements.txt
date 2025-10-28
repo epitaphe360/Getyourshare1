@@ -90,7 +90,7 @@ websockets==15.0.1
 yarl==1.22.0
 
 # Production Server
-gunicorn==21.2.0
-gevent==23.9.1
-aiohttp==3.9.1
+gunicorn==23.0.0
+gevent==24.11.1
+aiohttp==3.11.11
 aiohttp-cors==0.7.0
