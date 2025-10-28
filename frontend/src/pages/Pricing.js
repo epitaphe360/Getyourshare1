@@ -17,10 +17,12 @@ const Pricing = () => {
   const fetchSubscriptionPlans = async () => {
     try {
       const response = await axios.get(`${API_URL}/api/subscription-plans`);
-      setSubscriptionPlans(response.data);
+      setSubscriptionPlans(response.data || { merchants: [], influencers: [] });
       setLoading(false);
     } catch (error) {
       console.error('Erreur lors du chargement des plans:', error);
+      // Set default empty plans if API fails
+      setSubscriptionPlans({ merchants: [], influencers: [] });
       setLoading(false);
     }
   };
@@ -105,7 +107,8 @@ const Pricing = () => {
       {selectedPlan === 'merchants' && (
         <div className="max-w-7xl mx-auto px-4 pb-16">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {subscriptionPlans.merchants.map((plan, index) => (
+            {subscriptionPlans.merchants && subscriptionPlans.merchants.length > 0 ? (
+              subscriptionPlans.merchants.map((plan, index) => (
               <div
                 key={plan.id}
                 className={`bg-white rounded-2xl shadow-xl overflow-hidden transform hover:scale-105 transition ${
@@ -179,7 +182,12 @@ const Pricing = () => {
                   </Link>
                 </div>
               </div>
-            ))}
+            ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <p className="text-gray-600">Aucun plan disponible pour le moment.</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -188,7 +196,8 @@ const Pricing = () => {
       {selectedPlan === 'influencers' && (
         <div className="max-w-5xl mx-auto px-4 pb-16">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {subscriptionPlans.influencers.map((plan, index) => (
+            {subscriptionPlans.influencers && subscriptionPlans.influencers.length > 0 ? (
+              subscriptionPlans.influencers.map((plan, index) => (
               <div
                 key={plan.id}
                 className={`bg-white rounded-2xl shadow-xl overflow-hidden transform hover:scale-105 transition ${
@@ -250,7 +259,12 @@ const Pricing = () => {
                   </Link>
                 </div>
               </div>
-            ))}
+            ))
+            ) : (
+              <div className="col-span-full text-center py-12">
+                <p className="text-gray-600">Aucun plan disponible pour le moment.</p>
+              </div>
+            )}
           </div>
         </div>
       )}
