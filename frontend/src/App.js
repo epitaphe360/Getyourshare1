@@ -16,6 +16,9 @@ import LandingPageNew from './pages/LandingPageNew';
 import AIMarketing from './pages/AIMarketing';
 import Subscription from './pages/Subscription';
 import Demo from './pages/Demo';
+import DemoAffiliateDashboard from './pages/demos/DemoAffiliateDashboard';
+import DemoInfluencerDashboard from './pages/demos/DemoInfluencerDashboard';
+import DemoMerchantDashboard from './pages/demos/DemoMerchantDashboard';
 import MerchantsList from './pages/merchants/MerchantsList';
 import InfluencersList from './pages/influencers/InfluencersList';
 import InfluencerSearchPage from './pages/influencers/InfluencerSearchPage';
@@ -109,6 +112,9 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/demo" element={<Demo />} />
+          <Route path="/demo/affiliate" element={<DemoAffiliateDashboard />} />
+          <Route path="/demo/influencer" element={<DemoInfluencerDashboard />} />
+          <Route path="/demo/merchant" element={<DemoMerchantDashboard />} />
 
           {/* Protected Routes */}
           <Route
