@@ -35,8 +35,7 @@ Il essaie de build depuis la racine et échoue car il ne trouve pas de package.j
 3. **IMPORTANT** : Dans les paramètres du service :
    - Va dans "Settings" → "Service Settings"
    - **Root Directory** : Change de `/` à `/frontend`
-   - **Build Command** : `rm -rf node_modules/.cache && npm install && npm run build`
-   - **Start Command** : `npx serve -s build -l $PORT`
+   - ⚠️ **N'ajoute PAS de Build Command ni Start Command** - Le fichier `nixpacks.toml` dans `/frontend` s'en charge automatiquement
 4. Ajoute les variables d'environnement :
    ```
    REACT_APP_SUPABASE_URL=https://tznkbnlkzfodpffkdrhj.supabase.co
