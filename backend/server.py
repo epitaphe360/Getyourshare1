@@ -508,7 +508,7 @@ async def verify_email(token: str, request: Request):
 
 @app.post("/api/auth/resend-verification")
 @limiter.limit("5/hour")
-async def resend_verification(data: ResendVerificationRequest):
+async def resend_verification(request: Request, data: ResendVerificationRequest):
     """Récupère un nouveau lien de vérification pour les utilisateurs non confirmés."""
     user = get_user_by_email(data.email)
 
