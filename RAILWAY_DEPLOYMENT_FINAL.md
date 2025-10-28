@@ -16,7 +16,7 @@ Il essaie de build depuis la racine et échoue car il ne trouve pas de package.j
    - Va dans "Settings" → "Service Settings"
    - **Root Directory** : Change de `/` à `/backend`
    - **Build Command** : `pip install --upgrade pip && pip install -r requirements.txt`
-   - **Start Command** : `gunicorn server:app --bind 0.0.0.0:$PORT --workers 4 --timeout 120`
+   - **Start Command** : `gunicorn server:app --bind 0.0.0.0:$PORT --workers 2 --worker-class uvicorn.workers.UvicornWorker --timeout 120 --graceful-timeout 30 --keep-alive 5`
 6. Ajoute les variables d'environnement :
    ```
    SUPABASE_URL=https://tznkbnlkzfodpffkdrhj.supabase.co
