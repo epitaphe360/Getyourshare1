@@ -8,7 +8,7 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime
 
-from backend.supabase_client import get_supabase_client
+from supabase_client import get_supabase_client
 
 logger = logging.getLogger(__name__)
 
