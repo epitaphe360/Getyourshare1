@@ -20,10 +20,12 @@ Il essaie de build depuis la racine et échoue car il ne trouve pas de package.j
 6. Ajoute les variables d'environnement :
    ```
    SUPABASE_URL=https://tznkbnlkzfodpffkdrhj.supabase.co
-   SUPABASE_SERVICE_KEY=ton_service_key
-   JWT_SECRET=ton_jwt_secret
-   SECRET_KEY=ton_secret_key
+   SUPABASE_SERVICE_KEY=ton_service_key_ici
+   JWT_SECRET=ton_jwt_secret_ici
+   SECRET_KEY=ton_secret_key_ici
+   PORT=8001
    ```
+   **Note**: Railway définit automatiquement `$PORT`, mais tu peux le mettre pour la cohérence.
 7. Deploy
 
 ### ÉTAPE 2 : Créer le service Frontend
