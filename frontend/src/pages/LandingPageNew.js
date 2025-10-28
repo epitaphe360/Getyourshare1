@@ -767,7 +767,7 @@ const LandingPageNew = () => {
               <h4 className="font-bold text-white mb-4">Support</h4>
               <ul className="space-y-2 text-sm">
                 <li><a href="#" className="hover:text-white transition">Centre d'aide</a></li>
-                <li><a href="#" className="hover:text-white transition">Contact</a></li>
+                <li><button onClick={() => navigate('/contact')} className="hover:text-white transition">Contact</button></li>
               </ul>
             </div>
           </div>

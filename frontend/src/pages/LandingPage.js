@@ -388,7 +388,7 @@ const LandingPage = () => {
                 <li><a href="#" className="hover:text-white">Confidentialité</a></li>
                 <li><a href="#" className="hover:text-white">Conditions</a></li>
                 <li><a href="#" className="hover:text-white">Cookies</a></li>
-                <li><a href="#" className="hover:text-white">Contact</a></li>
+                <li><button onClick={() => navigate('/contact')} className="hover:text-white">Contact</button></li>
               </ul>
             </div>
           </div>

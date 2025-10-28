@@ -6,6 +6,7 @@ import Layout from './components/layout/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Pricing from './pages/Pricing';
+import Contact from './pages/Contact';
 import Dashboard from './pages/Dashboard';
 import GettingStarted from './pages/GettingStarted';
 import News from './pages/News';
@@ -111,6 +112,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/pricing" element={<Pricing />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="/demo" element={<Demo />} />
           <Route path="/demo/affiliate" element={<DemoAffiliateDashboard />} />
           <Route path="/demo/influencer" element={<DemoInfluencerDashboard />} />
