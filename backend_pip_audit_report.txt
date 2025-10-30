@@ -1,0 +1,14 @@
+Found 11 known vulnerabilities in 7 packages
+Name             Version ID                  Fix Versions
+---------------- ------- ------------------- ------------
+ecdsa            0.19.1  GHSA-wj6h-64fc-37mp
+fastapi          0.104.1 PYSEC-2024-38       0.109.1
+starlette        0.27.0  GHSA-f96h-pmfr-66vw 0.40.0
+starlette        0.27.0  GHSA-2c2j-9gv5-cj73 0.47.2
+starlette        0.27.0  GHSA-7f5h-v6xp-fcq8 0.49.1
+pymongo          4.5.0   GHSA-m87m-mmvp-v9qm 4.6.3
+python-jose      3.3.0   PYSEC-2024-232      3.4.0
+python-jose      3.3.0   PYSEC-2024-233      3.4.0
+python-multipart 0.0.6   GHSA-2jv5-9r88-3w3p 0.0.7
+python-multipart 0.0.6   GHSA-59g5-xgcq-4qw3 0.0.18
+aiohttp          3.11.11 GHSA-9548-qrrj-x5pj 3.12.14

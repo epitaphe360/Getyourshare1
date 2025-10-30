@@ -105,9 +105,7 @@ def create_affiliation_request(user_id: str, request_data: AffiliationRequestCre
                 detail="Vous avez déjà une demande en attente pour ce produit",
             )
         if existing_status_app == "active":
-            raise HTTPException(
-                status_code=400, detail="Vous avez déjà accès à ce produit"
-            )
+            raise HTTPException(status_code=400, detail="Vous avez déjà accès à ce produit")
 
         allow_resubmit = existing_status_app == "cancelled"
         if existing_status_app == "rejected":
@@ -187,8 +185,13 @@ def create_affiliation_request(user_id: str, request_data: AffiliationRequestCre
     insert_error = getattr(result, "error", None)
     if insert_error:
         error_message = getattr(insert_error, "message", str(insert_error))
-        if "duplicate key value" in error_message or "affiliation_requests_influencer_id_product_id_key" in error_message:
-            raise HTTPException(status_code=400, detail="Vous avez déjà une demande pour ce produit")
+        if (
+            "duplicate key value" in error_message
+            or "affiliation_requests_influencer_id_product_id_key" in error_message
+        ):
+            raise HTTPException(
+                status_code=400, detail="Vous avez déjà une demande pour ce produit"
+            )
         raise HTTPException(status_code=500, detail=error_message)
 
     if not result.data:
@@ -280,7 +283,9 @@ def cancel_affiliation_request(user_id: str, request_id: str) -> Dict:
     request_data = request_query.data[0]
 
     if request_data.get("status") != "pending":
-        raise HTTPException(status_code=400, detail="Seules les demandes en attente peuvent être annulées")
+        raise HTTPException(
+            status_code=400, detail="Seules les demandes en attente peuvent être annulées"
+        )
 
     update_result = (
         supabase.table("affiliation_requests")
@@ -386,7 +391,9 @@ def approve_affiliation_request(
     request_record = request_query.data[0]
 
     if request_record.get("merchant_id") != merchant["id"]:
-        raise HTTPException(status_code=403, detail="Cette demande n'appartient pas à votre boutique")
+        raise HTTPException(
+            status_code=403, detail="Cette demande n'appartient pas à votre boutique"
+        )
 
     if request_record.get("status") != "pending":
         raise HTTPException(status_code=400, detail="Cette demande a déjà été traitée")
@@ -478,7 +485,9 @@ def reject_affiliation_request(
     request_record = request_query.data[0]
 
     if request_record.get("merchant_id") != merchant["id"]:
-        raise HTTPException(status_code=403, detail="Cette demande n'appartient pas à votre boutique")
+        raise HTTPException(
+            status_code=403, detail="Cette demande n'appartient pas à votre boutique"
+        )
 
     if request_record.get("status") != "pending":
         raise HTTPException(status_code=400, detail="Cette demande a déjà été traitée")

@@ -33,18 +33,21 @@ accounts = [
 for email, password in accounts:
     try:
         # Générer le hash bcrypt
-        password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
-        
+        password_hash = bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
         # Mettre à jour l'utilisateur
-        result = supabase.table("users").update({
-            "password_hash": password_hash
-        }).eq("email", email).execute()
-        
+        result = (
+            supabase.table("users")
+            .update({"password_hash": password_hash})
+            .eq("email", email)
+            .execute()
+        )
+
         if result.data:
             print(f"✅ {email} - mot de passe mis à jour")
         else:
             print(f"⚠️  {email} - utilisateur introuvable")
-            
+
     except Exception as e:
         print(f"❌ {email} - erreur: {str(e)}")
 

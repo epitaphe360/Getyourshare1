@@ -54,7 +54,7 @@ for user in MOCK_USERS:
             "phone_verified": user.get("phone_verified", False),
             "two_fa_enabled": user.get("two_fa_enabled", False),
             "last_login": user.get("last_login"),
-            "is_active": user.get("is_active", True)
+            "is_active": user.get("is_active", True),
         }
 
         result = supabase.table("users").insert(user_data).execute()
@@ -73,10 +73,7 @@ for user in MOCK_USERS:
 print("\n📋 ÉTAPE 2: Migration des merchants")
 print("-" * 80)
 
-merchant_emails = {
-    "merchant_1": "contact@techstyle.fr",
-    "merchant_2": "hello@beautypro.com"
-}
+merchant_emails = {"merchant_1": "contact@techstyle.fr", "merchant_2": "hello@beautypro.com"}
 
 for merchant in MOCK_MERCHANTS:
     try:
@@ -97,7 +94,7 @@ for merchant in MOCK_MERCHANTS:
             "subscription_plan": merchant.get("subscription_plan", "free"),
             "commission_rate": merchant.get("commission_rate", 5.0),
             "total_sales": merchant.get("total_sales", 0),
-            "total_commission_paid": merchant.get("total_commission_paid", 0)
+            "total_commission_paid": merchant.get("total_commission_paid", 0),
         }
 
         result = supabase.table("merchants").insert(merchant_data).execute()
@@ -119,7 +116,7 @@ print("-" * 80)
 influencer_emails = {
     "influencer_1": "emma.style@instagram.com",
     "influencer_2": "lucas.tech@youtube.com",
-    "influencer_3": "julie.beauty@tiktok.com"
+    "influencer_3": "julie.beauty@tiktok.com",
 }
 
 for influencer in MOCK_INFLUENCERS:
@@ -145,7 +142,7 @@ for influencer in MOCK_INFLUENCERS:
             "total_sales": influencer.get("total_sales", 0),
             "total_earnings": influencer.get("total_earnings", 0.0),
             "balance": influencer.get("balance", 0.0),
-            "social_links": json.dumps(influencer.get("social_links", {}))
+            "social_links": json.dumps(influencer.get("social_links", {})),
         }
 
         result = supabase.table("influencers").insert(influencer_data).execute()
@@ -183,7 +180,7 @@ else:
                 "images": json.dumps(product.get("images", [])),
                 "slug": product.get("slug"),
                 "stock_quantity": product.get("stock", 100),
-                "is_available": product.get("is_available", True)
+                "is_available": product.get("is_available", True),
             }
 
             result = supabase.table("products").insert(product_data).execute()
@@ -225,7 +222,7 @@ if influencer_ids and product_ids:
                 "conversion_rate": round(random.uniform(2.0, 15.0), 2),
                 "total_revenue": round(random.uniform(500, 5000), 2),
                 "total_commission": round(random.uniform(50, 500), 2),
-                "is_active": True
+                "is_active": True,
             }
 
             result = supabase.table("trackable_links").insert(link_data).execute()
@@ -249,7 +246,7 @@ if merchant_ids:
         {"name": "Campagne Été 2024", "status": "active", "budget": 5000},
         {"name": "Black Friday 2024", "status": "active", "budget": 10000},
         {"name": "Rentrée Scolaire", "status": "paused", "budget": 3000},
-        {"name": "Noël 2024", "status": "draft", "budget": 15000}
+        {"name": "Noël 2024", "status": "draft", "budget": 15000},
     ]
 
     default_merchant = list(merchant_ids.values())[0]
@@ -268,7 +265,7 @@ if merchant_ids:
                 "total_clicks": random.randint(1000, 5000),
                 "total_conversions": random.randint(50, 500),
                 "total_revenue": round(random.uniform(5000, 50000), 2),
-                "roi": round(random.uniform(150, 400), 2)
+                "roi": round(random.uniform(150, 400), 2),
             }
 
             result = supabase.table("campaigns").insert(campaign_data).execute()
@@ -316,7 +313,9 @@ if link_ids and product_ids and influencer_ids and merchant_ids:
                 "merchant_revenue": merchant_revenue,
                 "status": random.choice(["completed", "completed", "completed", "pending"]),
                 "payment_status": "paid",
-                "sale_timestamp": (datetime.now() - timedelta(days=random.randint(0, 30))).isoformat()
+                "sale_timestamp": (
+                    datetime.now() - timedelta(days=random.randint(0, 30))
+                ).isoformat(),
             }
 
             result = supabase.table("sales").insert(sale_data).execute()
@@ -347,13 +346,15 @@ if influencer_ids:
                 "currency": "EUR",
                 "status": random.choice(["pending", "approved", "paid", "paid"]),
                 "payment_method": random.choice(["PayPal", "Bank Transfer"]),
-                "paid_at": datetime.now().isoformat() if random.choice([True, False]) else None
+                "paid_at": datetime.now().isoformat() if random.choice([True, False]) else None,
             }
 
             result = supabase.table("commissions").insert(commission_data).execute()
 
             if result.data:
-                print(f"  ✅ Commission: {commission_data['amount']}€ ({commission_data['status']})")
+                print(
+                    f"  ✅ Commission: {commission_data['amount']}€ ({commission_data['status']})"
+                )
 
         except Exception as e:
             print(f"  ⚠️  Commission: {str(e)}")
@@ -373,24 +374,30 @@ if link_ids:
             click_data = {
                 "link_id": link_list[i % len(link_list)],
                 "ip_address": f"192.168.{random.randint(1,255)}.{random.randint(1,255)}",
-                "user_agent": random.choice([
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-                    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0)",
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
-                ]),
-                "referrer": random.choice([
-                    "https://instagram.com",
-                    "https://facebook.com",
-                    "https://twitter.com",
-                    "https://tiktok.com"
-                ]),
+                "user_agent": random.choice(
+                    [
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                        "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0)",
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+                    ]
+                ),
+                "referrer": random.choice(
+                    [
+                        "https://instagram.com",
+                        "https://facebook.com",
+                        "https://twitter.com",
+                        "https://tiktok.com",
+                    ]
+                ),
                 "country": random.choice(["FR", "BE", "CH", "CA"]),
                 "city": random.choice(["Paris", "Lyon", "Marseille", "Bruxelles"]),
                 "device_type": random.choice(["Mobile", "Desktop", "Tablet"]),
                 "os": random.choice(["Windows", "iOS", "Android", "macOS"]),
                 "browser": random.choice(["Chrome", "Safari", "Firefox", "Edge"]),
                 "is_unique_visitor": random.choice([True, False]),
-                "clicked_at": (datetime.now() - timedelta(hours=random.randint(0, 720))).isoformat()
+                "clicked_at": (
+                    datetime.now() - timedelta(hours=random.randint(0, 720))
+                ).isoformat(),
             }
 
             result = supabase.table("click_tracking").insert(click_data).execute()
@@ -420,7 +427,7 @@ if product_ids and user_ids:
         ("Bon rapport qualité/prix", "Produit conforme à la description, livraison rapide."),
         ("Parfait", "Exactement ce que je cherchais, merci!"),
         ("Déçu", "La qualité n'est pas au rendez-vous..."),
-        ("Super!", "Je suis ravi, produit de qualité.")
+        ("Super!", "Je suis ravi, produit de qualité."),
     ]
 
     for i in range(min(15, len(product_list))):
@@ -435,7 +442,7 @@ if product_ids and user_ids:
                 "comment": comment,
                 "is_verified_purchase": random.choice([True, True, False]),
                 "is_approved": True,
-                "helpful_count": random.randint(0, 20)
+                "helpful_count": random.randint(0, 20),
             }
 
             result = supabase.table("reviews").insert(review_data).execute()
@@ -461,11 +468,17 @@ try:
         "merchants": supabase.table("merchants").select("id", count="exact").execute().count,
         "influencers": supabase.table("influencers").select("id", count="exact").execute().count,
         "products": supabase.table("products").select("id", count="exact").execute().count,
-        "trackable_links": supabase.table("trackable_links").select("id", count="exact").execute().count,
+        "trackable_links": supabase.table("trackable_links")
+        .select("id", count="exact")
+        .execute()
+        .count,
         "campaigns": supabase.table("campaigns").select("id", count="exact").execute().count,
         "sales": supabase.table("sales").select("id", count="exact").execute().count,
         "commissions": supabase.table("commissions").select("id", count="exact").execute().count,
-        "click_tracking": supabase.table("click_tracking").select("id", count="exact").execute().count,
+        "click_tracking": supabase.table("click_tracking")
+        .select("id", count="exact")
+        .execute()
+        .count,
         "reviews": supabase.table("reviews").select("id", count="exact").execute().count,
     }
 
@@ -484,7 +497,8 @@ try:
 except Exception as e:
     print(f"\n⚠️  Erreur lors du comptage: {e}")
 
-print("""
+print(
+    """
 🎉 Toutes les tables sont maintenant peuplées avec des données de test !
 
 Prochaines étapes:
@@ -493,4 +507,5 @@ Prochaines étapes:
 3. Se connecter avec: admin@shareyoursales.com / admin123
 
 📊 Dashboard Supabase: https://iamezkmapbhlhhvvsits.supabase.co
-""")
+"""
+)
