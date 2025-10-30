@@ -157,7 +157,7 @@ class RegisterRequest(BaseModel):
         ..., min_length=8, description="Minimum 8 characters: 1 uppercase, 1 lowercase, 1 number"
     )
     role: str = Field(..., pattern="^(merchant|influencer)$")
-    phost: Optional[str] = Field(None, min_length=1)
+    phone: Optional[str] = Field(None, min_length=1)
     gdpr_consent: bool = Field(..., description="RGPD consent is mandatory")
 
     @validator("gdpr_consent")
@@ -180,7 +180,7 @@ class AdvertiserCreate(BaseModel):
 
 class CampaignCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
-    descriphost: Optional[str] = Field(None, min_length=1)
+    description: Optional[str] = Field(None, min_length=1)
     status: str = Field(default="active", pattern="^(active|paused|ended)$")
     budget: Optional[float] = None
 
@@ -718,7 +718,7 @@ async def get_influencer_stats(influencer_id: str, payload: dict = Depends(verif
 
 @app.get("/api/products")
 async def get_products(
-    catehost: Optional[str] = Field(None, min_length=1),
+    category: Optional[str] = Field(None, min_length=1),
     merchant_id: Optional[str] = None,
     limit: int = Query(default=20, ge=1, le=100, description="Nombre de résultats par page"),
     offset: int = Query(default=0, ge=0, description="Nombre de résultats à ignorer"),
