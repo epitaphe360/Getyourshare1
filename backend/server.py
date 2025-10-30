@@ -21,7 +21,13 @@ from slowapi.errors import RateLimitExceeded
 from fastapi import Query
 
 # Importer les helpers Supabase
-from db_helpers import *
+from db_helpers import (
+    get_user_by_id,
+    update_user_profile,
+)
+from .security import MERCHANT_OR_ADMIN, ADMIN_ONLY, AUTHENTICATED_USER
+
+
 from supabase_client import supabase
 from email_service import send_verification_email
 from services.affiliation.router import (
@@ -210,9 +216,9 @@ class MessageRead(BaseModel):
 
 
 class CompanySettingsUpdate(BaseModel):
-    name: Optional[str] = Field(None, max_length=255)
+    name: Optional[str] = Field(None, min_length=1, max_length=255)  # Ajout de min_length
     email: Optional[EmailStr] = None
-    address: Optional[str] = Field(None, max_length=500)
+    address: Optional[str] = Field(None, min_length=1, max_length=500)  # Ajout de min_length
     tax_id: Optional[str] = Field(None, max_length=50)
     currency: Optional[str] = Field(None, pattern="^(EUR|USD|GBP|MAD)$")
     phone: Optional[str] = Field(None, max_length=20)
@@ -230,7 +236,7 @@ class PersonalSettingsUpdate(BaseModel):
 
 
 class SMTPSettingsUpdate(BaseModel):
-    host: Optional[str] = Field(None, max_length=255)
+    host: Optional[str] = Field(None, min_length=1, max_length=255) # Ajout de min_length
     port: Optional[int] = Field(None, ge=1, le=65535)
     username: Optional[str] = Field(None, max_length=255)
     password: Optional[str] = Field(None, max_length=255)
@@ -246,7 +252,7 @@ class PermissionsUpdate(BaseModel):
 
 
 class AffiliateSettingsUpdate(BaseModel):
-    min_withdrawal: Optional[float] = Field(None, ge=0)
+    min_withdrawal: Optional[float] = Field(None, ge=1.0)  # min_withdrawal doit être au moins 1.0
     auto_approval: Optional[bool] = None
     email_verification: Optional[bool] = None
     payment_mode: Optional[str] = Field(None, pattern="^(on_demand|automatic)$")
@@ -1376,7 +1382,7 @@ async def update_settings(settings: dict, payload: dict = Depends(verify_token))
 
 
 @app.get("/api/settings/company")
-async def get_company_settings(payload: dict = Depends(verify_token)):
+async def get_company_settings(payload: dict = Depends(MERCHANT_OR_ADMIN)):
     """Récupère les paramètres de l'entreprise pour l'utilisateur connecté"""
     user_id = payload.get("user_id")
 
@@ -1406,7 +1412,7 @@ async def get_company_settings(payload: dict = Depends(verify_token)):
 
 @app.put("/api/settings/company")
 async def update_company_settings(
-    settings: CompanySettingsUpdate, payload: dict = Depends(verify_token)
+    settings: CompanySettingsUpdate, payload: dict = Depends(MERCHANT_OR_ADMIN)
 ):
     """Met à jour les paramètres de l'entreprise"""
     user_id = payload.get("user_id")
@@ -1445,7 +1451,7 @@ async def update_company_settings(
 
 
 @app.get("/api/settings/personal")
-async def get_personal_settings(payload: dict = Depends(verify_token)):
+async def get_personal_settings(payload: dict = Depends(AUTHENTICATED_USER)):
     """Récupère les paramètres personnels de l'utilisateur connecté"""
     user_id = payload.get("sub")
 
@@ -1472,7 +1478,7 @@ async def get_personal_settings(payload: dict = Depends(verify_token)):
 
 @app.put("/api/settings/personal")
 async def update_personal_settings(
-    settings: PersonalSettingsUpdate, payload: dict = Depends(verify_token)
+    settings: PersonalSettingsUpdate, payload: dict = Depends(AUTHENTICATED_USER)
 ):
     """Met à jour les paramètres personnels de l'utilisateur"""
     user_id = payload.get("sub")
@@ -1503,7 +1509,7 @@ async def update_personal_settings(
 
 
 @app.get("/api/settings/smtp")
-async def get_smtp_settings(payload: dict = Depends(verify_token)):
+async def get_smtp_settings(payload: dict = Depends(MERCHANT_OR_ADMIN)):
     """Récupère les paramètres SMTP de l'utilisateur"""
     try:
         user_id = payload.get("user_id")
@@ -1530,7 +1536,7 @@ async def get_smtp_settings(payload: dict = Depends(verify_token)):
 
 
 @app.put("/api/settings/smtp")
-async def update_smtp_settings(settings: SMTPSettingsUpdate, payload: dict = Depends(verify_token)):
+async def update_smtp_settings(settings: SMTPSettingsUpdate, payload: dict = Depends(MERCHANT_OR_ADMIN)):
     """Met à jour les paramètres SMTP"""
     try:
         user_id = payload.get("user_id")
@@ -1599,12 +1605,8 @@ async def test_smtp_connection(settings: SMTPSettingsUpdate, payload: dict = Dep
 
 # ============================================
 # PERMISSIONS SETTINGS ENDPOINTS
-# ============================================
-
-
-@app.get("/api/settings/permissions")
-async def get_permissions(payload: dict = Depends(verify_token)):
-    """Récupère les permissions par défaut"""
+# ==========================================@app.get("/api/settings/permissions")
+async def get_permissions_settings(payload: dict = Depends(MERCHANT_OR_ADMIN)): """Récupère les permissions par défaut"""
     try:
         user_id = payload.get("user_id")
         response = (
@@ -1634,12 +1636,10 @@ async def get_permissions(payload: dict = Depends(verify_token)):
             }
     except Exception as e:
         print(f"[ERROR] Erreur récupération permissions: {e}")
-        raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")
-
-
-@app.put("/api/settings/permissions")
-async def update_permissions(settings: PermissionsUpdate, payload: dict = Depends(verify_token)):
-    """Met à jour les permissions"""
+        raise HTTPException(status_code=500, detail=f"Erreur serveur: {str(e)}")@app.put("/api/settings/permissions")
+async def update_permissions_settings(
+    settings: PermissionsUpdate, payload: dict = Depends(MERCHANT_OR_ADMIN)
+):à jour les permissions"""
     try:
         user_id = payload.get("user_id")
         update_data = settings.dict(exclude_none=True)
@@ -1674,7 +1674,7 @@ async def update_permissions(settings: PermissionsUpdate, payload: dict = Depend
 
 
 @app.get("/api/settings/affiliate")
-async def get_affiliate_settings(payload: dict = Depends(verify_token)):
+async def get_affiliate_settings(payload: dict = Depends(MERCHANT_OR_ADMIN)):
     """Récupère les paramètres affiliés"""
     try:
         user_id = payload.get("user_id")
@@ -1697,7 +1697,7 @@ async def get_affiliate_settings(payload: dict = Depends(verify_token)):
 
 @app.put("/api/settings/affiliate")
 async def update_affiliate_settings(
-    settings: AffiliateSettingsUpdate, payload: dict = Depends(verify_token)
+    settings: AffiliateSettingsUpdate, payload: dict = Depends(MERCHANT_OR_ADMIN)
 ):
     """Met à jour les paramètres affiliés"""
     try:
@@ -1734,7 +1734,7 @@ async def update_affiliate_settings(
 
 
 @app.get("/api/settings/registration")
-async def get_registration_settings(payload: dict = Depends(verify_token)):
+async def get_registration_settings(payload: dict = Depends(MERCHANT_OR_ADMIN)):
     """Récupère les paramètres d'inscription"""
     try:
         user_id = payload.get("user_id")
@@ -1760,7 +1760,7 @@ async def get_registration_settings(payload: dict = Depends(verify_token)):
 
 @app.put("/api/settings/registration")
 async def update_registration_settings(
-    settings: RegistrationSettingsUpdate, payload: dict = Depends(verify_token)
+    settings: RegistrationSettingsUpdate, payload: dict = Depends(MERCHANT_OR_ADMIN)
 ):
     """Met à jour les paramètres d'inscription"""
     try:
@@ -1799,7 +1799,7 @@ async def update_registration_settings(
 
 
 @app.get("/api/settings/mlm")
-async def get_mlm_settings(payload: dict = Depends(verify_token)):
+async def get_mlm_settings(payload: dict = Depends(MERCHANT_OR_ADMIN)):
     """Récupère les paramètres MLM"""
     try:
         user_id = payload.get("user_id")
@@ -1825,12 +1825,10 @@ async def get_mlm_settings(payload: dict = Depends(verify_token)):
             }
     except Exception as e:
         print(f"[ERROR] Erreur récupération MLM settings: {e}")
-        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")
-
-
-@app.put("/api/settings/mlm")
-async def update_mlm_settings(settings: MLMSettingsUpdate, payload: dict = Depends(verify_token)):
-    """Met à jour les paramètres MLM"""
+        raise HTTPException(status_code=500, detail=f"Erreur: {str(e)}")@app.put("/api/settings/mlm")
+async def update_mlm_settings(
+    settings: MLMSettingsUpdate, payload: dict = Depends(MERCHANT_OR_ADMIN)
+):  """Met à jour les paramètres MLM"""
     try:
         user_id = payload.get("user_id")
         update_data = settings.dict(exclude_none=True)
@@ -1862,7 +1860,7 @@ async def update_mlm_settings(settings: MLMSettingsUpdate, payload: dict = Depen
 
 
 @app.get("/api/settings/whitelabel")
-async def get_whitelabel_settings(payload: dict = Depends(verify_token)):
+async def get_whitelabel_settings(payload: dict = Depends(MERCHANT_OR_ADMIN)):
     """Récupère les paramètres white label"""
     try:
         user_id = payload.get("user_id")
@@ -1890,7 +1888,7 @@ async def get_whitelabel_settings(payload: dict = Depends(verify_token)):
 
 @app.put("/api/settings/whitelabel")
 async def update_whitelabel_settings(
-    settings: WhiteLabelSettingsUpdate, payload: dict = Depends(verify_token)
+    settings: WhiteLabelSettingsUpdate, payload: dict = Depends(MERCHANT_OR_ADMIN)
 ):
     """Met à jour les paramètres white label"""
     try:

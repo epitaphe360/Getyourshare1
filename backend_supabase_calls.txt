@@ -1,0 +1,60 @@
+Liste des appels Supabase trouvés dans le backend Python:
+
+- supabase.table("...").insert(...).execute()
+- supabase.table("...").update(...).eq(...).execute()
+- supabase.table("...").select("...").eq(...).execute()
+- supabase.table("...").select("...", count="exact").execute().count
+- supabase.rpc("...", payload).execute()
+
+Fichiers concernés:
+- advanced_endpoints.py
+- advanced_helpers.py
+- auto_payment_service.py
+- check_2fa.py
+- create_messaging_tables.py
+- create_missing_tables.py
+- create_smtp_table.py
+- db_helpers.py
+- enable_2fa.py
+- fix_passwords.py
+- influencer_search_endpoints.py
+- invoicing_service.py
+- payment_gateways.py
+- run_migration.py
+- run_settings_migration.py
+- scheduler.py
+- seed_all_data.py
+- seed_recent_data.py
+- server.py
+- setup_supabase.py
+- test_2fa_status.py
+- test_payment_system.py
+- tracking_service.py
+- update_2fa.py
+- webhook_service.py
+- websocket_server.py
+- services/affiliation/service.py
+- services/payments/service.py
+- services/sales/service.py
+- tests/conftest.py
+- tests/test_payments.py
+- tests/test_sales.py
+
+**Conclusion préliminaire:** L'utilisation de la librairie Supabase Python (qui est un client PostgREST) semble être la méthode principale d'interaction avec la base de données. Supabase/PostgREST fournit une certaine protection contre l'injection SQL en utilisant des requêtes paramétrées (via les méthodes `.eq()`, `.insert()`, `.update()`, etc.), mais il est crucial de vérifier l'utilisation des fonctions `.rpc()` et de l'appel à `.execute()` dans `create_smtp_table.py` pour s'assurer qu'aucune requête SQL brute n'est construite avec des variables non nettoyées.
+
+**Vérification de l'injection SQL:**
+- `create_smtp_table.py`: Utilise `supabase.rpc("exec_sql", {"query": sql}).execute()`. Le contenu de `sql` doit être vérifié.
+- `run_settings_migration.py`: Utilise `cursor.execute(sql_content)` avec une connexion PostgreSQL directe. Le contenu de `sql_content` doit être vérifié.
+
+**Vérification de l'injection de commandes:**
+- Aucune utilisation de `os.system` ou `subprocess` n'a été trouvée, ce qui est un bon point.
+
+**Vérification des fonctions RPC:**
+- `supabase.rpc("exec_sql", ...)` dans `create_smtp_table.py` et `run_settings_migration.py` (via `cursor.execute`) sont les points les plus sensibles.
+- `supabase.rpc("create_sale_transaction", payload).execute()` dans `advanced_helpers.py` et `services/sales/service.py` : L'implémentation de cette fonction RPC côté base de données doit être vérifiée pour s'assurer qu'elle utilise des paramètres de fonction et non une construction de chaîne SQL.
+
+**Points à vérifier dans le code:**
+1.  Contenu de la variable `sql` dans `create_smtp_table.py`.
+2.  Contenu de la variable `sql_content` dans `run_settings_migration.py`.
+3.  Utilisation des données utilisateur dans les requêtes de filtrage et de mise à jour (ex: `server.py` et `advanced_helpers.py`).
+4.  Implémentation des fonctions RPC.
