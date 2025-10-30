@@ -301,7 +301,7 @@ const InfluencerSearchPage = () => {
               <Users className="w-16 h-16 mx-auto mb-4 text-gray-300" />
               <p className="text-lg font-medium text-gray-900">Aucun influenceur trouvé</p>
               <p className="text-sm mt-2">Essayez d'ajuster vos critères de recherche</p>
-              <Button onClick={clearFilters} variant="secondary" className="mt-4">
+              <Button onClick={clearFilters} disabled={loading} variant="secondary" className="mt-4">
                 Réinitialiser les filtres
               </Button>
             </div>

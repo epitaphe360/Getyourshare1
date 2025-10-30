@@ -137,7 +137,7 @@ const Demo = () => {
               <h1 className="text-3xl font-bold text-gray-900">Démo Interactive ShareYourSales</h1>
               <p className="text-gray-600 mt-2">Explorez l'application selon votre profil</p>
             </div>
-            <Button variant="outline" onClick={() => navigate('/')}>
+            <Button variant="outline" disabled={loading} onClick={() => navigate('/')}>
               Retour à l'accueil
             </Button>
           </div>
@@ -207,7 +207,7 @@ const Demo = () => {
         <div className="text-center mt-12">
           <p className="text-gray-600 mb-6">Prêt à commencer pour de vrai ?</p>
           <div className="flex gap-4 justify-center">
-            <Button size="lg" onClick={() => navigate('/register')}>
+            <Button size="lg" disabled={loading} onClick={() => navigate('/register')}>
               Créer un compte gratuit
             </Button>
             <Button size="lg" variant="outline" onClick={() => navigate('/login')}>

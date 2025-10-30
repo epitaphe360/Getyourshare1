@@ -259,10 +259,10 @@ const LandingPageNew = () => {
               <a href="#spaces" className="text-gray-700 hover:text-blue-600 font-medium transition">Nos espaces</a>
               <a href="#features" className="text-gray-700 hover:text-blue-600 font-medium transition">Fonctionnalités</a>
               <a href="#pricing" className="text-gray-700 hover:text-blue-600 font-medium transition">Tarifs</a>
-              <Button variant="outline" onClick={() => navigate('/login')}>
+              <Button variant="outline" disabled={loading} onClick={() => navigate('/login')}>
                 Connexion
               </Button>
-              <Button onClick={() => navigate('/register')} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:shadow-xl">
+              <Button disabled={loading} onClick={() => navigate('/register')} className="bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg hover:shadow-xl">
                 <Sparkles className="w-4 h-4 mr-2" />
                 Commencer gratuitement
               </Button>
@@ -270,7 +270,7 @@ const LandingPageNew = () => {
 
             {/* Mobile Menu Button */}
             <div className="md:hidden">
-              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-gray-700 hover:text-blue-600">
+              <button disabled={loading} onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="text-gray-700 hover:text-blue-600">
                 {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
             </div>
@@ -285,10 +285,10 @@ const LandingPageNew = () => {
               <a href="#spaces" className="block text-gray-700 hover:text-blue-600 font-medium py-2">Nos espaces</a>
               <a href="#features" className="block text-gray-700 hover:text-blue-600 font-medium py-2">Fonctionnalités</a>
               <a href="#pricing" className="block text-gray-700 hover:text-blue-600 font-medium py-2">Tarifs</a>
-              <Button variant="outline" onClick={() => navigate('/login')} className="w-full">
+              <Button variant="outline" disabled={loading} onClick={() => navigate('/login')} className="w-full">
                 Connexion
               </Button>
-              <Button onClick={() => navigate('/register')} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+              <Button disabled={loading} onClick={() => navigate('/register')} className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white">
                 Commencer gratuitement
               </Button>
             </div>
@@ -767,7 +767,7 @@ const LandingPageNew = () => {
               <h4 className="font-bold text-white mb-4">Support</h4>
               <ul className="space-y-2 text-sm">
                 <li><a href="#" className="hover:text-white transition">Centre d'aide</a></li>
-                <li><button onClick={() => navigate('/contact')} className="hover:text-white transition">Contact</button></li>
+                <li><button disabled={loading} onClick={() => navigate('/contact')} className="hover:text-white transition">Contact</button></li>
               </ul>
             </div>
           </div>

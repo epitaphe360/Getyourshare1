@@ -22,13 +22,13 @@ const EmptyState = ({
       {(actionLabel || secondaryActionLabel) && (
         <div className="flex gap-3">
           {actionLabel && (
-            <Button onClick={onAction} className="flex items-center gap-2">
+            <Button onClick={onAction} disabled={loading} className="flex items-center gap-2">
               <Plus size={18} />
               {actionLabel}
             </Button>
           )}
           {secondaryActionLabel && (
-            <Button variant="outline" onClick={onSecondaryAction}>
+            <Button variant="outline" onClick={onSecondaryAction} disabled={loading}>
               {secondaryActionLabel}
             </Button>
           )}

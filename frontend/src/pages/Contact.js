@@ -88,7 +88,7 @@ const Contact = () => {
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex items-center gap-4">
-            <Button variant="outline" size="sm" onClick={() => navigate('/')}>
+            <Button variant="outline" size="sm" disabled={loading} onClick={() => navigate('/')}>
               <ArrowLeft size={16} className="mr-2" />
               Retour
             </Button>

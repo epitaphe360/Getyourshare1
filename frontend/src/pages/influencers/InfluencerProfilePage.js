@@ -80,7 +80,7 @@ const InfluencerProfilePage = () => {
     return (
       <div className="text-center py-12">
         <p className="text-xl text-gray-600">Influenceur non trouvé</p>
-        <Button onClick={() => navigate('/influencers')} className="mt-4">
+        <Button disabled={loading} onClick={() => navigate('/influencers')} className="mt-4">
           Retour à la liste
         </Button>
       </div>
@@ -130,7 +130,7 @@ const InfluencerProfilePage = () => {
               </div>
               
               {user?.role === 'merchant' && (
-                <Button onClick={handleContact}>
+                <Button disabled={loading} onClick={handleContact}>
                   <MessageSquare size={18} className="mr-2" />
                   Contacter
                 </Button>
