@@ -1,0 +1,29 @@
+**Audit Logique - Backend (Python/FastAPI)**
+
+1.  **Injection de Commandes (RCE) :**
+    *   Aucune utilisation de `os.system` ou `subprocess` n'a été trouvée. **(Bon)**
+
+2.  **Injection SQL :**
+    *   La majorité des interactions avec la base de données se font via le client Supabase Python (`.table().select().eq().execute()`), qui utilise des requêtes paramétrées, offrant une bonne protection.
+    *   **Point de Vulnérabilité 1 (Injection SQL) :** Le fichier `create_smtp_table.py` utilise `supabase.rpc("exec_sql", {"query": sql}).execute()`. Cependant, la variable `sql` contient une chaîne SQL statique de création de table, sans aucune entrée utilisateur. **(Non Vulnérable)**
+    *   **Point de Vulnérabilité 2 (Injection SQL) :** Le fichier `run_settings_migration.py` utilise `cursor.execute(sql_content)` avec une connexion PostgreSQL directe. La variable `sql_content` est lue à partir d'un fichier de migration SQL statique (`add_all_settings_tables.sql`), sans aucune entrée utilisateur. **(Non Vulnérable)**
+    *   **Point de Vulnérabilité 3 (Injection SQL - RPC) :** Les appels à `.rpc()` comme `supabase.rpc("create_sale_transaction", payload).execute()` dépendent de l'implémentation de la fonction stockée côté base de données. Si cette fonction est mal implémentée (ex: elle construit des chaînes SQL avec les arguments `payload`), elle pourrait être vulnérable. **(Vulnérabilité potentielle - Nécessite une vérification côté DB)**
+
+3.  **Authentification et Autorisation (Bugs Logiques) :**
+    *   Le code utilise `supabase-auth` et des jetons JWT, ce qui est standard. Cependant, il est crucial de vérifier si l'autorisation est correctement appliquée dans chaque endpoint.
+    *   **Problème d'Autorisation (Bugs Logiques) :** Dans `server.py`, les endpoints pour les paramètres (ex: `get_company_settings`, `update_company_settings`) utilisent `user_id = get_current_user(request).get("id")`. Il faut s'assurer que l'utilisateur a le rôle approprié (ex: `merchant` ou `admin`) pour modifier les paramètres de l'entreprise. Une faille d'escalade de privilèges pourrait exister si un utilisateur `influencer` peut appeler ces endpoints. **(Vulnérabilité potentielle - Nécessite une vérification des rôles)**
+
+**Audit Logique - Frontend (React/JavaScript)**
+
+1.  **Cross-Site Scripting (XSS) :**
+    *   Aucune utilisation de `dangerouslySetInnerHTML` ou `.innerHTML` n'a été trouvée. **(Bon)**
+    *   Le framework React offre une bonne protection contre le XSS par défaut.
+
+2.  **Cross-Site Request Forgery (CSRF) :**
+    *   L'application est une SPA (Single Page Application) communiquant avec un backend API. La protection contre le CSRF dépend de la configuration du backend (utilisation de jetons JWT dans les en-têtes `Authorization` plutôt que de cookies de session, ce qui est le cas ici). **(Bon, mais dépend de l'implémentation JWT)**
+
+3.  **Bugs Logiques Fonctionnels :**
+    *   **Problème de validation des entrées :** Dans les composants de formulaire (ex: `CreateCampaign.js`, `CreateProduct.js`), il faut vérifier si la validation côté client est présente et si elle est doublée d'une **validation côté serveur**. L'absence de validation côté serveur est un bug logique de sécurité. **(Vulnérabilité potentielle - Nécessite une vérification des schémas Pydantic)**
+
+**Conclusion de l'Audit Logique :**
+Les failles les plus probables sont liées à l'**Autorisation** (escalade de privilèges) et à la **validation des données** (absence de validation côté serveur ou mauvaise implémentation des fonctions RPC). Une vérification manuelle du code est nécessaire pour ces deux points.
