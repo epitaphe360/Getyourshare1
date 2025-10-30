@@ -42,7 +42,9 @@ async def cancel_affiliation_request(
 
 @router.get("/merchant/affiliation-requests")
 async def get_merchant_affiliation_requests(
-    status: Optional[str] = Query(None, description="pending_approval|active|rejected|cancelled|all"),
+    status: Optional[str] = Query(
+        None, description="pending_approval|active|rejected|cancelled|all"
+    ),
     payload: dict = Depends(get_token_payload),
 ):
     return service.list_merchant_requests(payload["sub"], status)

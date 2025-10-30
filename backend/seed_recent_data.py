@@ -56,33 +56,33 @@ sales_created = 0
 
 for day_offset in range(6, -1, -1):  # 7 derniers jours
     target_date = today - timedelta(days=day_offset)
-    
+
     # 3 à 8 ventes par jour
     num_sales = random.randint(3, 8)
-    
+
     for _ in range(num_sales):
         try:
             link = random.choice(links)
             merchant = random.choice(merchants)
-            
+
             # Montant de la vente
             amount = round(random.uniform(50, 500), 2)
-            
+
             # Commission influenceur (10-25%)
             commission_rate = random.uniform(10, 25)
             influencer_commission = round(amount * (commission_rate / 100), 2)
-            
+
             # Commission plateforme (5%)
             platform_commission = round(amount * 0.05, 2)
-            
+
             # Revenue merchant
             merchant_revenue = round(amount - influencer_commission - platform_commission, 2)
-            
+
             # Timestamp aléatoire dans la journée
             random_hour = random.randint(8, 22)
             random_minute = random.randint(0, 59)
             sale_timestamp = target_date.replace(hour=random_hour, minute=random_minute)
-            
+
             sale_data = {
                 "link_id": link["id"],
                 "product_id": link["product_id"],
@@ -99,17 +99,17 @@ for day_offset in range(6, -1, -1):  # 7 derniers jours
                 "status": "completed",
                 "payment_status": "paid",
                 "sale_timestamp": sale_timestamp.isoformat(),
-                "created_at": sale_timestamp.isoformat()
+                "created_at": sale_timestamp.isoformat(),
             }
-            
+
             result = supabase.table("sales").insert(sale_data).execute()
-            
+
             if result.data:
                 sales_created += 1
-                
+
         except Exception as e:
             print(f"  ⚠️  Erreur vente: {str(e)}")
-    
+
     print(f"  ✅ {target_date.strftime('%d/%m')}: {num_sales} ventes créées")
 
 print(f"\n  📊 Total: {sales_created} ventes créées\n")
@@ -125,53 +125,59 @@ clicks_created = 0
 
 for day_offset in range(6, -1, -1):  # 7 derniers jours
     target_date = today - timedelta(days=day_offset)
-    
+
     # 30 à 80 clics par jour
     num_clicks = random.randint(30, 80)
-    
+
     for _ in range(num_clicks):
         try:
             link = random.choice(links)
-            
+
             # Timestamp aléatoire dans la journée
             random_hour = random.randint(0, 23)
             random_minute = random.randint(0, 59)
             random_second = random.randint(0, 59)
-            clicked_at = target_date.replace(hour=random_hour, minute=random_minute, second=random_second)
-            
+            clicked_at = target_date.replace(
+                hour=random_hour, minute=random_minute, second=random_second
+            )
+
             click_data = {
                 "link_id": link["id"],
                 "ip_address": f"192.168.{random.randint(1,255)}.{random.randint(1,255)}",
-                "user_agent": random.choice([
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)"
-                ]),
-                "referrer": random.choice([
-                    "https://instagram.com",
-                    "https://facebook.com",
-                    "https://twitter.com",
-                    "https://tiktok.com",
-                    None
-                ]),
+                "user_agent": random.choice(
+                    [
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                        "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X)",
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+                    ]
+                ),
+                "referrer": random.choice(
+                    [
+                        "https://instagram.com",
+                        "https://facebook.com",
+                        "https://twitter.com",
+                        "https://tiktok.com",
+                        None,
+                    ]
+                ),
                 "country": random.choice(["FR", "BE", "CH", "CA"]),
                 "city": random.choice(["Paris", "Lyon", "Marseille", "Lille", "Toulouse"]),
                 "device_type": random.choice(["Mobile", "Desktop", "Tablet"]),
                 "os": random.choice(["Windows", "iOS", "Android", "macOS"]),
                 "browser": random.choice(["Chrome", "Safari", "Firefox", "Edge"]),
                 "is_unique_visitor": random.choice([True, True, False]),
-                "clicked_at": clicked_at.isoformat()
+                "clicked_at": clicked_at.isoformat(),
             }
-            
+
             result = supabase.table("click_tracking").insert(click_data).execute()
-            
+
             if result.data:
                 clicks_created += 1
-                
+
         except Exception as e:
             if clicks_created == 0:
                 print(f"  ⚠️  Erreur clic: {str(e)}")
-    
+
     print(f"  ✅ {target_date.strftime('%d/%m')}: {num_clicks} clics créés")
 
 print(f"\n  📊 Total: {clicks_created} clics créés\n")
@@ -187,11 +193,21 @@ print("=" * 80)
 # Compter les données des 7 derniers jours
 seven_days_ago = (today - timedelta(days=7)).isoformat()
 
-sales_count = supabase.table("sales").select("id", count="exact")\
-    .gte("created_at", seven_days_ago).execute().count
+sales_count = (
+    supabase.table("sales")
+    .select("id", count="exact")
+    .gte("created_at", seven_days_ago)
+    .execute()
+    .count
+)
 
-clicks_count = supabase.table("click_tracking").select("id", count="exact")\
-    .gte("clicked_at", seven_days_ago).execute().count
+clicks_count = (
+    supabase.table("click_tracking")
+    .select("id", count="exact")
+    .gte("clicked_at", seven_days_ago)
+    .execute()
+    .count
+)
 
 print(f"\n📊 Données des 7 derniers jours:")
 print(f"  💰 {sales_count} ventes")

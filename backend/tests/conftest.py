@@ -1,6 +1,7 @@
 """
 Fixtures et configuration communes pour les tests pytest
 """
+
 import pytest
 from unittest.mock import MagicMock, Mock
 from datetime import datetime, timedelta
@@ -11,14 +12,15 @@ from uuid import uuid4
 # FIXTURES SUPABASE
 # ============================================================================
 
+
 @pytest.fixture
 def mock_supabase():
     """Mock complet du client Supabase"""
     mock = MagicMock()
-    
+
     # Mock RPC calls
     mock.rpc.return_value.execute.return_value.data = {}
-    
+
     # Mock table queries
     mock.table.return_value = mock
     mock.select.return_value = mock
@@ -27,25 +29,28 @@ def mock_supabase():
     mock.update.return_value = mock
     mock.delete.return_value = mock
     mock.execute.return_value.data = []
-    
+
     return mock
 
 
 @pytest.fixture
 def mock_supabase_response():
     """Factory pour créer des réponses Supabase mockées"""
+
     def _create_response(data=None, error=None, count=None):
         response = Mock()
         response.data = data
         response.error = error
         response.count = count
         return response
+
     return _create_response
 
 
 # ============================================================================
 # FIXTURES DONNÉES DE TEST - USERS
 # ============================================================================
+
 
 @pytest.fixture
 def sample_user_id():
@@ -61,7 +66,7 @@ def sample_influencer_user(sample_user_id):
         "email": "influencer@test.com",
         "username": "testinfluencer",
         "role": "influencer",
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now().isoformat(),
     }
 
 
@@ -74,13 +79,14 @@ def sample_merchant_user():
         "email": "merchant@test.com",
         "username": "testmerchant",
         "role": "merchant",
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now().isoformat(),
     }
 
 
 # ============================================================================
 # FIXTURES DONNÉES DE TEST - INFLUENCERS
 # ============================================================================
+
 
 @pytest.fixture
 def sample_influencer_id():
@@ -98,13 +104,14 @@ def sample_influencer(sample_influencer_id, sample_user_id):
         "balance": 150.50,
         "total_earnings": 500.00,
         "total_sales": 25,
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now().isoformat(),
     }
 
 
 # ============================================================================
 # FIXTURES DONNÉES DE TEST - MERCHANTS
 # ============================================================================
+
 
 @pytest.fixture
 def sample_merchant_id():
@@ -122,13 +129,14 @@ def sample_merchant(sample_merchant_id):
         "commission_rate": 10.0,
         "total_sales": 100,
         "total_commission_paid": 250.00,
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now().isoformat(),
     }
 
 
 # ============================================================================
 # FIXTURES DONNÉES DE TEST - PRODUCTS
 # ============================================================================
+
 
 @pytest.fixture
 def sample_product_id():
@@ -146,13 +154,14 @@ def sample_product(sample_product_id, sample_merchant_id):
         "price": 99.99,
         "commission_rate": 15.0,
         "stock": 100,
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now().isoformat(),
     }
 
 
 # ============================================================================
 # FIXTURES DONNÉES DE TEST - TRACKABLE LINKS
 # ============================================================================
+
 
 @pytest.fixture
 def sample_link_id():
@@ -172,13 +181,14 @@ def sample_trackable_link(sample_link_id, sample_influencer_id, sample_product_i
         "clicks": 50,
         "conversions": 5,
         "status": "active",
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now().isoformat(),
     }
 
 
 # ============================================================================
 # FIXTURES DONNÉES DE TEST - SALES
 # ============================================================================
+
 
 @pytest.fixture
 def sample_sale_id():
@@ -187,7 +197,9 @@ def sample_sale_id():
 
 
 @pytest.fixture
-def sample_sale(sample_sale_id, sample_link_id, sample_influencer_id, sample_merchant_id, sample_product_id):
+def sample_sale(
+    sample_sale_id, sample_link_id, sample_influencer_id, sample_merchant_id, sample_product_id
+):
     """Données vente complète"""
     return {
         "id": sample_sale_id,
@@ -203,7 +215,7 @@ def sample_sale(sample_sale_id, sample_link_id, sample_influencer_id, sample_mer
         "status": "completed",
         "customer_email": "customer@test.com",
         "order_id": "ORDER-123",
-        "created_at": datetime.now().isoformat()
+        "created_at": datetime.now().isoformat(),
     }
 
 
@@ -217,13 +229,14 @@ def sample_sale_request():
         "customer_email": "customer@test.com",
         "order_id": "ORDER-123",
         "customer_name": "John Doe",
-        "customer_phone": "+33612345678"
+        "customer_phone": "+33612345678",
     }
 
 
 # ============================================================================
 # FIXTURES DONNÉES DE TEST - COMMISSIONS
 # ============================================================================
+
 
 @pytest.fixture
 def sample_commission_id():
@@ -241,7 +254,7 @@ def sample_commission(sample_commission_id, sample_sale_id, sample_influencer_id
         "amount": 14.99,
         "status": "pending",
         "created_at": datetime.now().isoformat(),
-        "approved_at": None
+        "approved_at": None,
     }
 
 
@@ -267,6 +280,7 @@ def sample_commission_paid(sample_commission_approved):
 # FIXTURES UTILITAIRES
 # ============================================================================
 
+
 @pytest.fixture
 def mock_datetime():
     """Mock pour datetime.now()"""
@@ -282,18 +296,21 @@ def sample_uuid():
 @pytest.fixture
 def mock_postgres_error():
     """Factory pour créer des erreurs PostgreSQL mockées"""
+
     def _create_error(code, message, details=None):
         error = Mock()
         error.code = code
         error.message = message
         error.details = details
         return error
+
     return _create_error
 
 
 # ============================================================================
 # FIXTURES PYTEST CONFIGURATION
 # ============================================================================
+
 
 @pytest.fixture(autouse=True)
 def reset_mocks():
@@ -306,5 +323,6 @@ def reset_mocks():
 def caplog_info(caplog):
     """Capture les logs de niveau INFO et supérieur"""
     import logging
+
     caplog.set_level(logging.INFO)
     return caplog

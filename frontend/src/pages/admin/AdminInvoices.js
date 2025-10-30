@@ -36,7 +36,8 @@ const AdminInvoices = () => {
     const year = now.getFullYear();
     const month = now.getMonth(); // Mois précédent
 
-    if (!confirm(`Générer les factures pour ${month === 0 ? 'Décembre' : new Date(year, month - 1).toLocaleString('fr-FR', { month: 'long' })} ${month === 0 ? year - 1 : year} ?`)) {
+    // TODO: Remplacer par un composant de modale de confirmation non bloquant
+    if (!window.confirm(`Générer les factures pour ${month === 0 ? 'Décembre' : new Date(year, month - 1).toLocaleString('fr-FR', { month: 'long' })} ${month === 0 ? year - 1 : year} ?`)) {
       return;
     }
 
@@ -58,7 +59,8 @@ const AdminInvoices = () => {
   };
 
   const handleSendReminders = async () => {
-    if (!confirm('Envoyer des rappels pour toutes les factures en retard ?')) {
+    // TODO: Remplacer par un composant de modale de confirmation non bloquant
+    if (!window.confirm('Envoyer des rappels pour toutes les factures en retard ?')) {
       return;
     }
 
@@ -75,7 +77,8 @@ const AdminInvoices = () => {
   };
 
   const handleMarkPaid = async (invoiceId, invoiceNumber) => {
-    const reference = prompt(`Marquer la facture ${invoiceNumber} comme payée.\n\nRéférence de paiement (optionnel):`);
+    // TODO: Remplacer par un composant de modale de saisie non bloquant
+    const reference = window.prompt(`Marquer la facture ${invoiceNumber} comme payée.\n\nRéférence de paiement (optionnel):`);
     
     if (reference === null) return; // Annulé
 

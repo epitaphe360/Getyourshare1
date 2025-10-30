@@ -18,28 +18,26 @@ router = APIRouter(prefix="/api/commissions", tags=["Payments & Commissions"])
 # Modèles Pydantic
 class ApproveCommissionRequest(BaseModel):
     """Requête d'approbation/changement de statut de commission."""
+
     status: str = Field(..., description="Nouveau statut de la commission")
-    
+
     @validator("status")
     def validate_status(cls, v):
         allowed = ["pending", "approved", "paid", "rejected"]
         if v not in allowed:
             raise ValueError(f"Statut doit être l'un de: {', '.join(allowed)}")
         return v
-    
+
     class Config:
-        json_schema_extra = {
-            "example": {
-                "status": "approved"
-            }
-        }
+        json_schema_extra = {"example": {"status": "approved"}}
 
 
 class BatchApproveRequest(BaseModel):
     """Requête d'approbation en lot."""
+
     commission_ids: List[UUID] = Field(..., description="Liste des IDs de commissions")
     status: str = Field(default="approved", description="Statut à appliquer")
-    
+
     @validator("status")
     def validate_status(cls, v):
         allowed = ["approved", "paid", "rejected"]
@@ -50,6 +48,7 @@ class BatchApproveRequest(BaseModel):
 
 class CommissionResponse(BaseModel):
     """Réponse après récupération de commission."""
+
     id: UUID
     sale_id: Optional[UUID]
     influencer_id: UUID
@@ -60,13 +59,14 @@ class CommissionResponse(BaseModel):
     transaction_id: Optional[str]
     paid_at: Optional[str]
     created_at: str
-    
+
     class Config:
         from_attributes = True
 
 
 class CommissionSummaryResponse(BaseModel):
     """Résumé des commissions d'un influenceur."""
+
     influencer_id: UUID
     pending_total: float
     approved_total: float
@@ -76,6 +76,7 @@ class CommissionSummaryResponse(BaseModel):
 
 class BatchApproveResponse(BaseModel):
     """Réponse après approbation en lot."""
+
     success_count: int
     failed_count: int
     success: List[str]
@@ -93,16 +94,16 @@ def get_payments_service() -> PaymentsService:
     "/{commission_id}/approve",
     response_model=dict,
     summary="Approuver/changer le statut d'une commission",
-    description="Gère les transitions de statut via approve_payout_transaction"
+    description="Gère les transitions de statut via approve_payout_transaction",
 )
 async def approve_commission(
     commission_id: UUID,
     request: ApproveCommissionRequest,
-    service: PaymentsService = Depends(get_payments_service)
+    service: PaymentsService = Depends(get_payments_service),
 ):
     """
     Change le statut d'une commission en appelant approve_payout_transaction.
-    
+
     Transitions autorisées:
     - pending → approved
     - approved → paid
@@ -115,36 +116,28 @@ async def approve_commission(
             "success": success,
             "commission_id": str(commission_id),
             "new_status": request.status,
-            "message": f"Commission {commission_id} mise à jour avec succès"
+            "message": f"Commission {commission_id} mise à jour avec succès",
         }
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     except RuntimeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.get(
     "/{commission_id}",
     response_model=CommissionResponse,
     summary="Récupérer une commission",
-    description="Récupère les détails d'une commission par son ID"
+    description="Récupère les détails d'une commission par son ID",
 )
 async def get_commission(
-    commission_id: UUID,
-    service: PaymentsService = Depends(get_payments_service)
+    commission_id: UUID, service: PaymentsService = Depends(get_payments_service)
 ):
     """Récupère une commission par son ID."""
     commission = await service.get_commission_by_id(commission_id)
     if not commission:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Commission {commission_id} introuvable"
+            status_code=status.HTTP_404_NOT_FOUND, detail=f"Commission {commission_id} introuvable"
         )
     return commission
 
@@ -153,13 +146,13 @@ async def get_commission(
     "",
     response_model=List[CommissionResponse],
     summary="Récupérer les commissions par statut",
-    description="Liste les commissions filtrées par statut avec pagination"
+    description="Liste les commissions filtrées par statut avec pagination",
 )
 async def get_commissions_by_status(
     status_filter: str = "pending",
     limit: int = 50,
     offset: int = 0,
-    service: PaymentsService = Depends(get_payments_service)
+    service: PaymentsService = Depends(get_payments_service),
 ):
     """Récupère les commissions par statut."""
     commissions = await service.get_commissions_by_status(status_filter, limit, offset)
@@ -170,14 +163,14 @@ async def get_commissions_by_status(
     "/influencer/{influencer_id}",
     response_model=List[CommissionResponse],
     summary="Récupérer les commissions d'un influenceur",
-    description="Liste toutes les commissions d'un influenceur"
+    description="Liste toutes les commissions d'un influenceur",
 )
 async def get_influencer_commissions(
     influencer_id: UUID,
     status_filter: Optional[str] = None,
     limit: int = 50,
     offset: int = 0,
-    service: PaymentsService = Depends(get_payments_service)
+    service: PaymentsService = Depends(get_payments_service),
 ):
     """Récupère les commissions d'un influenceur avec pagination."""
     commissions = await service.get_commissions_by_influencer(
@@ -190,26 +183,25 @@ async def get_influencer_commissions(
     "/influencer/{influencer_id}/summary",
     response_model=CommissionSummaryResponse,
     summary="Résumé des commissions d'un influenceur",
-    description="Retourne les totaux pending, approved et paid"
+    description="Retourne les totaux pending, approved et paid",
 )
 async def get_influencer_commission_summary(
-    influencer_id: UUID,
-    service: PaymentsService = Depends(get_payments_service)
+    influencer_id: UUID, service: PaymentsService = Depends(get_payments_service)
 ):
     """Résumé des commissions d'un influenceur."""
     pending = await service.get_pending_commissions_total(influencer_id)
     approved = await service.get_approved_commissions_total(influencer_id)
-    
+
     # Récupérer le total paid depuis les commissions
     result = await service.get_commissions_by_influencer(influencer_id, "paid", limit=1000)
     paid = sum(float(c.get("amount", 0)) for c in result)
-    
+
     return {
         "influencer_id": influencer_id,
         "pending_total": pending,
         "approved_total": approved,
         "paid_total": paid,
-        "total_earnings": pending + approved + paid
+        "total_earnings": pending + approved + paid,
     }
 
 
@@ -217,20 +209,16 @@ async def get_influencer_commission_summary(
     "/batch/approve",
     response_model=BatchApproveResponse,
     summary="Approuver plusieurs commissions en lot",
-    description="Applique un statut à plusieurs commissions simultanément"
+    description="Applique un statut à plusieurs commissions simultanément",
 )
 async def batch_approve_commissions(
-    request: BatchApproveRequest,
-    service: PaymentsService = Depends(get_payments_service)
+    request: BatchApproveRequest, service: PaymentsService = Depends(get_payments_service)
 ):
     """
     Approuve plusieurs commissions en lot.
     Utile pour les paiements groupés mensuels.
     """
-    result = await service.batch_approve_commissions(
-        request.commission_ids,
-        request.status
-    )
+    result = await service.batch_approve_commissions(request.commission_ids, request.status)
     return result
 
 
@@ -238,11 +226,10 @@ async def batch_approve_commissions(
     "/{commission_id}/pay",
     response_model=dict,
     summary="Marquer une commission comme payée",
-    description="Raccourci pour passer au statut 'paid' directement"
+    description="Raccourci pour passer au statut 'paid' directement",
 )
 async def pay_commission(
-    commission_id: UUID,
-    service: PaymentsService = Depends(get_payments_service)
+    commission_id: UUID, service: PaymentsService = Depends(get_payments_service)
 ):
     """
     Marque une commission comme payée.
@@ -254,29 +241,22 @@ async def pay_commission(
             "success": success,
             "commission_id": str(commission_id),
             "status": "paid",
-            "message": f"Commission {commission_id} marquée comme payée"
+            "message": f"Commission {commission_id} marquée comme payée",
         }
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     except RuntimeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))
 
 
 @router.post(
     "/{commission_id}/reject",
     response_model=dict,
     summary="Rejeter une commission",
-    description="Raccourci pour passer au statut 'rejected'"
+    description="Raccourci pour passer au statut 'rejected'",
 )
 async def reject_commission(
-    commission_id: UUID,
-    service: PaymentsService = Depends(get_payments_service)
+    commission_id: UUID, service: PaymentsService = Depends(get_payments_service)
 ):
     """
     Rejette une commission.
@@ -288,15 +268,9 @@ async def reject_commission(
             "success": success,
             "commission_id": str(commission_id),
             "status": "rejected",
-            "message": f"Commission {commission_id} rejetée"
+            "message": f"Commission {commission_id} rejetée",
         }
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(e))
     except RuntimeError as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e))

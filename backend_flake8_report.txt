@@ -1,0 +1,48 @@
+.
+[previous content truncated]...m line too long (124 > 79 characters)
+./webhook_service.py:693:1: W293 blank line contains whitespace
+./webhook_service.py:695:1: W293 blank line contains whitespace
+./webhook_service.py:696:80: E501 line too long (80 > 79 characters)
+./webhook_service.py:697:1: W293 blank line contains whitespace
+./webhook_service.py:700:1: W293 blank line contains whitespace
+./webhook_service.py:723:80: E501 line too long (94 > 79 characters)
+./webhook_service.py:726:1: W293 blank line contains whitespace
+./webhook_service.py:729:1: W293 blank line contains whitespace
+./websocket_server.py:18:1: E302 expected 2 blank lines, found 1
+./websocket_server.py:26:1: E302 expected 2 blank lines, found 1
+./websocket_server.py:30:1: W293 blank line contains whitespace
+./websocket_server.py:32:1: W293 blank line contains whitespace
+./websocket_server.py:35:28: F821 undefined name 'aiohttp'
+./websocket_server.py:38:1: W293 blank line contains whitespace
+./websocket_server.py:46:1: W293 blank line contains whitespace
+./websocket_server.py:54:1: W293 blank line contains whitespace
+./websocket_server.py:61:1: W293 blank line contains whitespace
+./websocket_server.py:67:1: W293 blank line contains whitespace
+./websocket_server.py:68:30: F821 undefined name 'aiohttp'
+./websocket_server.py:70:1: W293 blank line contains whitespace
+./websocket_server.py:78:1: W293 blank line contains whitespace
+./websocket_server.py:81:1: E302 expected 2 blank lines, found 1
+./websocket_server.py:85:1: W293 blank line contains whitespace
+./websocket_server.py:91:1: W293 blank line contains whitespace
+./websocket_server.py:100:1: W293 blank line contains whitespace
+./websocket_server.py:105:1: E302 expected 2 blank lines, found 1
+./websocket_server.py:112:1: W293 blank line contains whitespace
+./websocket_server.py:121:1: W293 blank line contains whitespace
+./websocket_server.py:126:1: E302 expected 2 blank lines, found 1
+./websocket_server.py:130:1: W293 blank line contains whitespace
+./websocket_server.py:134:80: E501 line too long (116 > 79 characters)
+./websocket_server.py:135:1: W293 blank line contains whitespace
+./websocket_server.py:148:1: W293 blank line contains whitespace
+./websocket_server.py:150:80: E501 line too long (113 > 79 characters)
+./websocket_server.py:151:1: W293 blank line contains whitespace
+./websocket_server.py:164:1: W293 blank line contains whitespace
+./websocket_server.py:166:1: W293 blank line contains whitespace
+./websocket_server.py:169:1: W293 blank line contains whitespace
+./websocket_server.py:173:1: E302 expected 2 blank lines, found 1
+./websocket_server.py:176:1: W293 blank line contains whitespace
+./websocket_server.py:186:1: W293 blank line contains whitespace
+./websocket_server.py:189:1: W293 blank line contains whitespace
+./websocket_server.py:193:1: W293 blank line contains whitespace
+./websocket_server.py:196:1: W293 blank line contains whitespace
+./websocket_server.py:199:1: E302 expected 2 blank lines, found 1
+./websocket_server.py:207:1: W293 blank line contains whitespace

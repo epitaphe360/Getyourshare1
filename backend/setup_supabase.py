@@ -37,14 +37,17 @@ print(f"📍 URL: {SUPABASE_URL}\n")
 print("📋 ÉTAPE 1: Création des tables")
 print("-" * 70)
 
+
 def read_sql_file():
     """Lit le fichier schema.sql"""
-    schema_path = os.path.join(os.path.dirname(__file__), '..', 'database', 'schema.sql')
-    with open(schema_path, 'r', encoding='utf-8') as f:
+    schema_path = os.path.join(os.path.dirname(__file__), "..", "database", "schema.sql")
+    with open(schema_path, "r", encoding="utf-8") as f:
         return f.read()
 
+
 # Pour créer les tables, on doit utiliser l'éditeur SQL de Supabase ou psycopg2
-print("""
+print(
+    """
 ⚠️  Pour créer les tables dans Supabase:
 
 Méthode 1 (Recommandée):
@@ -57,11 +60,12 @@ Méthode 2 (Avancée):
 Utilisez psycopg2 avec l'URL de connexion PostgreSQL directe.
 
 Une fois les tables créées, relancez ce script pour migrer les données.
-""")
+"""
+)
 
 response = input("\n✅ Tables créées? (o/n): ").strip().lower()
 
-if response != 'o':
+if response != "o":
     print("❌ Veuillez d'abord créer les tables dans Supabase.")
     print(f"📄 Fichier SQL: database/schema.sql")
     sys.exit(1)
@@ -72,6 +76,7 @@ if response != 'o':
 
 print("\n📋 ÉTAPE 2: Migration des utilisateurs")
 print("-" * 70)
+
 
 def migrate_users():
     """Migrer les utilisateurs MOCK vers Supabase"""
@@ -88,7 +93,7 @@ def migrate_users():
                 "phone_verified": user.get("phone_verified", False),
                 "two_fa_enabled": user.get("two_fa_enabled", False),
                 "last_login": user.get("last_login"),
-                "is_active": user.get("is_active", True)
+                "is_active": user.get("is_active", True),
             }
 
             # Insérer dans Supabase
@@ -99,6 +104,7 @@ def migrate_users():
         except Exception as e:
             print(f"  ❌ Erreur pour {user['email']}: {str(e)}")
 
+
 migrate_users()
 
 # ============================================
@@ -107,6 +113,7 @@ migrate_users()
 
 print("\n📋 ÉTAPE 3: Migration des merchants")
 print("-" * 70)
+
 
 def migrate_merchants():
     """Migrer les merchants MOCK vers Supabase"""
@@ -142,7 +149,7 @@ def migrate_merchants():
                 "subscription_plan": merchant.get("subscription_plan", "free"),
                 "commission_rate": merchant.get("commission_rate", 5.0),
                 "total_sales": merchant.get("total_sales", 0),
-                "total_commission_paid": merchant.get("total_commission_paid", 0)
+                "total_commission_paid": merchant.get("total_commission_paid", 0),
             }
 
             result = supabase.table("merchants").insert(merchant_data).execute()
@@ -150,6 +157,7 @@ def migrate_merchants():
 
         except Exception as e:
             print(f"  ❌ Erreur pour {merchant['company_name']}: {str(e)}")
+
 
 migrate_merchants()
 
@@ -159,6 +167,7 @@ migrate_merchants()
 
 print("\n📋 ÉTAPE 4: Migration des influencers")
 print("-" * 70)
+
 
 def migrate_influencers():
     """Migrer les influencers MOCK vers Supabase"""
@@ -200,7 +209,7 @@ def migrate_influencers():
                 "total_sales": influencer.get("total_sales", 0),
                 "total_earnings": influencer.get("total_earnings", 0.0),
                 "balance": influencer.get("balance", 0.0),
-                "social_links": json.dumps(influencer.get("social_links", {}))
+                "social_links": json.dumps(influencer.get("social_links", {})),
             }
 
             result = supabase.table("influencers").insert(influencer_data).execute()
@@ -208,6 +217,7 @@ def migrate_influencers():
 
         except Exception as e:
             print(f"  ❌ Erreur pour {influencer['full_name']}: {str(e)}")
+
 
 migrate_influencers()
 
@@ -217,6 +227,7 @@ migrate_influencers()
 
 print("\n📋 ÉTAPE 5: Migration des produits")
 print("-" * 70)
+
 
 def migrate_products():
     """Migrer les produits MOCK vers Supabase"""
@@ -251,7 +262,7 @@ def migrate_products():
                 "images": json.dumps(product.get("images", [])),
                 "slug": product.get("slug"),
                 "stock_quantity": product.get("stock", 0),
-                "is_available": product.get("is_available", True)
+                "is_available": product.get("is_available", True),
             }
 
             result = supabase.table("products").insert(product_data).execute()
@@ -259,6 +270,7 @@ def migrate_products():
 
         except Exception as e:
             print(f"  ❌ Erreur pour {product['name']}: {str(e)}")
+
 
 migrate_products()
 
@@ -269,11 +281,13 @@ migrate_products()
 print("\n" + "=" * 70)
 print("✅ MIGRATION TERMINÉE !")
 print("=" * 70)
-print("""
+print(
+    """
 Prochaines étapes:
 1. Vérifiez les données dans Supabase
 2. Testez l'application backend
 3. L'application utilise maintenant Supabase au lieu des données MOCK
 
 📊 Dashboard Supabase: https://iamezkmapbhlhhvvsits.supabase.co
-""")
+"""
+)

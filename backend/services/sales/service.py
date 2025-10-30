@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 
 class SalesService:
     """Service pour gérer les ventes et appeler les fonctions transactionnelles."""
-    
+
     def __init__(self):
         self.supabase = get_supabase_client()
-    
+
     async def create_sale(
         self,
         link_id: UUID,
@@ -31,11 +31,11 @@ class SalesService:
         customer_email: Optional[str] = None,
         customer_name: Optional[str] = None,
         payment_status: str = "pending",
-        status: str = "completed"
+        status: str = "completed",
     ) -> dict:
         """
         Crée une vente en appelant la fonction PL/pgSQL create_sale_transaction.
-        
+
         Args:
             link_id: ID du lien tracké
             product_id: ID du produit
@@ -48,17 +48,17 @@ class SalesService:
             customer_name: Nom du client (optionnel)
             payment_status: Statut de paiement (défaut: pending)
             status: Statut de la vente (défaut: completed)
-        
+
         Returns:
             dict: Enregistrement de la vente créée
-        
+
         Raises:
             ValueError: Si les paramètres sont invalides
             RuntimeError: Si l'appel à la fonction PL/pgSQL échoue
         """
         try:
             logger.info(f"Création vente: product={product_id}, amount={amount}")
-            
+
             # Appel de la fonction PL/pgSQL create_sale_transaction via RPC
             result = self.supabase.rpc(
                 "create_sale_transaction",
@@ -73,18 +73,18 @@ class SalesService:
                     "p_customer_email": customer_email,
                     "p_customer_name": customer_name,
                     "p_payment_status": payment_status,
-                    "p_status": status
-                }
+                    "p_status": status,
+                },
             ).execute()
-            
+
             if not result.data:
                 raise RuntimeError("La fonction create_sale_transaction n'a retourné aucune donnée")
-            
+
             sale = result.data
             logger.info(f"Vente créée avec succès: sale_id={sale.get('id')}")
-            
+
             return sale
-            
+
         except Exception as e:
             logger.error(f"Erreur lors de la création de la vente: {str(e)}")
             # Parser l'erreur PostgreSQL pour renvoyer un message plus clair
@@ -99,14 +99,14 @@ class SalesService:
                 raise ValueError(f"Incohérence des données: {error_msg}")
             else:
                 raise RuntimeError(f"Erreur lors de la création de la vente: {error_msg}")
-    
+
     async def get_sale_by_id(self, sale_id: UUID) -> Optional[dict]:
         """
         Récupère une vente par son ID.
-        
+
         Args:
             sale_id: ID de la vente
-        
+
         Returns:
             dict ou None: La vente si trouvée
         """
@@ -116,21 +116,18 @@ class SalesService:
         except Exception as e:
             logger.error(f"Erreur lors de la récupération de la vente {sale_id}: {str(e)}")
             return None
-    
+
     async def get_sales_by_influencer(
-        self,
-        influencer_id: UUID,
-        limit: int = 50,
-        offset: int = 0
+        self, influencer_id: UUID, limit: int = 50, offset: int = 0
     ) -> list[dict]:
         """
         Récupère les ventes d'un influenceur.
-        
+
         Args:
             influencer_id: ID de l'influenceur
             limit: Nombre max de résultats
             offset: Offset pour la pagination
-        
+
         Returns:
             list[dict]: Liste des ventes
         """
@@ -147,21 +144,18 @@ class SalesService:
         except Exception as e:
             logger.error(f"Erreur lors de la récupération des ventes: {str(e)}")
             return []
-    
+
     async def get_sales_by_merchant(
-        self,
-        merchant_id: UUID,
-        limit: int = 50,
-        offset: int = 0
+        self, merchant_id: UUID, limit: int = 50, offset: int = 0
     ) -> list[dict]:
         """
         Récupère les ventes d'un merchant.
-        
+
         Args:
             merchant_id: ID du merchant
             limit: Nombre max de résultats
             offset: Offset pour la pagination
-        
+
         Returns:
             list[dict]: Liste des ventes
         """
@@ -178,21 +172,18 @@ class SalesService:
         except Exception as e:
             logger.error(f"Erreur lors de la récupération des ventes: {str(e)}")
             return []
-    
+
     async def update_sale_status(
-        self,
-        sale_id: UUID,
-        status: str,
-        payment_status: Optional[str] = None
+        self, sale_id: UUID, status: str, payment_status: Optional[str] = None
     ) -> Optional[dict]:
         """
         Met à jour le statut d'une vente.
-        
+
         Args:
             sale_id: ID de la vente
             status: Nouveau statut ('pending', 'completed', 'refunded', 'cancelled')
             payment_status: Nouveau statut de paiement (optionnel)
-        
+
         Returns:
             dict ou None: La vente mise à jour
         """
@@ -202,14 +193,11 @@ class SalesService:
                 update_data["payment_status"] = payment_status
                 if payment_status == "paid":
                     update_data["payment_processed_at"] = datetime.utcnow().isoformat()
-            
+
             result = (
-                self.supabase.table("sales")
-                .update(update_data)
-                .eq("id", str(sale_id))
-                .execute()
+                self.supabase.table("sales").update(update_data).eq("id", str(sale_id)).execute()
             )
-            
+
             return result.data[0] if result.data else None
         except Exception as e:
             logger.error(f"Erreur lors de la mise à jour du statut de la vente: {str(e)}")

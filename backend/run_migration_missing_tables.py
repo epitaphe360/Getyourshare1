@@ -1,6 +1,7 @@
 """
 Script pour exécuter la migration des tables manquantes
 """
+
 import os
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -25,24 +26,20 @@ print(f"📍 URL: {SUPABASE_URL}\n")
 
 # Lire le fichier SQL
 migration_path = os.path.join(
-    os.path.dirname(__file__), 
-    '..', 
-    'database', 
-    'migrations', 
-    'add_only_missing_tables.sql'
+    os.path.dirname(__file__), "..", "database", "migrations", "add_only_missing_tables.sql"
 )
 
 print(f"📄 Lecture du fichier: {migration_path}")
 
 try:
-    with open(migration_path, 'r', encoding='utf-8') as f:
+    with open(migration_path, "r", encoding="utf-8") as f:
         sql_content = f.read()
-    
+
     print(f"✅ Fichier lu: {len(sql_content)} caractères\n")
-    
+
     print("⚠️  IMPORTANT: Ce script ne peut pas exécuter directement le SQL.")
     print("   Supabase Python SDK ne supporte pas l'exécution de DDL (CREATE TABLE).\n")
-    
+
     print("📋 INSTRUCTIONS POUR EXÉCUTER LA MIGRATION:")
     print("-" * 70)
     print("1. Ouvrez votre navigateur:")
@@ -71,11 +68,11 @@ try:
         "5. mlm_commissions        - Commissions MLM multi-niveaux",
         "6. permissions            - Permissions granulaires par rôle",
         "7. traffic_sources        - Sources de trafic UTM",
-        "8. email_templates        - Templates emails transactionnels"
+        "8. email_templates        - Templates emails transactionnels",
     ]
     for table in tables:
         print(f"   {table}")
-    
+
     print("")
     print("=" * 70)
     print("💡 ALTERNATIVE: Copier-coller manuel")
@@ -85,7 +82,7 @@ try:
     print("")
     print("Puis copiez tout le contenu et collez dans Supabase SQL Editor.")
     print("")
-    
+
 except FileNotFoundError:
     print(f"❌ ERREUR: Fichier non trouvé: {migration_path}")
     print("   Vérifiez que le fichier existe dans database/migrations/")

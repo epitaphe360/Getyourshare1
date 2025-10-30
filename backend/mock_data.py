@@ -23,7 +23,7 @@ MOCK_USERS = [
         "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Sophie",
         "is_active": True,
         "last_login": datetime.now().isoformat(),
-        "created_at": "2024-01-01T00:00:00Z"
+        "created_at": "2024-01-01T00:00:00Z",
     },
     # Merchants (Entreprises)
     {
@@ -42,7 +42,7 @@ MOCK_USERS = [
         "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Jean",
         "is_active": True,
         "last_login": datetime.now().isoformat(),
-        "created_at": "2024-01-15T00:00:00Z"
+        "created_at": "2024-01-15T00:00:00Z",
     },
     {
         "id": "user_merchant_2",
@@ -58,7 +58,7 @@ MOCK_USERS = [
         "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Marie",
         "is_active": True,
         "last_login": datetime.now().isoformat(),
-        "created_at": "2024-02-01T00:00:00Z"
+        "created_at": "2024-02-01T00:00:00Z",
     },
     # Influencers
     {
@@ -75,7 +75,7 @@ MOCK_USERS = [
         "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Emma",
         "is_active": True,
         "last_login": datetime.now().isoformat(),
-        "created_at": "2024-02-10T00:00:00Z"
+        "created_at": "2024-02-10T00:00:00Z",
     },
     {
         "id": "user_influencer_2",
@@ -91,7 +91,7 @@ MOCK_USERS = [
         "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Lucas",
         "is_active": True,
         "last_login": datetime.now().isoformat(),
-        "created_at": "2024-02-15T00:00:00Z"
+        "created_at": "2024-02-15T00:00:00Z",
     },
     {
         "id": "user_influencer_3",
@@ -107,7 +107,7 @@ MOCK_USERS = [
         "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Julie",
         "is_active": True,
         "last_login": datetime.now().isoformat(),
-        "created_at": "2024-03-01T00:00:00Z"
+        "created_at": "2024-03-01T00:00:00Z",
     },
     # Test user without 2FA
     {
@@ -124,8 +124,8 @@ MOCK_USERS = [
         "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Test",
         "is_active": True,
         "last_login": datetime.now().isoformat(),
-        "created_at": "2024-03-01T00:00:00Z"
-    }
+        "created_at": "2024-03-01T00:00:00Z",
+    },
 ]
 
 # ============================================
@@ -151,7 +151,7 @@ MOCK_MERCHANTS = [
         "active_campaigns": 8,
         "affiliates_count": 23,
         "created_at": "2024-01-15T10:00:00Z",
-        "updated_at": datetime.now().isoformat()
+        "updated_at": datetime.now().isoformat(),
     },
     {
         "id": "merchant_2",
@@ -172,7 +172,7 @@ MOCK_MERCHANTS = [
         "active_campaigns": 3,
         "affiliates_count": 12,
         "created_at": "2024-02-01T14:30:00Z",
-        "updated_at": datetime.now().isoformat()
+        "updated_at": datetime.now().isoformat(),
     },
     {
         "id": "merchant_3",
@@ -193,8 +193,8 @@ MOCK_MERCHANTS = [
         "active_campaigns": 12,
         "affiliates_count": 45,
         "created_at": "2023-11-20T09:00:00Z",
-        "updated_at": datetime.now().isoformat()
-    }
+        "updated_at": datetime.now().isoformat(),
+    },
 ]
 
 # ============================================
@@ -218,7 +218,7 @@ MOCK_INFLUENCERS = [
         "social_links": {
             "instagram": "https://instagram.com/emma_style_paris",
             "tiktok": "https://tiktok.com/@emmastyle",
-            "youtube": "https://youtube.com/@emmastyleParis"
+            "youtube": "https://youtube.com/@emmastyleParis",
         },
         "total_clicks": 12450,
         "total_sales": 186,
@@ -227,7 +227,7 @@ MOCK_INFLUENCERS = [
         "payment_method": "PayPal",
         "payment_details": {"email": "emma.payments@gmail.com"},
         "created_at": "2024-02-10T11:00:00Z",
-        "updated_at": datetime.now().isoformat()
+        "updated_at": datetime.now().isoformat(),
     },
     {
         "id": "influencer_2",
@@ -246,7 +246,7 @@ MOCK_INFLUENCERS = [
         "social_links": {
             "youtube": "https://youtube.com/@lucastechreviews",
             "instagram": "https://instagram.com/lucas.tech",
-            "twitter": "https://twitter.com/lucastech"
+            "twitter": "https://twitter.com/lucastech",
         },
         "total_clicks": 18950,
         "total_sales": 312,
@@ -255,7 +255,7 @@ MOCK_INFLUENCERS = [
         "payment_method": "Bank Transfer",
         "payment_details": {"iban": "FR76****1234"},
         "created_at": "2024-02-15T15:30:00Z",
-        "updated_at": datetime.now().isoformat()
+        "updated_at": datetime.now().isoformat(),
     },
     {
         "id": "influencer_3",
@@ -274,7 +274,7 @@ MOCK_INFLUENCERS = [
         "social_links": {
             "tiktok": "https://tiktok.com/@juliebeautytips",
             "instagram": "https://instagram.com/julie.beauty",
-            "youtube": "https://youtube.com/@juliebeauty"
+            "youtube": "https://youtube.com/@juliebeauty",
         },
         "total_clicks": 5680,
         "total_sales": 94,
@@ -283,8 +283,8 @@ MOCK_INFLUENCERS = [
         "payment_method": "PayPal",
         "payment_details": {"email": "julie.beauty@gmail.com"},
         "created_at": "2024-03-01T10:00:00Z",
-        "updated_at": datetime.now().isoformat()
-    }
+        "updated_at": datetime.now().isoformat(),
+    },
 ]
 
 # ============================================
@@ -304,14 +304,14 @@ MOCK_PRODUCTS = [
         "commission_type": "percentage",
         "images": [
             "https://via.placeholder.com/600x400/4F46E5/FFFFFF?text=SmartWatch+Pro",
-            "https://via.placeholder.com/600x400/4F46E5/FFFFFF?text=Side+View"
+            "https://via.placeholder.com/600x400/4F46E5/FFFFFF?text=Side+View",
         ],
         "videos": [],
         "specifications": {
             "brand": "TechStyle",
             "model": "SW-Pro-2024",
             "color": "Noir",
-            "features": ["GPS", "Cardio", "SpO2", "Étanche 50m"]
+            "features": ["GPS", "Cardio", "SpO2", "Étanche 50m"],
         },
         "stock_quantity": 150,
         "is_available": True,
@@ -319,7 +319,7 @@ MOCK_PRODUCTS = [
         "total_views": 3250,
         "total_clicks": 890,
         "total_sales": 124,
-        "created_at": "2024-01-20T10:00:00Z"
+        "created_at": "2024-01-20T10:00:00Z",
     },
     {
         "id": "prod_2",
@@ -334,14 +334,14 @@ MOCK_PRODUCTS = [
         "commission_type": "percentage",
         "images": [
             "https://via.placeholder.com/600x400/EC4899/FFFFFF?text=Serum+Vitamine+C",
-            "https://via.placeholder.com/600x400/EC4899/FFFFFF?text=Product+Details"
+            "https://via.placeholder.com/600x400/EC4899/FFFFFF?text=Product+Details",
         ],
         "videos": [],
         "specifications": {
             "brand": "BeautyPro",
             "volume": "30ml",
             "type": "Sérum facial",
-            "ingredients": ["Vitamine C", "Acide hyaluronique", "Aloe vera"]
+            "ingredients": ["Vitamine C", "Acide hyaluronique", "Aloe vera"],
         },
         "stock_quantity": 320,
         "is_available": True,
@@ -349,7 +349,7 @@ MOCK_PRODUCTS = [
         "total_views": 4580,
         "total_clicks": 1240,
         "total_sales": 186,
-        "created_at": "2024-02-05T14:00:00Z"
+        "created_at": "2024-02-05T14:00:00Z",
     },
     {
         "id": "prod_3",
@@ -362,15 +362,13 @@ MOCK_PRODUCTS = [
         "currency": "EUR",
         "commission_rate": 18.0,
         "commission_type": "percentage",
-        "images": [
-            "https://via.placeholder.com/600x400/10B981/FFFFFF?text=Yoga+Mat+Premium"
-        ],
+        "images": ["https://via.placeholder.com/600x400/10B981/FFFFFF?text=Yoga+Mat+Premium"],
         "videos": [],
         "specifications": {
             "brand": "FitGear",
             "dimensions": "183cm x 61cm x 6mm",
             "material": "TPE écologique",
-            "color": "Violet"
+            "color": "Violet",
         },
         "stock_quantity": 200,
         "is_available": True,
@@ -378,8 +376,8 @@ MOCK_PRODUCTS = [
         "total_views": 2890,
         "total_clicks": 680,
         "total_sales": 98,
-        "created_at": "2024-01-10T09:00:00Z"
-    }
+        "created_at": "2024-01-10T09:00:00Z",
+    },
 ]
 
 # ============================================
@@ -400,7 +398,7 @@ MOCK_AFFILIATE_LINKS = [
         "revenue": 37198.76,
         "commission_earned": 5579.81,
         "status": "active",
-        "created_at": "2024-02-12T10:00:00Z"
+        "created_at": "2024-02-12T10:00:00Z",
     },
     {
         "id": "link_2",
@@ -416,7 +414,7 @@ MOCK_AFFILIATE_LINKS = [
         "revenue": 9281.40,
         "commission_earned": 1856.28,
         "status": "active",
-        "created_at": "2024-03-05T11:00:00Z"
+        "created_at": "2024-03-05T11:00:00Z",
     },
     {
         "id": "link_3",
@@ -432,8 +430,8 @@ MOCK_AFFILIATE_LINKS = [
         "revenue": 93596.88,
         "commission_earned": 14039.53,
         "status": "active",
-        "created_at": "2024-02-18T15:00:00Z"
-    }
+        "created_at": "2024-02-18T15:00:00Z",
+    },
 ]
 
 # ============================================
@@ -450,8 +448,8 @@ SUBSCRIPTION_PLANS = {
                 "user_accounts": 1,
                 "trackable_links_per_month": 10,
                 "reports": "Basique",
-                "support": "Email"
-            }
+                "support": "Email",
+            },
         },
         {
             "id": "plan_merchant_starter",
@@ -462,8 +460,8 @@ SUBSCRIPTION_PLANS = {
                 "user_accounts": 5,
                 "trackable_links_per_month": 100,
                 "reports": "Avancé",
-                "support": "Email + Chat"
-            }
+                "support": "Email + Chat",
+            },
         },
         {
             "id": "plan_merchant_pro",
@@ -475,8 +473,8 @@ SUBSCRIPTION_PLANS = {
                 "trackable_links_per_month": 500,
                 "reports": "IA Marketing",
                 "ai_tools": True,
-                "support": "Prioritaire"
-            }
+                "support": "Prioritaire",
+            },
         },
         {
             "id": "plan_merchant_enterprise",
@@ -489,9 +487,9 @@ SUBSCRIPTION_PLANS = {
                 "reports": "Personnalisé",
                 "ai_tools": True,
                 "dedicated_manager": True,
-                "support": "24/7 Dédié"
-            }
-        }
+                "support": "24/7 Dédié",
+            },
+        },
     ],
     "influencers": [
         {
@@ -503,8 +501,8 @@ SUBSCRIPTION_PLANS = {
                 "ai_tools": "Recommandation",
                 "campaigns_per_month": 3,
                 "payments": "Mensuel",
-                "analytics": "Basique"
-            }
+                "analytics": "Basique",
+            },
         },
         {
             "id": "plan_influencer_pro",
@@ -516,10 +514,10 @@ SUBSCRIPTION_PLANS = {
                 "campaigns_per_month": "Illimité",
                 "payments": "Instantané (+ 1% frais)",
                 "analytics": "Avancé",
-                "priority_support": True
-            }
-        }
-    ]
+                "priority_support": True,
+            },
+        },
+    ],
 }
 
 # ============================================
@@ -531,27 +529,24 @@ MOCK_AI_CONTENT_TEMPLATES = [
         "type": "social_post",
         "platform": "Instagram",
         "tone": "friendly",
-        "generated_text": "🌟 Découvrez notre nouvelle collection ! Des pièces uniques qui vont transformer votre garde-robe 💫 Cliquez sur le lien dans ma bio pour en savoir plus ! #Fashion #Style #NewCollection"
+        "generated_text": "🌟 Découvrez notre nouvelle collection ! Des pièces uniques qui vont transformer votre garde-robe 💫 Cliquez sur le lien dans ma bio pour en savoir plus ! #Fashion #Style #NewCollection",
     },
     {
         "id": "ai_template_2",
         "type": "email",
         "subject": "Offre exclusive pour vous !",
         "tone": "professional",
-        "generated_text": "Bonjour,\n\nNous avons le plaisir de vous présenter notre nouvelle collection exclusive. Profitez de -20% avec le code WELCOME20.\n\nCordialement,\nL'équipe"
-    }
+        "generated_text": "Bonjour,\n\nNous avons le plaisir de vous présenter notre nouvelle collection exclusive. Profitez de -20% avec le code WELCOME20.\n\nCordialement,\nL'équipe",
+    },
 ]
 
 MOCK_AI_PREDICTIONS = {
-    "sales_forecast": {
-        "next_month": 45000,
-        "next_quarter": 135000,
-        "confidence": 85.5
-    },
+    "sales_forecast": {"next_month": 45000, "next_quarter": 135000, "confidence": 85.5},
     "best_performing_products": ["prod_1", "prod_2"],
     "recommended_influencers": ["influencer_1", "influencer_2"],
-    "optimal_posting_times": ["18:00-20:00", "12:00-14:00"]
+    "optimal_posting_times": ["18:00-20:00", "12:00-14:00"],
 }
+
 
 # ============================================
 # 2FA MOCK DATA
@@ -560,19 +555,21 @@ def generate_2fa_code():
     """Génère un code 2FA à 6 chiffres"""
     return str(random.randint(100000, 999999))
 
+
 MOCK_2FA_CODES = {
     # For testing: email -> code
     "admin@shareyoursales.com": "123456",
     "contact@techstyle.fr": "234567",
-    "emma.style@instagram.com": "345678"
+    "emma.style@instagram.com": "345678",
 }
+
 
 # ============================================
 # DASHBOARD STATS
 # ============================================
 def get_dashboard_stats(user_role, user_id=None):
     """Retourne les stats du dashboard selon le rôle"""
-    
+
     if user_role == "admin":
         return {
             "total_merchants": len(MOCK_MERCHANTS),
@@ -585,9 +582,9 @@ def get_dashboard_stats(user_role, user_id=None):
             "total_conversions": sum(link["conversions"] for link in MOCK_AFFILIATE_LINKS),
             "average_conversion_rate": 14.48,
             "monthly_revenue": 145000.00,
-            "monthly_growth": 12.5
+            "monthly_growth": 12.5,
         }
-    
+
     elif user_role == "merchant":
         merchant = next((m for m in MOCK_MERCHANTS if m["user_id"] == user_id), MOCK_MERCHANTS[0])
         return {
@@ -598,35 +595,42 @@ def get_dashboard_stats(user_role, user_id=None):
             "affiliates_count": merchant["affiliates_count"],
             "monthly_revenue": merchant["total_sales"] * 0.3,  # 30% du total
             "monthly_growth": 8.5,
-            "roi": 320.5
+            "roi": 320.5,
         }
-    
+
     elif user_role == "influencer":
-        influencer = next((i for i in MOCK_INFLUENCERS if i["user_id"] == user_id), MOCK_INFLUENCERS[0])
+        influencer = next(
+            (i for i in MOCK_INFLUENCERS if i["user_id"] == user_id), MOCK_INFLUENCERS[0]
+        )
         return {
             "total_clicks": influencer["total_clicks"],
             "total_sales": influencer["total_sales"],
             "total_earnings": influencer["total_earnings"],
             "balance": influencer["balance"],
             "engagement_rate": influencer["engagement_rate"],
-            "conversion_rate": (influencer["total_sales"] / influencer["total_clicks"] * 100) if influencer["total_clicks"] > 0 else 0,
+            "conversion_rate": (
+                (influencer["total_sales"] / influencer["total_clicks"] * 100)
+                if influencer["total_clicks"] > 0
+                else 0
+            ),
             "monthly_earnings": influencer["total_earnings"] * 0.25,  # 25% du total
-            "pending_payment": influencer["balance"]
+            "pending_payment": influencer["balance"],
         }
-    
+
     return {}
+
 
 # Export all mock data
 __all__ = [
-    'MOCK_USERS',
-    'MOCK_MERCHANTS',
-    'MOCK_INFLUENCERS',
-    'MOCK_PRODUCTS',
-    'MOCK_AFFILIATE_LINKS',
-    'SUBSCRIPTION_PLANS',
-    'MOCK_AI_CONTENT_TEMPLATES',
-    'MOCK_AI_PREDICTIONS',
-    'MOCK_2FA_CODES',
-    'generate_2fa_code',
-    'get_dashboard_stats'
+    "MOCK_USERS",
+    "MOCK_MERCHANTS",
+    "MOCK_INFLUENCERS",
+    "MOCK_PRODUCTS",
+    "MOCK_AFFILIATE_LINKS",
+    "SUBSCRIPTION_PLANS",
+    "MOCK_AI_CONTENT_TEMPLATES",
+    "MOCK_AI_PREDICTIONS",
+    "MOCK_2FA_CODES",
+    "generate_2fa_code",
+    "get_dashboard_stats",
 ]
