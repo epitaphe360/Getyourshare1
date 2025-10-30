@@ -206,7 +206,7 @@ const ProductsListPage = () => {
           <h1 className="text-3xl font-bold">Produits</h1>
           <p className="text-gray-600 mt-1">Gérez votre catalogue de produits</p>
         </div>
-        <Button onClick={() => navigate('/products/create')}>
+        <Button disabled={loading} onClick={() => navigate('/products/create')}>
           <Plus size={20} className="mr-2" />
           Ajouter un produit
         </Button>

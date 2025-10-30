@@ -329,7 +329,7 @@ const MessagingPage = () => {
                     <p>• Posez vos questions sur les campagnes</p>
                     <p>• Négociez vos conditions de collaboration</p>
                     <div className="mt-4">
-                      <Button onClick={() => navigate('/marketplace')}>
+                      <Button disabled={loading} onClick={() => navigate('/marketplace')}>
                         Découvrir les Campagnes
                       </Button>
                     </div>

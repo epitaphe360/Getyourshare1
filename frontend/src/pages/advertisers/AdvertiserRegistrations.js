@@ -66,10 +66,10 @@ const AdvertiserRegistrations = () => {
       accessor: 'actions',
       render: (row) => (
         <div className="flex space-x-2">
-          <Button size="sm" variant="success" onClick={() => handleApprove(row.id)}>
+          <Button size="sm" variant="success" disabled={loading} onClick={() => handleApprove(row.id)}>
             <Check size={16} />
           </Button>
-          <Button size="sm" variant="danger" onClick={() => handleReject(row.id)}>
+          <Button size="sm" variant="danger" disabled={loading} onClick={() => handleReject(row.id)}>
             <X size={16} />
           </Button>
         </div>

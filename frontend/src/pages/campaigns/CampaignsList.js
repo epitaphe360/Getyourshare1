@@ -137,7 +137,7 @@ const CampaignsList = () => {
           <h1 className="text-3xl font-bold text-gray-900">Campagnes</h1>
           <p className="text-gray-600 mt-2">Gérez vos campagnes marketing</p>
         </div>
-        <Button onClick={() => navigate('/campaigns/create')} data-testid="create-campaign-btn">
+        <Button disabled={loading} onClick={() => navigate('/campaigns/create')} data-testid="create-campaign-btn">
           <Plus size={20} className="mr-2" />
           Nouvelle Campagne
         </Button>

@@ -149,10 +149,10 @@ const LandingPage = () => {
               <a href="#features" className="text-gray-700 hover:text-blue-600 transition-colors">Fonctionnalités</a>
               <a href="#pricing" className="text-gray-700 hover:text-blue-600 transition-colors">Tarifs</a>
               <a href="#about" className="text-gray-700 hover:text-blue-600 transition-colors">À Propos</a>
-              <Button variant="outline" onClick={() => navigate('/login')}>
+              <Button variant="outline" disabled={loading} onClick={() => navigate('/login')}>
                 Se Connecter
               </Button>
-              <Button onClick={() => navigate('/login')}>
+              <Button disabled={loading} onClick={() => navigate('/login')}>
                 Commencer Gratuitement
               </Button>
             </div>
@@ -201,7 +201,7 @@ const LandingPage = () => {
               Transformez vos interactions en opportunités de croissance.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button size="lg" onClick={() => navigate('/login')} className="text-lg px-8 py-4">
+              <Button size="lg" disabled={loading} onClick={() => navigate('/login')} className="text-lg px-8 py-4">
                 Démarrer Maintenant
                 <ArrowRight className="ml-2" size={20} />
               </Button>
@@ -259,7 +259,7 @@ const LandingPage = () => {
                   </div>
                 ))}
               </div>
-              <Button size="lg" variant="secondary" className="mt-8" onClick={() => navigate('/login')}>
+              <Button size="lg" variant="secondary" className="mt-8" disabled={loading} onClick={() => navigate('/login')}>
                 Commencer Gratuitement
               </Button>
             </div>
@@ -339,10 +339,10 @@ const LandingPage = () => {
             Rejoignez des centaines d'entreprises qui font confiance à ShareYourSales pour gérer leurs affiliés
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" variant="secondary" className="text-lg px-8 py-4" onClick={() => navigate('/login')}>
+            <Button size="lg" variant="secondary" className="text-lg px-8 py-4" disabled={loading} onClick={() => navigate('/login')}>
               Essai Gratuit 14 Jours
             </Button>
-            <Button size="lg" variant="outline" className="text-lg px-8 py-4 text-white border-white hover:bg-white hover:text-blue-600">
+            <Button size="lg" variant="outline" className="text-lg px-8 py-4 text-white border-white hover:bg-white hover:text-blue-600" disabled={loading}>
                 Parler à un Expert
             </Button>
           </div>
@@ -388,7 +388,7 @@ const LandingPage = () => {
                 <li><a href="#" className="hover:text-white">Confidentialité</a></li>
                 <li><a href="#" className="hover:text-white">Conditions</a></li>
                 <li><a href="#" className="hover:text-white">Cookies</a></li>
-                <li><button onClick={() => navigate('/contact')} className="hover:text-white">Contact</button></li>
+                <li><button disabled={loading} onClick={() => navigate('/contact')} className="hover:text-white">Contact</button></li>
               </ul>
             </div>
           </div>

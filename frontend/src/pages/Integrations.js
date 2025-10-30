@@ -168,10 +168,10 @@ const Integrations = () => {
             </div>
 
             <div className="flex justify-end space-x-2">
-              <Button variant="secondary" onClick={() => setIsModalOpen(false)}>
+              <Button variant="secondary" disabled={loading} onClick={() => setIsModalOpen(false)}>
                 Annuler
               </Button>
-              <Button onClick={() => setIsModalOpen(false)}>
+              <Button disabled={loading} onClick={() => setIsModalOpen(false)}>
                 Enregistrer
               </Button>
             </div>

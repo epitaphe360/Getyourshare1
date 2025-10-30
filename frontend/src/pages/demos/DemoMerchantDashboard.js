@@ -54,7 +54,7 @@ const DemoMerchantDashboard = () => {
             <Eye size={20} />
             <span className="font-semibold">Mode Démo - Données fictives</span>
           </div>
-          <Button variant="outline" size="sm" className="bg-white text-green-600 hover:bg-green-50" onClick={() => navigate('/demo')}>
+          <Button variant="outline" size="sm" className="bg-white text-green-600 hover:bg-green-50" disabled={loading} onClick={() => navigate('/demo')}>
             <ArrowLeft size={16} className="mr-2" />
             Retour
           </Button>
@@ -218,10 +218,10 @@ const DemoMerchantDashboard = () => {
             Rejoignez les centaines de marchands qui utilisent ShareYourSales pour générer un ROI de 300%+ grâce au marketing d'affiliation
           </p>
           <div className="flex gap-4 justify-center">
-            <Button size="lg" className="bg-white text-green-600 hover:bg-green-50" onClick={() => navigate('/register')}>
+            <Button size="lg" className="bg-white text-green-600 hover:bg-green-50" disabled={loading} onClick={() => navigate('/register')}>
               Commencer gratuitement
             </Button>
-            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10" onClick={() => navigate('/pricing')}>
+            <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10" disabled={loading} onClick={() => navigate('/pricing')}>
               Voir les tarifs
             </Button>
           </div>

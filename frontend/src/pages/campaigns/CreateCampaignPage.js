@@ -115,7 +115,7 @@ const CreateCampaignPage = () => {
             <p className="text-gray-600 mb-6">
               Votre campagne "{formData.name}" est maintenant active et visible par les influenceurs.
             </p>
-            <Button onClick={() => navigate('/campaigns')}>
+            <Button disabled={loading} onClick={() => navigate('/campaigns')}>
               Voir mes campagnes
             </Button>
           </div>
@@ -480,7 +480,7 @@ const CreateCampaignPage = () => {
                 <Button type="submit" disabled={loading}>
                   {loading ? 'Création...' : '✨ Créer la campagne'}
                 </Button>
-                <Button type="button" variant="secondary" onClick={() => navigate('/campaigns')}>
+                <Button type="button" variant="secondary" disabled={loading} onClick={() => navigate('/campaigns')}>
                   Annuler
                 </Button>
               </div>
