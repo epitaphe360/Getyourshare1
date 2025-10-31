@@ -5,7 +5,7 @@ import { Mail, Eye } from 'lucide-react';
 
 const Emails = () => {
   const emailTemplates = [
-    { id: 1, name: 'Bienvenue Affilié', subject: 'Bienvenue sur Share Your Sales!', status: 'active' },
+    { id: 1, name: 'Bienvenue Affilié', subject: 'Bienvenue sur ShareYourSales!', status: 'active' },
     { id: 2, name: 'Approbation Affilié', subject: 'Votre compte a été approuvé', status: 'active' },
     { id: 3, name: 'Nouvelle Conversion', subject: 'Nouvelle conversion enregistrée', status: 'active' },
     { id: 4, name: 'Paiement Traité', subject: 'Votre paiement a été traité', status: 'active' },

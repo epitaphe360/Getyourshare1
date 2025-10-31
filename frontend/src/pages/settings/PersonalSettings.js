@@ -1,66 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { User, Mail, Phone, Globe } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 
 const PersonalSettings = () => {
   const { user } = useAuth();
-  const [loading, setLoading] = useState(false);
+  const toast = useToast();
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
   const [formData, setFormData] = useState({
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
+    first_name: user?.first_name || '',
+    last_name: user?.last_name || '',
+    email: user?.email || '',
+    phone: user?.phone || '',
     timezone: 'Europe/Paris',
     language: 'fr',
   });
 
-  // Charger les paramètres au montage du composant
-  useEffect(() => {
-    loadPersonalSettings();
-  }, []);
-
-  const loadPersonalSettings = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get('/api/settings/personal');
-      setFormData({
-        first_name: response.data.first_name || '',
-        last_name: response.data.last_name || '',
-        email: response.data.email || '',
-        phone: response.data.phone || '',
-        timezone: response.data.timezone || 'Europe/Paris',
-        language: response.data.language || 'fr',
-      });
-    } catch (error) {
-      console.error('Erreur chargement paramètres:', error);
-      setMessage({ type: 'error', text: 'Erreur lors du chargement des paramètres' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setMessage({ type: '', text: '' });
-
     try {
-      const response = await api.put('/api/settings/personal', formData);
-      setMessage({ type: 'success', text: '✅ Paramètres enregistrés avec succès !' });
-      
-      // Masquer le message après 3 secondes
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      await api.put(`/api/users/${user.id}`, formData);
+      toast.success('Profil mis à jour avec succès');
+      // Note: You may want to update the AuthContext with the new user data
     } catch (error) {
-      console.error('Erreur sauvegarde:', error);
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.detail || '❌ Erreur lors de l\'enregistrement' 
-      });
+      console.error('Error updating profile:', error);
+      toast.error('Erreur lors de la mise à jour du profil');
     } finally {
       setSaving(false);
     }
@@ -73,25 +41,7 @@ const PersonalSettings = () => {
         <p className="text-gray-600 mt-2">Gérez vos informations personnelles</p>
       </div>
 
-      {/* Message de feedback */}
-      {message.text && (
-        <div className={`p-4 rounded-lg ${
-          message.type === 'success' 
-            ? 'bg-green-50 border border-green-200 text-green-800' 
-            : 'bg-red-50 border border-red-200 text-red-800'
-        }`}>
-          {message.text}
-        </div>
-      )}
-
-      {loading ? (
-        <Card>
-          <div className="flex justify-center items-center py-12">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-          </div>
-        </Card>
-      ) : (
-        <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit}>
         <Card title="Informations Générales">
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -190,13 +140,12 @@ const PersonalSettings = () => {
 
             <div className="flex justify-end">
               <Button type="submit" disabled={saving}>
-                {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                {saving ? 'Sauvegarde...' : 'Enregistrer les modifications'}
               </Button>
             </div>
           </div>
         </Card>
       </form>
-      )}
     </div>
   );
 };
