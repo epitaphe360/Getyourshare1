@@ -179,7 +179,7 @@ const AdminSocialDashboard = () => {
   };
 
   const handleDeletePost = async (postId) => {
-    if (!confirm('Êtes-vous sûr de vouloir archiver ce post?')) return;
+    if (!window.confirm('Êtes-vous sûr de vouloir archiver ce post?')) return;
 
     try {
       const response = await api.delete(`/api/admin/social/posts/${postId}`);

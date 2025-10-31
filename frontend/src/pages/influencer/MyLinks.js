@@ -81,7 +81,7 @@ const MyLinks = () => {
   };
 
   const handleDeleteLink = async (linkId) => {
-    if (!confirm('Êtes-vous sûr de vouloir désactiver ce lien?')) {
+    if (!window.confirm('Êtes-vous sûr de vouloir désactiver ce lien?')) {
       return;
     }
 
