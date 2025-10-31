@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { useI18n } from '../../i18n/i18n';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
 import EmptyState from '../../components/common/EmptyState';
 import Modal from '../../components/common/Modal';
+import MobilePaymentWidget from '../../components/payments/MobilePaymentWidget';
 import {
   DollarSign, MousePointer, ShoppingCart, TrendingUp,
   Eye, Target, Award, Link as LinkIcon, Sparkles, RefreshCw, X, Send, BarChart3, Wallet
@@ -20,6 +22,7 @@ const InfluencerDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const toast = useToast();
+  const { t } = useI18n();
   const [stats, setStats] = useState(null);
   const [links, setLinks] = useState([]);
   const [earningsData, setEarningsData] = useState([]);
@@ -28,6 +31,7 @@ const InfluencerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showPayoutModal, setShowPayoutModal] = useState(false);
+  const [showMobilePaymentModal, setShowMobilePaymentModal] = useState(false);
   const [payoutAmount, setPayoutAmount] = useState('');
   const [payoutMethod, setPayoutMethod] = useState('bank_transfer');
   const [payoutSubmitting, setPayoutSubmitting] = useState(false);
@@ -130,6 +134,13 @@ const InfluencerDashboard = () => {
         return;
       }
 
+      // Si paiement mobile marocain, ouvrir le widget mobile
+      if (payoutMethod === 'mobile_payment_ma') {
+        setShowPayoutModal(false);
+        setShowMobilePaymentModal(true);
+        return;
+      }
+
       // Créer la demande de payout
       const response = await api.post('/api/payouts/request', {
         amount,
@@ -149,6 +160,17 @@ const InfluencerDashboard = () => {
     } finally {
       setPayoutSubmitting(false);
     }
+  };
+
+  const handleMobilePaymentSuccess = (result) => {
+    toast.success(t('payment_success') || 'Paiement mobile réussi!');
+    setShowMobilePaymentModal(false);
+    setPayoutAmount('');
+    fetchData(); // Rafraîchir les données
+  };
+
+  const handleMobilePaymentError = (error) => {
+    toast.error(error || 'Erreur lors du paiement mobile');
   };
 
   const handleCopyLink = (link) => {
@@ -420,8 +442,8 @@ const InfluencerDashboard = () => {
       </div>
 
       {/* Payout Modal */}
-      <Modal 
-        isOpen={showPayoutModal} 
+      <Modal
+        isOpen={showPayoutModal}
         onClose={() => setShowPayoutModal(false)}
         title="Demander un Paiement"
       >
@@ -457,6 +479,7 @@ const InfluencerDashboard = () => {
             >
               <option value="bank_transfer">Virement Bancaire (SEPA)</option>
               <option value="paypal">PayPal</option>
+              <option value="mobile_payment_ma">💵 Paiement Mobile Maroc (Cash Plus, Orange Money, etc.)</option>
             </select>
           </div>
           <div className="flex justify-end space-x-3 pt-4">
@@ -475,6 +498,20 @@ const InfluencerDashboard = () => {
             </button>
           </div>
         </div>
+      </Modal>
+
+      {/* Mobile Payment Modal (Morocco) */}
+      <Modal
+        isOpen={showMobilePaymentModal}
+        onClose={() => setShowMobilePaymentModal(false)}
+        title={t('payment_mobile_title') || 'Paiements Mobile Maroc'}
+        size="large"
+      >
+        <MobilePaymentWidget
+          user={user}
+          onSuccess={handleMobilePaymentSuccess}
+          onError={handleMobilePaymentError}
+        />
       </Modal>
     </div>
   );
