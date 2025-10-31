@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 
 const Permissions = () => {
-  const [loading, setLoading] = useState(false);
+  const toast = useToast();
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
   const [permissions, setPermissions] = useState({
     visible_screens: {
       performance: true,
@@ -29,28 +29,6 @@ const Permissions = () => {
     },
   });
 
-  useEffect(() => {
-    loadPermissions();
-  }, []);
-
-  const loadPermissions = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get('/api/settings/permissions');
-      if (response.data) {
-        setPermissions({
-          visible_screens: response.data.visible_screens || permissions.visible_screens,
-          visible_fields: response.data.visible_fields || permissions.visible_fields,
-          authorized_actions: response.data.authorized_actions || permissions.authorized_actions,
-        });
-      }
-    } catch (error) {
-      console.error('Erreur chargement permissions:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleToggle = (category, key) => {
     setPermissions({
       ...permissions,
@@ -64,32 +42,16 @@ const Permissions = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setMessage({ type: '', text: '' });
-
     try {
-      await api.put('/api/settings/permissions', permissions);
-      setMessage({ type: 'success', text: '✅ Permissions enregistrées avec succès !' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      await api.post('/api/settings/permissions', permissions);
+      toast.success('Permissions sauvegardées avec succès');
     } catch (error) {
-      console.error('Erreur sauvegarde permissions:', error);
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.detail || '❌ Erreur lors de l\'enregistrement' 
-      });
+      console.error('Error saving permissions:', error);
+      toast.error('Erreur lors de la sauvegarde des permissions');
     } finally {
       setSaving(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6" data-testid="permissions">
@@ -97,16 +59,6 @@ const Permissions = () => {
         <h1 className="text-3xl font-bold text-gray-900">Permissions par Défaut</h1>
         <p className="text-gray-600 mt-2">Définissez les permissions par défaut des affiliés</p>
       </div>
-
-      {message.text && (
-        <div className={`p-4 rounded-lg ${
-          message.type === 'success' 
-            ? 'bg-green-50 text-green-800 border border-green-200' 
-            : 'bg-red-50 text-red-800 border border-red-200'
-        }`}>
-          {message.text}
-        </div>
-      )}
 
       <form onSubmit={handleSubmit}>
         <div className="space-y-6">
@@ -169,7 +121,7 @@ const Permissions = () => {
 
           <div className="flex justify-end">
             <Button type="submit" disabled={saving}>
-              {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+              {saving ? 'Sauvegarde...' : 'Enregistrer les modifications'}
             </Button>
           </div>
         </div>

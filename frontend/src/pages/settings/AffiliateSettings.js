@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 
 const AffiliateSettings = () => {
-  const [loading, setLoading] = useState(false);
+  const toast = useToast();
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
   const [settings, setSettings] = useState({
     min_withdrawal: 50,
     auto_approval: false,
@@ -15,57 +15,19 @@ const AffiliateSettings = () => {
     single_campaign_mode: false,
   });
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get('/api/settings/affiliate');
-      setSettings({
-        min_withdrawal: response.data.min_withdrawal || 50,
-        auto_approval: response.data.auto_approval || false,
-        email_verification: response.data.email_verification || true,
-        payment_mode: response.data.payment_mode || 'on_demand',
-        single_campaign_mode: response.data.single_campaign_mode || false,
-      });
-    } catch (error) {
-      console.error('Erreur chargement settings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setMessage({ type: '', text: '' });
-
     try {
-      await api.put('/api/settings/affiliate', settings);
-      setMessage({ type: 'success', text: '✅ Paramètres enregistrés avec succès !' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      await api.post('/api/settings/affiliate', settings);
+      toast.success('Paramètres des affiliés sauvegardés avec succès');
     } catch (error) {
-      console.error('Erreur sauvegarde settings:', error);
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.detail || '❌ Erreur lors de l\'enregistrement' 
-      });
+      console.error('Error saving affiliate settings:', error);
+      toast.error('Erreur lors de la sauvegarde des paramètres');
     } finally {
       setSaving(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6" data-testid="affiliate-settings">
@@ -73,16 +35,6 @@ const AffiliateSettings = () => {
         <h1 className="text-3xl font-bold text-gray-900">Paramètres des Affiliés</h1>
         <p className="text-gray-600 mt-2">Configurez le comportement des affiliés</p>
       </div>
-
-      {message.text && (
-        <div className={`p-4 rounded-lg ${
-          message.type === 'success' 
-            ? 'bg-green-50 text-green-800 border border-green-200' 
-            : 'bg-red-50 text-red-800 border border-red-200'
-        }`}>
-          {message.text}
-        </div>
-      )}
 
       <form onSubmit={handleSubmit}>
         <Card title="Configuration Générale">
@@ -163,7 +115,7 @@ const AffiliateSettings = () => {
 
             <div className="flex justify-end">
               <Button type="submit" disabled={saving}>
-                {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                {saving ? 'Sauvegarde...' : 'Enregistrer les modifications'}
               </Button>
             </div>
           </div>

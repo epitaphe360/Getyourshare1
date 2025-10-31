@@ -6,32 +6,36 @@ import Layout from './components/layout/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Pricing from './pages/Pricing';
-import Contact from './pages/Contact';
 import Dashboard from './pages/Dashboard';
 import GettingStarted from './pages/GettingStarted';
 import News from './pages/News';
 import Marketplace from './pages/Marketplace';
 import TrackingLinks from './pages/TrackingLinks';
 import Integrations from './pages/Integrations';
-import LandingPageNew from './pages/LandingPageNew';
+import LandingPage from './pages/LandingPage';
 import AIMarketing from './pages/AIMarketing';
-import Subscription from './pages/Subscription';
-import Demo from './pages/Demo';
-import DemoAffiliateDashboard from './pages/demos/DemoAffiliateDashboard';
-import DemoInfluencerDashboard from './pages/demos/DemoInfluencerDashboard';
-import DemoMerchantDashboard from './pages/demos/DemoMerchantDashboard';
 import MerchantsList from './pages/merchants/MerchantsList';
 import InfluencersList from './pages/influencers/InfluencersList';
 import InfluencerSearchPage from './pages/influencers/InfluencerSearchPage';
 import InfluencerProfilePage from './pages/influencers/InfluencerProfilePage';
 
-// Resources
-import Documentation from './pages/Documentation';
-import VideoTutorials from './pages/VideoTutorials';
-import Support from './pages/Support';
-
 // Messaging
 import MessagingPage from './pages/MessagingPage';
+
+// New Pages V2
+import HomepageV2 from './pages/HomepageV2';
+import MarketplaceV2 from './pages/MarketplaceV2';
+import ProductDetail from './pages/ProductDetail';
+import MyLinks from './pages/influencer/MyLinks';
+import Contact from './pages/Contact';
+import AdminSocialDashboard from './pages/admin/AdminSocialDashboard';
+
+// New Pages V3 - Subscription System
+import PricingV3 from './pages/PricingV3';
+import MarketplaceFourTabs from './pages/MarketplaceFourTabs';
+import SubscriptionDashboard from './pages/company/SubscriptionDashboard';
+import TeamManagement from './pages/company/TeamManagement';
+import CompanyLinksDashboard from './pages/company/CompanyLinksDashboard';
 
 // Products
 import ProductsListPage from './pages/products/ProductsListPage';
@@ -108,15 +112,13 @@ function App() {
         <BrowserRouter>
         <Routes>
           {/* Public Routes */}
-          <Route path="/" element={<LandingPageNew />} />
+          <Route path="/" element={<HomepageV2 />} />
+          <Route path="/landing-old" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/pricing" element={<Pricing />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/demo" element={<Demo />} />
-          <Route path="/demo/affiliate" element={<DemoAffiliateDashboard />} />
-          <Route path="/demo/influencer" element={<DemoInfluencerDashboard />} />
-          <Route path="/demo/merchant" element={<DemoMerchantDashboard />} />
+          <Route path="/pricing-v3" element={<PricingV3 />} />
+          <Route path="/marketplace-4tabs" element={<MarketplaceFourTabs />} />
 
           {/* Protected Routes */}
           <Route
@@ -396,48 +398,79 @@ function App() {
             }
           />
 
+          {/* New Marketplace V2 Routes */}
+          <Route
+            path="/marketplace-v2"
+            element={
+              <ProtectedRoute>
+                <MarketplaceV2 />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/marketplace/product/:productId"
+            element={
+              <ProtectedRoute>
+                <ProductDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Influencer Routes */}
+          <Route
+            path="/my-links"
+            element={
+              <ProtectedRoute>
+                <MyLinks />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Contact Page (Public) */}
+          <Route path="/contact" element={<Contact />} />
+
+          {/* Admin Routes */}
+          <Route
+            path="/admin/social-dashboard"
+            element={
+              <ProtectedRoute>
+                <AdminSocialDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Company/Subscription Routes */}
+          <Route
+            path="/subscription"
+            element={
+              <ProtectedRoute>
+                <SubscriptionDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/team"
+            element={
+              <ProtectedRoute>
+                <TeamManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company-links"
+            element={
+              <ProtectedRoute>
+                <CompanyLinksDashboard />
+              </ProtectedRoute>
+            }
+          />
+
           {/* AI Marketing */}
           <Route
             path="/ai-marketing"
             element={
               <ProtectedRoute>
                 <AIMarketing />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Subscription */}
-          <Route
-            path="/subscription"
-            element={
-              <ProtectedRoute>
-                <Subscription />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Resources Routes */}
-          <Route
-            path="/documentation"
-            element={
-              <ProtectedRoute>
-                <Documentation />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/video-tutorials"
-            element={
-              <ProtectedRoute>
-                <VideoTutorials />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/support"
-            element={
-              <ProtectedRoute>
-                <Support />
               </ProtectedRoute>
             }
           />
