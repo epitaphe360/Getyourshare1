@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 
 const RegistrationSettings = () => {
-  const [loading, setLoading] = useState(false);
+  const toast = useToast();
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
   const [settings, setSettings] = useState({
     allow_affiliate_registration: true,
     allow_advertiser_registration: true,
@@ -16,58 +16,19 @@ const RegistrationSettings = () => {
     company_name_required: true,
   });
 
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get('/api/settings/registration');
-      setSettings({
-        allow_affiliate_registration: response.data.allow_affiliate_registration ?? true,
-        allow_advertiser_registration: response.data.allow_advertiser_registration ?? true,
-        require_invitation: response.data.require_invitation ?? false,
-        require_2fa: response.data.require_2fa ?? false,
-        country_required: response.data.country_required ?? true,
-        company_name_required: response.data.company_name_required ?? true,
-      });
-    } catch (error) {
-      console.error('Erreur chargement settings:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setMessage({ type: '', text: '' });
-
     try {
-      await api.put('/api/settings/registration', settings);
-      setMessage({ type: 'success', text: '✅ Paramètres enregistrés avec succès !' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      await api.post('/api/settings/registration', settings);
+      toast.success('Paramètres d\'inscription sauvegardés avec succès');
     } catch (error) {
-      console.error('Erreur sauvegarde settings:', error);
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.detail || '❌ Erreur lors de l\'enregistrement' 
-      });
+      console.error('Error saving registration settings:', error);
+      toast.error('Erreur lors de la sauvegarde des paramètres');
     } finally {
       setSaving(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6" data-testid="registration-settings">
@@ -75,16 +36,6 @@ const RegistrationSettings = () => {
         <h1 className="text-3xl font-bold text-gray-900">Paramètres d'Inscription</h1>
         <p className="text-gray-600 mt-2">Configurez le processus d'inscription</p>
       </div>
-
-      {message.text && (
-        <div className={`p-4 rounded-lg ${
-          message.type === 'success' 
-            ? 'bg-green-50 text-green-800 border border-green-200' 
-            : 'bg-red-50 text-red-800 border border-red-200'
-        }`}>
-          {message.text}
-        </div>
-      )}
 
       <form onSubmit={handleSubmit}>
         <Card title="Options d'Inscription">
@@ -155,7 +106,7 @@ const RegistrationSettings = () => {
 
             <div className="flex justify-end">
               <Button type="submit" disabled={saving}>
-                {saving ? 'Enregistrement...' : 'Enregistrer les modifications'}
+                {saving ? 'Sauvegarde...' : 'Enregistrer les modifications'}
               </Button>
             </div>
           </div>

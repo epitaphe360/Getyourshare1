@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 import { Upload, Palette, Mail, Shield } from 'lucide-react';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 
 const WhiteLabel = () => {
-  const [loading, setLoading] = useState(false);
+  const toast = useToast();
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
   const [settings, setSettings] = useState({
     logo_url: '',
     primary_color: '#3b82f6',
     secondary_color: '#1e40af',
     accent_color: '#10b981',
-    company_name: 'Share Your Sales Platform',
+    company_name: 'ShareYourSales',
     custom_domain: 'track.votredomaine.com',
     ssl_enabled: true,
     custom_email_domain: 'noreply@votredomaine.com',
@@ -24,36 +24,6 @@ const WhiteLabel = () => {
     secondary: '#1e40af',
     accent: '#10b981',
   });
-
-  useEffect(() => {
-    loadSettings();
-  }, []);
-
-  const loadSettings = async () => {
-    setLoading(true);
-    try {
-      const response = await api.get('/api/settings/whitelabel');
-      setSettings({
-        logo_url: response.data.logo_url || '',
-        primary_color: response.data.primary_color || '#3b82f6',
-        secondary_color: response.data.secondary_color || '#1e40af',
-        accent_color: response.data.accent_color || '#10b981',
-        company_name: response.data.company_name || 'Share Your Sales Platform',
-        custom_domain: response.data.custom_domain || 'track.votredomaine.com',
-        ssl_enabled: response.data.ssl_enabled ?? true,
-        custom_email_domain: response.data.custom_email_domain || 'noreply@votredomaine.com',
-      });
-      setPreviewColors({
-        primary: response.data.primary_color || '#3b82f6',
-        secondary: response.data.secondary_color || '#1e40af',
-        accent: response.data.accent_color || '#10b981',
-      });
-    } catch (error) {
-      console.error('Erreur chargement white label:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleLogoUpload = (e) => {
     const file = e.target.files[0];
@@ -69,32 +39,16 @@ const WhiteLabel = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setMessage({ type: '', text: '' });
-
     try {
-      await api.put('/api/settings/whitelabel', settings);
-      setMessage({ type: 'success', text: '✅ Paramètres White Label enregistrés avec succès !' });
-      setTimeout(() => setMessage({ type: '', text: '' }), 3000);
+      await api.post('/api/settings/whitelabel', settings);
+      toast.success('Configuration white label sauvegardée avec succès');
     } catch (error) {
-      console.error('Erreur sauvegarde white label:', error);
-      setMessage({ 
-        type: 'error', 
-        text: error.response?.data?.detail || '❌ Erreur lors de l\'enregistrement' 
-      });
+      console.error('Error saving white label settings:', error);
+      toast.error('Erreur lors de la sauvegarde de la configuration');
     } finally {
       setSaving(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6" data-testid="white-label-settings">
@@ -102,15 +56,6 @@ const WhiteLabel = () => {
         <h1 className="text-3xl font-bold text-gray-900">Configuration White Label</h1>
         <p className="text-gray-600 mt-2">Personnalisez l'apparence de votre plateforme</p>
       </div>
-
-      {message.text && (
-        <div className={`p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 
-          'bg-red-50 text-red-800 border border-red-200'
-        }`}>
-          {message.text}
-        </div>
-      )}
 
       <form onSubmit={handleSubmit}>
         {/* Logo */}
@@ -319,7 +264,7 @@ const WhiteLabel = () => {
 
         <div className="flex justify-end mt-6">
           <Button type="submit" size="lg" disabled={saving}>
-            {saving ? 'Enregistrement...' : 'Enregistrer la Configuration'}
+            {saving ? 'Sauvegarde...' : 'Enregistrer la Configuration'}
           </Button>
         </div>
       </form>
