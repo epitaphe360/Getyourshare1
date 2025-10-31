@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
+import { I18nProvider } from './i18n/i18n';
 import Layout from './components/layout/Layout';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -109,8 +110,9 @@ function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <BrowserRouter>
-        <Routes>
+        <I18nProvider>
+          <BrowserRouter>
+          <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomepageV2 />} />
           <Route path="/landing-old" element={<LandingPage />} />
@@ -598,6 +600,7 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </BrowserRouter>
+        </I18nProvider>
       </ToastProvider>
     </AuthProvider>
   );
