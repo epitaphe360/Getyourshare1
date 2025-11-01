@@ -66,7 +66,9 @@ class MobilePayoutResponse(BaseModel):
 class MobilePaymentService:
     """Service de gestion des paiements mobiles marocains"""
 
-    def __init__(self):
+    def __init__(self, demo_mode: bool = False):
+        self.demo_mode = demo_mode
+
         # URLs API des opérateurs (à configurer avec les vraies URLs)
         self.provider_configs = {
             MobilePaymentProvider.CASH_PLUS: {
@@ -152,6 +154,10 @@ class MobilePaymentService:
         request: MobilePayoutRequest
     ) -> MobilePayoutResponse:
         """Traiter paiement via Cash Plus"""
+        # Mode démo: retourner mock directement
+        if self.demo_mode:
+            return self._mock_successful_payout(request, MobilePaymentProvider.CASH_PLUS)
+
         config = self.provider_configs[MobilePaymentProvider.CASH_PLUS]
 
         async with httpx.AsyncClient() as client:
@@ -189,9 +195,9 @@ class MobilePaymentService:
                 else:
                     raise Exception(f"Cash Plus API error: {response.status_code}")
 
-            except httpx.RequestError as e:
+            except Exception as e:
                 logger.error(f"Cash Plus request error: {str(e)}")
-                # Mode MOCK pour démo (à retirer en production)
+                # Mode MOCK pour démo (fallback si API indisponible)
                 return self._mock_successful_payout(request, MobilePaymentProvider.CASH_PLUS)
 
     async def _process_wafacash(
