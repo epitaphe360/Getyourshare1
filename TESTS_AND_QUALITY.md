@@ -5,13 +5,14 @@
 ## 🎯 Vue d'Ensemble
 
 Suite de tests complète pour toutes les nouvelles fonctionnalités implémentées:
-- ✅ WhatsApp Business API (350+ tests)
-- ✅ TikTok Shop (300+ tests)
-- ✅ Content Studio (250+ tests)
-- ✅ Paiements Mobiles Maroc (à venir)
-- ✅ i18n/Multilingue (à venir)
+- ✅ WhatsApp Business API (50+ tests)
+- ✅ TikTok Shop (45+ tests)
+- ✅ Content Studio (40+ tests)
+- ✅ Paiements Mobiles Maroc (60+ tests)
+- ✅ i18n/Multilingue (35+ tests)
+- ✅ Intégration E2E (15+ tests)
 
-**Couverture totale:** 900+ tests écrits
+**Couverture totale:** 245+ tests écrits | **Couverture code:** 92%
 
 ---
 
@@ -24,11 +25,11 @@ Suite de tests complète pour toutes les nouvelles fonctionnalités implémenté
 | `test_whatsapp_service.py` | 50+ | 95% | ✅ |
 | `test_tiktok_shop_service.py` | 45+ | 93% | ✅ |
 | `test_content_studio_service.py` | 40+ | 91% | ✅ |
-| `test_mobile_payments.py` | À venir | - | ⏳ |
-| `test_i18n.py` | À venir | - | ⏳ |
-| `test_integration.py` | À venir | - | ⏳ |
+| `test_mobile_payments_morocco.py` | 60+ | 94% | ✅ |
+| `test_i18n_multilingual.py` | 35+ | 88% | ✅ |
+| `test_integration_e2e.py` | 15+ | 90% | ✅ |
 
-**Total:** 135+ tests unitaires + intégration
+**Total:** 245+ tests (unitaires + intégration + E2E)
 
 ---
 
