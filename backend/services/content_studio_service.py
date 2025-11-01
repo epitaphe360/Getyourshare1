@@ -379,6 +379,11 @@ class ContentStudioService:
             QR code en base64
         """
         try:
+            # Encoder l'URL pour gérer les caractères spéciaux
+            from urllib.parse import quote
+            # Ne pas encoder les caractères safe pour URLs
+            safe_url = quote(url, safe=':/?#[]@!$&\'()*+,;=')
+
             # Créer le QR code
             qr = qrcode.QRCode(
                 version=1,
@@ -386,7 +391,7 @@ class ContentStudioService:
                 box_size=10,
                 border=4
             )
-            qr.add_data(url)
+            qr.add_data(safe_url)
             qr.make(fit=True)
 
             # Générer l'image
