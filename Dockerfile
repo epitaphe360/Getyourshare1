@@ -18,7 +18,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy entire project first
-COPY . /app
+COPY backend /app/backend
+COPY backend/requirements.txt /app/backend/requirements.txt
 
 # Move to backend directory
 WORKDIR /app/backend
