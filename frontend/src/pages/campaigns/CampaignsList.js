@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../utils/api';
 import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
@@ -14,6 +15,7 @@ import { Plus, Search, MoreVertical, Pause, Play, Archive, Target } from 'lucide
 const CampaignsList = () => {
   const navigate = useNavigate();
   const toast = useToast();
+  const { user } = useAuth();
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -135,12 +137,19 @@ const CampaignsList = () => {
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Campagnes</h1>
-          <p className="text-gray-600 mt-2">Gérez vos campagnes marketing</p>
+          <p className="text-gray-600 mt-2">
+            {user?.role === 'influencer' 
+              ? 'Découvrez les campagnes disponibles et postulez' 
+              : 'Gérez vos campagnes marketing'}
+          </p>
         </div>
-        <Button disabled={loading} onClick={() => navigate('/campaigns/create')} data-testid="create-campaign-btn">
-          <Plus size={20} className="mr-2" />
-          Nouvelle Campagne
-        </Button>
+        {/* Bouton Créer uniquement pour merchants et admins */}
+        {(user?.role === 'merchant' || user?.role === 'admin') && (
+          <Button disabled={loading} onClick={() => navigate('/campaigns/create')} data-testid="create-campaign-btn">
+            <Plus size={20} className="mr-2" />
+            Nouvelle Campagne
+          </Button>
+        )}
       </div>
 
       {/* Search and Filters */}
@@ -168,9 +177,15 @@ const CampaignsList = () => {
           <EmptyState
             icon={Target}
             title={searchTerm ? "Aucune campagne trouvée" : "Aucune campagne pour le moment"}
-            description={searchTerm ? "Essayez avec d'autres mots-clés" : "Créez votre première campagne pour commencer à travailler avec des influenceurs"}
-            actionLabel={!searchTerm ? "Créer une campagne" : null}
-            onAction={() => navigate('/campaigns/create')}
+            description={
+              searchTerm 
+                ? "Essayez avec d'autres mots-clés" 
+                : user?.role === 'influencer'
+                  ? "Il n'y a pas encore de campagne disponible. Revenez bientôt !"
+                  : "Créez votre première campagne pour commencer à travailler avec des influenceurs"
+            }
+            actionLabel={!searchTerm && (user?.role === 'merchant' || user?.role === 'admin') ? "Créer une campagne" : null}
+            onAction={!searchTerm && (user?.role === 'merchant' || user?.role === 'admin') ? () => navigate('/campaigns/create') : undefined}
           />
         ) : (
           <Table columns={columns} data={filteredCampaigns} />

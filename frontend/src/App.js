@@ -117,6 +117,50 @@ const ProtectedRoute = ({ children }) => {
   return <Layout>{children}</Layout>;
 };
 
+// Role-based Protected Route Component
+const RoleProtectedRoute = ({ children, allowedRoles = [] }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-xl">Chargement...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Vérifier si le rôle de l'utilisateur est autorisé
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-screen">
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-red-600 mb-4">Accès refusé</h2>
+            <p className="text-gray-600 mb-4">
+              Vous n'avez pas les permissions nécessaires pour accéder à cette page.
+            </p>
+            <p className="text-sm text-gray-500">
+              Cette fonctionnalité est réservée aux {allowedRoles.join(', ')}.
+            </p>
+            <button
+              onClick={() => window.history.back()}
+              className="mt-6 px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+            >
+              Retour
+            </button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  return <Layout>{children}</Layout>;
+};
+
 function App() {
   return (
     <AuthProvider>
@@ -212,12 +256,13 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* CRÉATION DE CAMPAGNE - MERCHANTS/ADMIN UNIQUEMENT */}
           <Route
             path="/campaigns/create"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['merchant', 'admin']}>
                 <CreateCampaignPage />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
 
@@ -284,20 +329,21 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* CRÉATION/ÉDITION DE PRODUIT - MERCHANTS/ADMIN UNIQUEMENT */}
           <Route
             path="/products/create"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['merchant', 'admin']}>
                 <CreateProductPage />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
           <Route
             path="/products/:productId/edit"
             element={
-              <ProtectedRoute>
+              <RoleProtectedRoute allowedRoles={['merchant', 'admin']}>
                 <CreateProductPage />
-              </ProtectedRoute>
+              </RoleProtectedRoute>
             }
           />
 
