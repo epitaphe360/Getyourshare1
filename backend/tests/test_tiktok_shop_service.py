@@ -14,7 +14,7 @@ import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime, timedelta
 
-from backend.services.tiktok_shop_service import (
+from services.tiktok_shop_service import (
     TikTokShopService,
     TikTokProductStatus,
     TikTokOrderStatus
