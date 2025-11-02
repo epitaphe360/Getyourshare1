@@ -15,7 +15,7 @@ from datetime import datetime
 from unittest.mock import AsyncMock, patch, MagicMock
 import httpx
 
-from backend.services.mobile_payment_morocco_service import (
+from services.mobile_payment_morocco_service import (
     MobilePaymentService,
     MobilePaymentProvider,
     PayoutStatus,

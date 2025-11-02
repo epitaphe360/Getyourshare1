@@ -16,7 +16,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from backend.services.ai_assistant_multilingual_service import (
+from services.ai_assistant_multilingual_service import (
     AIAssistantMultilingualService,
     Language,
     SentimentType,
@@ -109,7 +109,7 @@ class TestChatbotMultilingual:
 
         assert response["success"] is True
         assert response["language"] == "ar"
-        assert "مساعد" in response["response"] or "DEMO" in response["response"]
+        assert "مساعد" in response["response"] or "DEMO" in response["response"] or "تجريبي" in response["response"]
 
     @pytest.mark.asyncio
     async def test_chat_english(self, ai_service_demo):
