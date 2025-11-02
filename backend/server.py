@@ -3,7 +3,7 @@ ShareYourSales API Server - Version Supabase
 Tous les endpoints utilisent Supabase au lieu de MOCK_DATA
 """
 
-from fastapi import FastAPI, HTTPException, Depends, status, Request, Response
+from fastapi import FastAPI, HTTPException, Depends, status, Request, Response, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -3003,4 +3003,4 @@ if __name__ == "__main__":
     print("🌐 API disponible sur: http://localhost:8001")
     print("📖 Documentation: http://localhost:8001/docs")
     print("="*60 + "\n")
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    uvicorn.run(app, host="127.0.0.1", port=8001)
