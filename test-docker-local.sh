@@ -13,9 +13,18 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 echo -e "${YELLOW}Step 1: Building Docker image...${NC}"
+echo "Build context: $(pwd)"
+echo "Checking backend directory..."
+ls -la backend/ | head -10
+
 docker build -t getyourshare-test . || {
     echo -e "${RED}❌ Docker build failed!${NC}"
-    exit 1
+    echo ""
+    echo "Trying with backup Dockerfile..."
+    docker build -f Dockerfile.backup -t getyourshare-test . || {
+        echo -e "${RED}❌ Backup build also failed!${NC}"
+        exit 1
+    }
 }
 echo -e "${GREEN}✅ Docker image built successfully${NC}"
 echo ""
