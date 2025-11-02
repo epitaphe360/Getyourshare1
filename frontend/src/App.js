@@ -44,6 +44,7 @@ import PricingV3 from './pages/PricingV3';
 import MarketplaceFourTabs from './pages/MarketplaceFourTabs';
 import MarketplaceGroupon from './pages/MarketplaceGroupon';
 import SubscriptionDashboard from './pages/company/SubscriptionDashboard';
+import SubscriptionManagement from './pages/subscription/SubscriptionManagement';
 import TeamManagement from './pages/company/TeamManagement';
 import CompanyLinksDashboard from './pages/company/CompanyLinksDashboard';
 
@@ -473,6 +474,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <SubscriptionDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/subscription/manage"
+            element={
+              <ProtectedRoute>
+                <SubscriptionManagement />
               </ProtectedRoute>
             }
           />

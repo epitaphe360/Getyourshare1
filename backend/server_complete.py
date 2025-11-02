@@ -36,6 +36,14 @@ except ImportError:
     EMAIL_ENABLED = False
     print("Warning: Email service not available")
 
+# Subscription endpoints
+try:
+    from subscription_endpoints_simple import router as subscription_router
+    SUBSCRIPTION_ENDPOINTS_AVAILABLE = True
+except ImportError as e:
+    print(f"⚠️ Subscription endpoints not available: {e}")
+    SUBSCRIPTION_ENDPOINTS_AVAILABLE = False
+
 # Charger les variables d'environnement
 load_dotenv()
 
@@ -115,6 +123,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============================================
+# ROUTERS
+# ============================================
+
+# Monter le router des abonnements
+if SUBSCRIPTION_ENDPOINTS_AVAILABLE:
+    app.include_router(subscription_router)
+    print("✅ Subscription endpoints mounted at /api/subscriptions")
+else:
+    print("⚠️ Subscription endpoints not available")
 
 # ============================================
 # AUTHENTICATION
