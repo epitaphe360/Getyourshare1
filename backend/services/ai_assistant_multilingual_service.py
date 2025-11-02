@@ -839,7 +839,7 @@ Optimise pour Google Maroc et le marché francophone/arabophone."""
             }
 
         if self.demo_mode:
-            return self._demo_translation(text, source_language, target_language)
+            return self._demo_translation(text, source_language, target_language, context)
 
         try:
             prompt = self._build_translation_prompt(text, source_language, target_language, context)
@@ -876,7 +876,7 @@ Optimise pour Google Maroc et le marché francophone/arabophone."""
 
         except Exception as e:
             logger.error(f"❌ Erreur traduction: {str(e)}")
-            return self._demo_translation(text, source_language, target_language)
+            return self._demo_translation(text, source_language, target_language, context)
 
     def _build_translation_prompt(
         self, text: str, source: Language, target: Language, context: Optional[str]
@@ -897,7 +897,7 @@ INSTRUCTIONS:
 - Retourne UNIQUEMENT la traduction, sans explications"""
 
     def _demo_translation(
-        self, text: str, source: Language, target: Language
+        self, text: str, source: Language, target: Language, context: Optional[str] = None
     ) -> Dict[str, Any]:
         """Traduction démo"""
         demo_translations = {
@@ -924,13 +924,18 @@ INSTRUCTIONS:
         translations = demo_translations.get(key, {})
         translated = translations.get(text, f"[DEMO TRANSLATION] {text}")
 
-        return {
+        result = {
             "success": True,
             "translation": translated,
             "source_language": source.value,
             "target_language": target.value,
             "demo_mode": True
         }
+
+        if context:
+            result["context"] = context
+
+        return result
 
     # ============================================
     # 6. ANALYSE SENTIMENT DES REVIEWS
@@ -1322,7 +1327,8 @@ Analyse en profondeur pour insights actionnables."""
                     inf,
                     product_data,
                     target_audience,
-                    campaign_goals
+                    campaign_goals,
+                    budget_per_influencer
                 )
 
                 reasons = self._generate_match_reasons(
@@ -1384,7 +1390,7 @@ Analyse en profondeur pour insights actionnables."""
         return []  # Retourne vide, sera géré par demo
 
     def _calculate_influencer_match_score(
-        self, influencer: Dict, product: Dict, target: Dict, goals: List[str]
+        self, influencer: Dict, product: Dict, target: Dict, goals: List[str], budget: float = 0
     ) -> float:
         """Calcule le score de matching influenceur-produit"""
         score = 50.0  # Base score
@@ -1405,9 +1411,10 @@ Analyse en profondeur pour insights actionnables."""
             score += 5
 
         # Budget fit
-        estimated_cost = influencer.get("followers", 0) * 0.001  # Estimation simple
-        if estimated_cost <= budget * 1.2:
-            score += 10
+        if budget > 0:
+            estimated_cost = influencer.get("followers", 0) * 0.001  # Estimation simple
+            if estimated_cost <= budget * 1.2:
+                score += 10
 
         return min(score, 100.0)
 

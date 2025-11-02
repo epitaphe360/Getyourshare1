@@ -15,7 +15,7 @@ import pytest
 from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime
 
-from backend.services.whatsapp_business_service import (
+from services.whatsapp_business_service import (
     WhatsAppBusinessService,
     WhatsAppMessageType,
     WhatsAppTemplateCategory
@@ -380,20 +380,21 @@ class TestWhatsAppPerformance:
     """Tests de performance"""
 
     @pytest.mark.asyncio
-    async def test_send_message_response_time(self, benchmark):
+    async def test_send_message_response_time(self):
         """Test: Temps de réponse < 100ms en mode démo"""
         service = WhatsAppBusinessService()
         service.demo_mode = True
 
-        async def send():
-            return await service.send_text_message(
-                to_phone="+212612345678",
-                message="Performance test"
-            )
+        import time
+        start = time.time()
+        result = await service.send_text_message(
+            to_phone="+212612345678",
+            message="Performance test"
+        )
+        elapsed = (time.time() - start) * 1000  # en ms
 
-        # Le benchmark devrait être < 100ms
-        result = await send()
         assert result["success"] is True
+        assert elapsed < 100, f"Response time {elapsed}ms > 100ms"
 
     @pytest.mark.asyncio
     async def test_bulk_message_performance(self):

@@ -18,7 +18,7 @@ import pytest
 from datetime import datetime
 from unittest.mock import AsyncMock, patch
 
-from backend.services.whatsapp_business_service import WhatsAppBusinessService
+from services.whatsapp_business_service import WhatsAppBusinessService
 
 
 # ============================================

@@ -16,10 +16,10 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock, patch
 import asyncio
 
-from backend.services.whatsapp_business_service import WhatsAppBusinessService
-from backend.services.tiktok_shop_service import TikTokShopService
-from backend.services.content_studio_service import ContentStudioService
-from backend.services.mobile_payment_morocco_service import (
+from services.whatsapp_business_service import WhatsAppBusinessService
+from services.tiktok_shop_service import TikTokShopService
+from services.content_studio_service import ContentStudioService
+from services.mobile_payment_morocco_service import (
     MobilePaymentService,
     MobilePaymentProvider,
     MobilePayoutRequest,
@@ -371,7 +371,7 @@ class TestMerchantJourney:
         content_studio = services["content_studio"]
 
         # ÉTAPE 1: Planifier posts
-        from backend.services.content_studio_service import SocialPlatform
+        from services.content_studio_service import SocialPlatform
 
         scheduled_posts = []
         platforms = [SocialPlatform.TIKTOK, SocialPlatform.INSTAGRAM, SocialPlatform.FACEBOOK]

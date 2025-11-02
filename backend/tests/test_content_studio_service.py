@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from PIL import Image
 import io
 
-from backend.services.content_studio_service import (
+from services.content_studio_service import (
     ContentStudioService,
     ContentType,
     SocialPlatform,
