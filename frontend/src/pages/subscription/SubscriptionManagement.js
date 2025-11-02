@@ -21,6 +21,8 @@ const SubscriptionManagement = () => {
   const [usage, setUsage] = useState(null);
   const [availablePlans, setAvailablePlans] = useState({ merchants: [], influencers: [] });
   const [loading, setLoading] = useState(true);
+  const [upgrading, setUpgrading] = useState(false); // BUG 13: Loading state pour upgrade
+  const [cancelling, setCancelling] = useState(false); // Loading state pour cancel
   const [error, setError] = useState(null);
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -33,15 +35,31 @@ const SubscriptionManagement = () => {
   const fetchSubscriptionData = async () => {
     try {
       setLoading(true);
-      const [subRes, usageRes, plansRes] = await Promise.all([
-        api.get('/api/subscriptions/current'),
-        api.get('/api/subscriptions/usage'),
-        api.get('/api/subscriptions/plans')
-      ]);
-
+      setError(null); // Reset error
+      
+      // BUG 11 CORRIGÉ: Gérer les erreurs individuellement au lieu de Promise.all
+      // Fetch subscription (required)
+      const subRes = await api.get('/api/subscriptions/current');
       setSubscription(subRes.data);
-      setUsage(usageRes.data);
-      setAvailablePlans(plansRes.data);
+      
+      // Fetch usage (optional)
+      try {
+        const usageRes = await api.get('/api/subscriptions/usage');
+        setUsage(usageRes.data);
+      } catch (err) {
+        console.warn('Could not fetch usage:', err);
+        // Continue même si usage échoue
+      }
+      
+      // Fetch plans (optional)
+      try {
+        const plansRes = await api.get('/api/subscriptions/plans');
+        setAvailablePlans(plansRes.data);
+      } catch (err) {
+        console.warn('Could not fetch plans:', err);
+        // Continue même si plans échoue
+      }
+      
     } catch (err) {
       console.error('Error fetching subscription:', err);
       setError('Impossible de charger les données d\'abonnement');
@@ -51,7 +69,10 @@ const SubscriptionManagement = () => {
   };
 
   const handleUpgrade = async (planCode) => {
+    if (upgrading) return; // Empêcher double-click
+    
     try {
+      setUpgrading(true);
       const response = await api.post('/api/subscriptions/upgrade', {
         new_plan: planCode
       });
@@ -61,25 +82,35 @@ const SubscriptionManagement = () => {
         window.location.href = '/pricing';
       } else {
         alert(response.data.message);
-        fetchSubscriptionData();
+        await fetchSubscriptionData();
       }
     } catch (err) {
-      alert('Erreur lors du changement de plan: ' + err.response?.data?.detail);
+      const errorMsg = err.response?.data?.detail || err.message || 'Erreur inconnue';
+      alert('Erreur lors du changement de plan: ' + errorMsg);
+    } finally {
+      setUpgrading(false);
     }
   };
 
   const handleCancelSubscription = async () => {
+    if (cancelling) return; // Empêcher double-click
+    
     try {
+      setCancelling(true);
       await api.post('/api/subscriptions/cancel', {
         reason: cancelReason,
-        immediate: false
+        feedback: cancelReason // Pour analytics
       });
       
       alert('Votre abonnement sera annulé à la fin de la période en cours');
       setShowCancelModal(false);
-      fetchSubscriptionData();
+      setCancelReason(''); // Reset
+      await fetchSubscriptionData();
     } catch (err) {
-      alert('Erreur lors de l\'annulation: ' + err.response?.data?.detail);
+      const errorMsg = err.response?.data?.detail || err.message || 'Erreur inconnue';
+      alert('Erreur lors de l\'annulation: ' + errorMsg);
+    } finally {
+      setCancelling(false);
     }
   };
 
@@ -185,9 +216,9 @@ const SubscriptionManagement = () => {
           </div>
         </div>
 
-        {/* Usage Stats */}
+        {/* Usage Stats - BUG 12 CORRIGÉ: vérification usage avec Object.keys */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          {usage && Object.entries(usage).map(([key, stat]) => {
+          {usage && Object.keys(usage).length > 0 && Object.entries(usage).map(([key, stat]) => {
             if (typeof stat !== 'object' || key === 'plan_name' || key === 'plan_code') return null;
             
             const icons = {
@@ -321,11 +352,26 @@ const SubscriptionManagement = () => {
                   ) : (
                     <button
                       onClick={() => handleUpgrade(plan.code)}
-                      className="w-full py-2 px-4 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+                      disabled={upgrading}
+                      className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
+                        upgrading 
+                          ? 'bg-gray-400 cursor-not-allowed' 
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                      }`}
                     >
-                      {plan.price_mad > (subscription?.monthly_fee || 0) 
-                        ? 'Upgrader' 
-                        : 'Changer'}
+                      {upgrading ? (
+                        <span className="flex items-center justify-center">
+                          <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Chargement...
+                        </span>
+                      ) : (
+                        plan.price_mad > (subscription?.monthly_fee || 0) 
+                          ? 'Upgrader' 
+                          : 'Changer'
+                      )}
                     </button>
                   )}
                 </div>
@@ -379,15 +425,33 @@ const SubscriptionManagement = () => {
               <div className="flex space-x-4">
                 <button
                   onClick={() => setShowCancelModal(false)}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  disabled={cancelling}
+                  className={`flex-1 px-4 py-2 border border-gray-300 rounded-lg ${
+                    cancelling ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50 text-gray-700'
+                  }`}
                 >
                   Retour
                 </button>
                 <button
                   onClick={handleCancelSubscription}
-                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+                  disabled={cancelling}
+                  className={`flex-1 px-4 py-2 rounded-lg text-white ${
+                    cancelling 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-red-600 hover:bg-red-700'
+                  }`}
                 >
-                  Confirmer l'annulation
+                  {cancelling ? (
+                    <span className="flex items-center justify-center">
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Annulation...
+                    </span>
+                  ) : (
+                    'Confirmer l\'annulation'
+                  )}
                 </button>
               </div>
             </div>

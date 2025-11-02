@@ -5,11 +5,20 @@ Utilise les données existantes dans merchants/influencers
 ============================================
 """
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Body
+from pydantic import BaseModel, validator
 from typing import Optional, Dict, Any
 from supabase import create_client, Client
 import os
 from auth import get_current_user
+
+# Import des helpers pour éviter la duplication de code
+from subscription_helpers_simple import (
+    get_user_subscription_data,
+    get_merchant_limits,
+    get_influencer_limits,
+    get_plan_features
+)
 
 router = APIRouter(prefix="/api/subscriptions", tags=["Subscriptions"])
 
@@ -24,201 +33,40 @@ else:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 # ============================================
-# HELPER FUNCTIONS
+# PYDANTIC MODELS POUR VALIDATION
 # ============================================
 
-async def get_user_subscription_data(user_id: str, user_role: str) -> Optional[Dict[str, Any]]:
-    """Récupère les données d'abonnement depuis merchants ou influencers"""
-    if not supabase:
-        return None
+class CheckLimitRequest(BaseModel):
+    """Modèle pour vérifier une limite"""
+    limit_type: str
     
-    try:
-        if user_role == "merchant":
-            response = supabase.from_("merchants") \
-                .select("*") \
-                .eq("user_id", user_id) \
-                .single() \
-                .execute()
-                
-            if response.data:
-                data = response.data
-                return {
-                    "plan_name": data.get("subscription_plan", "free").capitalize(),
-                    "plan_code": data.get("subscription_plan", "free"),
-                    "type": "merchant",
-                    "status": data.get("subscription_status", "active"),
-                    "monthly_fee": float(data.get("monthly_fee", 0)),
-                    "commission_rate": float(data.get("commission_rate", 5)),
-                    "total_sales": float(data.get("total_sales", 0)),
-                    "total_commission_paid": float(data.get("total_commission_paid", 0)),
-                    
-                    # Limites selon le plan
-                    "limits": get_merchant_limits(data.get("subscription_plan", "free")),
-                    
-                    # Utilisation actuelle (simulée pour l'instant)
-                    "usage": {
-                        "products": 3,
-                        "campaigns": 1,
-                        "affiliates": 8
-                    }
-                }
-        
-        elif user_role == "influencer":
-            response = supabase.from_("influencers") \
-                .select("*") \
-                .eq("user_id", user_id) \
-                .single() \
-                .execute()
-                
-            if response.data:
-                data = response.data
-                return {
-                    "plan_name": data.get("subscription_plan", "starter").capitalize(),
-                    "plan_code": data.get("subscription_plan", "starter"),
-                    "type": "influencer",
-                    "status": data.get("subscription_status", "active"),
-                    "monthly_fee": float(data.get("monthly_fee", 0)),
-                    "platform_fee_rate": float(data.get("platform_fee_rate", 5)),
-                    "total_earnings": float(data.get("total_earnings", 0)),
-                    "balance": float(data.get("balance", 0)),
-                    "audience_size": data.get("audience_size", 0),
-                    "engagement_rate": float(data.get("engagement_rate", 0)),
-                    
-                    # Limites selon le plan
-                    "limits": get_influencer_limits(data.get("subscription_plan", "starter")),
-                    
-                    # Utilisation actuelle
-                    "usage": {
-                        "campaigns": data.get("total_sales", 5),
-                        "links": 15
-                    }
-                }
-                
-    except Exception as e:
-        print(f"Error fetching subscription data: {e}")
-        return None
+    @validator('limit_type')
+    def validate_limit_type(cls, v):
+        valid_types = ['products', 'campaigns', 'affiliates', 'links']
+        if v not in valid_types:
+            raise ValueError(f"Invalid limit_type. Must be one of: {', '.join(valid_types)}")
+        return v
+
+class UpgradeRequest(BaseModel):
+    """Modèle pour upgrade de plan"""
+    new_plan: str
     
-    return None
+    @validator('new_plan')
+    def validate_plan(cls, v):
+        valid_plans = ['free', 'starter', 'pro', 'enterprise', 'elite']
+        if v not in valid_plans:
+            raise ValueError(f"Invalid plan: {v}. Must be one of: {', '.join(valid_plans)}")
+        return v
 
-def get_merchant_limits(plan: str) -> Dict[str, Any]:
-    """Retourne les limites du plan merchant"""
-    limits_map = {
-        "free": {
-            "products": 10,
-            "campaigns": 5,
-            "affiliates": 50,
-            "commission_rate": 5.0
-        },
-        "starter": {
-            "products": 50,
-            "campaigns": 20,
-            "affiliates": 200,
-            "commission_rate": 4.0
-        },
-        "pro": {
-            "products": 200,
-            "campaigns": 100,
-            "affiliates": 1000,
-            "commission_rate": 3.0
-        },
-        "enterprise": {
-            "products": None,  # Illimité
-            "campaigns": None,
-            "affiliates": None,
-            "commission_rate": 2.0
-        }
-    }
-    return limits_map.get(plan, limits_map["free"])
+class CancelRequest(BaseModel):
+    """Modèle pour annulation"""
+    reason: Optional[str] = None
+    feedback: Optional[str] = None
 
-def get_influencer_limits(plan: str) -> Dict[str, Any]:
-    """Retourne les limites du plan influencer"""
-    limits_map = {
-        "starter": {
-            "campaigns": 5,
-            "links": 10,
-            "platform_fee_rate": 5.0
-        },
-        "pro": {
-            "campaigns": 50,
-            "links": 100,
-            "platform_fee_rate": 3.0
-        },
-        "elite": {
-            "campaigns": None,  # Illimité
-            "links": None,
-            "platform_fee_rate": 2.0
-        }
-    }
-    return limits_map.get(plan, limits_map["starter"])
-
-def get_plan_features(plan_code: str, plan_type: str) -> list:
-    """Retourne les features du plan"""
-    if plan_type == "merchant":
-        features_map = {
-            "free": [
-                "Dashboard basique",
-                "Support email",
-                "Rapports mensuels",
-                "10 produits max",
-                "5 campagnes max",
-                "50 affiliés max"
-            ],
-            "starter": [
-                "Dashboard avancé",
-                "Support prioritaire",
-                "Rapports hebdomadaires",
-                "50 produits",
-                "20 campagnes",
-                "200 affiliés",
-                "Analytics avancées"
-            ],
-            "pro": [
-                "Dashboard premium",
-                "Support 24/7",
-                "Rapports en temps réel",
-                "200 produits",
-                "100 campagnes",
-                "1000 affiliés",
-                "API access",
-                "White label"
-            ],
-            "enterprise": [
-                "Dashboard enterprise",
-                "Support dédié",
-                "Illimité",
-                "API complète",
-                "Account manager",
-                "Formation sur mesure"
-            ]
-        }
-    else:  # influencer
-        features_map = {
-            "starter": [
-                "Dashboard basique",
-                "5 campagnes actives",
-                "10 liens d'affiliation",
-                "Statistiques de base",
-                "Paiement mensuel"
-            ],
-            "pro": [
-                "Dashboard avancé",
-                "50 campagnes actives",
-                "100 liens d'affiliation",
-                "Analytics avancées",
-                "Paiement hebdomadaire",
-                "Support prioritaire"
-            ],
-            "elite": [
-                "Dashboard premium",
-                "Campagnes illimitées",
-                "Liens illimités",
-                "Paiement instantané",
-                "Support 24/7",
-                "Account manager dédié"
-            ]
-        }
-    
-    return features_map.get(plan_code, [])
+# ============================================
+# NOTE: Helper functions déplacées dans subscription_helpers_simple.py
+# pour éviter les imports circulaires
+# ============================================
 
 # ============================================
 # ENDPOINTS
@@ -351,10 +199,10 @@ async def get_usage_stats(current_user: dict = Depends(get_current_user)):
 
 @router.post("/check-limit")
 async def check_limit(
-    limit_type: str,
+    request: CheckLimitRequest = Body(...),
     current_user: dict = Depends(get_current_user)
 ):
-    """Vérifie si l'utilisateur peut ajouter un élément"""
+    """Vérifie si l'utilisateur peut ajouter un élément (BUG 4 CORRIGÉ: validation avec Pydantic)"""
     try:
         user_id = current_user.get("id")
         user_role = current_user.get("role")
@@ -367,8 +215,8 @@ async def check_limit(
         limits = subscription_data.get("limits", {})
         usage = subscription_data.get("usage", {})
         
-        limit = limits.get(limit_type)
-        current = usage.get(limit_type, 0)
+        limit = limits.get(request.limit_type)
+        current = usage.get(request.limit_type, 0)
         
         if limit is None:  # Illimité
             return {
@@ -389,7 +237,7 @@ async def check_limit(
         }
         
     except Exception as e:
-        print(f"Error checking limit: {e}")
+        print(f"❌ Error checking limit: {e}")
         raise HTTPException(status_code=500, detail=f"Error: {str(e)}")
 
 # ============================================
@@ -398,20 +246,51 @@ async def check_limit(
 
 @router.post("/upgrade")
 async def upgrade_plan(
-    new_plan: str,
+    request: UpgradeRequest = Body(...),
     current_user: dict = Depends(get_current_user)
 ):
-    """Placeholder pour upgrade de plan"""
+    """Placeholder pour upgrade de plan (BUG 5 CORRIGÉ: validation du plan)"""
+    user_role = current_user.get("role")
+    
+    # Vérifier si le plan est approprié pour le rôle
+    merchant_plans = ['free', 'starter', 'pro', 'enterprise']
+    influencer_plans = ['starter', 'pro', 'elite']
+    
+    if user_role == "merchant" and request.new_plan not in merchant_plans:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plan {request.new_plan} not available for merchants. Choose from: {', '.join(merchant_plans)}"
+        )
+    
+    if user_role == "influencer" and request.new_plan not in influencer_plans:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Plan {request.new_plan} not available for influencers. Choose from: {', '.join(influencer_plans)}"
+        )
+    
     return {
         "success": True,
-        "message": f"Upgrade vers {new_plan} sera disponible bientôt",
-        "redirect_to_payment": True
+        "message": f"Upgrade vers {request.new_plan} sera disponible bientôt avec paiement CMI",
+        "redirect_to_payment": True,
+        "plan": request.new_plan
     }
 
 @router.post("/cancel")
-async def cancel_subscription(current_user: dict = Depends(get_current_user)):
-    """Placeholder pour annulation"""
+async def cancel_subscription(
+    request: CancelRequest = Body(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Placeholder pour annulation (avec raison optionnelle)"""
+    user_id = current_user.get("id")
+    
+    # Log de la raison d'annulation pour analytics
+    if request.reason or request.feedback:
+        print(f"📊 Cancellation feedback from user {user_id}:")
+        print(f"   Reason: {request.reason}")
+        print(f"   Feedback: {request.feedback}")
+    
     return {
         "success": True,
-        "message": "L'annulation sera effective à la fin de la période en cours"
+        "message": "L'annulation sera effective à la fin de la période en cours",
+        "effective_date": "end_of_current_period"
     }

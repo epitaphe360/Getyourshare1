@@ -1,126 +1,139 @@
 """
 ============================================
-SUBSCRIPTION LIMITS MIDDLEWARE
+SUBSCRIPTION LIMITS MIDDLEWARE - VERSION CORRIGÉE
 Vérifie les limites d'abonnement avant les actions
+BUG 7 CORRIGÉ: Utilise factory functions au lieu de Depends dans méthodes statiques
 ============================================
 """
 
 from fastapi import HTTPException, Depends
-from typing import Optional
+from typing import Optional, Callable
 from auth import get_current_user
-from subscription_endpoints_simple import get_user_subscription_data
+from subscription_helpers_simple import get_user_subscription_data
 
 class SubscriptionLimits:
     """Middleware pour vérifier les limites d'abonnement"""
     
     @staticmethod
-    async def check_product_limit(current_user: dict = Depends(get_current_user)):
-        """Vérifie si l'utilisateur peut créer un nouveau produit"""
-        if current_user.get("role") != "merchant":
-            raise HTTPException(status_code=403, detail="Only merchants can create products")
-        
-        subscription_data = await get_user_subscription_data(
-            current_user.get("id"),
-            current_user.get("role")
-        )
-        
-        if not subscription_data:
-            raise HTTPException(status_code=400, detail="No active subscription")
-        
-        limits = subscription_data.get("limits", {})
-        usage = subscription_data.get("usage", {})
-        
-        max_products = limits.get("products")
-        current_products = usage.get("products", 0)
-        
-        if max_products is not None and current_products >= max_products:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Product limit reached ({current_products}/{max_products}). Please upgrade your plan."
+    def check_product_limit() -> Callable:
+        """Factory qui retourne une dépendance pour vérifier les produits (BUG 7 CORRIGÉ)"""
+        async def checker(current_user: dict = Depends(get_current_user)):
+            if current_user.get("role") != "merchant":
+                raise HTTPException(status_code=403, detail="Only merchants can create products")
+            
+            subscription_data = await get_user_subscription_data(
+                current_user.get("id"),
+                current_user.get("role")
             )
+            
+            if not subscription_data:
+                raise HTTPException(status_code=400, detail="No active subscription")
+            
+            limits = subscription_data.get("limits", {})
+            usage = subscription_data.get("usage", {})
+            
+            max_products = limits.get("products")
+            current_products = usage.get("products", 0)
+            
+            if max_products is not None and current_products >= max_products:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Product limit reached ({current_products}/{max_products}). Please upgrade your plan."
+                )
+            
+            return True
         
-        return True
+        return checker
     
     @staticmethod
-    async def check_campaign_limit(current_user: dict = Depends(get_current_user)):
-        """Vérifie si l'utilisateur peut créer une nouvelle campagne"""
-        subscription_data = await get_user_subscription_data(
-            current_user.get("id"),
-            current_user.get("role")
-        )
-        
-        if not subscription_data:
-            raise HTTPException(status_code=400, detail="No active subscription")
-        
-        limits = subscription_data.get("limits", {})
-        usage = subscription_data.get("usage", {})
-        
-        max_campaigns = limits.get("campaigns")
-        current_campaigns = usage.get("campaigns", 0)
-        
-        if max_campaigns is not None and current_campaigns >= max_campaigns:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Campaign limit reached ({current_campaigns}/{max_campaigns}). Please upgrade your plan."
+    def check_campaign_limit() -> Callable:
+        """Factory qui retourne une dépendance pour vérifier les campagnes (BUG 7 CORRIGÉ)"""
+        async def checker(current_user: dict = Depends(get_current_user)):
+            subscription_data = await get_user_subscription_data(
+                current_user.get("id"),
+                current_user.get("role")
             )
+            
+            if not subscription_data:
+                raise HTTPException(status_code=400, detail="No active subscription")
+            
+            limits = subscription_data.get("limits", {})
+            usage = subscription_data.get("usage", {})
+            
+            max_campaigns = limits.get("campaigns")
+            current_campaigns = usage.get("campaigns", 0)
+            
+            if max_campaigns is not None and current_campaigns >= max_campaigns:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Campaign limit reached ({current_campaigns}/{max_campaigns}). Please upgrade your plan."
+                )
+            
+            return True
         
-        return True
+        return checker
     
     @staticmethod
-    async def check_affiliate_limit(current_user: dict = Depends(get_current_user)):
-        """Vérifie si l'utilisateur peut créer une nouvelle affiliation"""
-        if current_user.get("role") != "merchant":
-            raise HTTPException(status_code=403, detail="Only merchants can manage affiliates")
-        
-        subscription_data = await get_user_subscription_data(
-            current_user.get("id"),
-            current_user.get("role")
-        )
-        
-        if not subscription_data:
-            raise HTTPException(status_code=400, detail="No active subscription")
-        
-        limits = subscription_data.get("limits", {})
-        usage = subscription_data.get("usage", {})
-        
-        max_affiliates = limits.get("affiliates")
-        current_affiliates = usage.get("affiliates", 0)
-        
-        if max_affiliates is not None and current_affiliates >= max_affiliates:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Affiliate limit reached ({current_affiliates}/{max_affiliates}). Please upgrade your plan."
+    def check_affiliate_limit() -> Callable:
+        """Factory qui retourne une dépendance pour vérifier les affiliés (BUG 7 CORRIGÉ)"""
+        async def checker(current_user: dict = Depends(get_current_user)):
+            if current_user.get("role") != "merchant":
+                raise HTTPException(status_code=403, detail="Only merchants can manage affiliates")
+            
+            subscription_data = await get_user_subscription_data(
+                current_user.get("id"),
+                current_user.get("role")
             )
+            
+            if not subscription_data:
+                raise HTTPException(status_code=400, detail="No active subscription")
+            
+            limits = subscription_data.get("limits", {})
+            usage = subscription_data.get("usage", {})
+            
+            max_affiliates = limits.get("affiliates")
+            current_affiliates = usage.get("affiliates", 0)
+            
+            if max_affiliates is not None and current_affiliates >= max_affiliates:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Affiliate limit reached ({current_affiliates}/{max_affiliates}). Please upgrade your plan."
+                )
+            
+            return True
         
-        return True
+        return checker
     
     @staticmethod
-    async def check_link_limit(current_user: dict = Depends(get_current_user)):
-        """Vérifie si l'influenceur peut créer un nouveau lien"""
-        if current_user.get("role") != "influencer":
-            raise HTTPException(status_code=403, detail="Only influencers can create tracking links")
-        
-        subscription_data = await get_user_subscription_data(
-            current_user.get("id"),
-            current_user.get("role")
-        )
-        
-        if not subscription_data:
-            raise HTTPException(status_code=400, detail="No active subscription")
-        
-        limits = subscription_data.get("limits", {})
-        usage = subscription_data.get("usage", {})
-        
-        max_links = limits.get("links")
-        current_links = usage.get("links", 0)
-        
-        if max_links is not None and current_links >= max_links:
-            raise HTTPException(
-                status_code=403,
-                detail=f"Tracking link limit reached ({current_links}/{max_links}). Please upgrade your plan."
+    def check_link_limit() -> Callable:
+        """Factory qui retourne une dépendance pour vérifier les liens (BUG 7 CORRIGÉ)"""
+        async def checker(current_user: dict = Depends(get_current_user)):
+            if current_user.get("role") != "influencer":
+                raise HTTPException(status_code=403, detail="Only influencers can create tracking links")
+            
+            subscription_data = await get_user_subscription_data(
+                current_user.get("id"),
+                current_user.get("role")
             )
+            
+            if not subscription_data:
+                raise HTTPException(status_code=400, detail="No active subscription")
+            
+            limits = subscription_data.get("limits", {})
+            usage = subscription_data.get("usage", {})
+            
+            max_links = limits.get("links")
+            current_links = usage.get("links", 0)
+            
+            if max_links is not None and current_links >= max_links:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Tracking link limit reached ({current_links}/{max_links}). Please upgrade your plan."
+                )
+            
+            return True
         
-        return True
+        return checker
     
     @staticmethod
     async def get_plan_features(current_user: dict = Depends(get_current_user)) -> list:
