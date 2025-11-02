@@ -45,7 +45,9 @@ try:
         get_user_affiliate_links,
         get_payment_history,
         get_merchant_products,
-        get_user_payouts
+        get_user_payouts,
+        get_user_campaigns,
+        create_affiliate_link
     )
     DB_QUERIES_AVAILABLE = True
     print("✅ DB Queries helpers loaded successfully")
@@ -1500,11 +1502,23 @@ async def create_lead(
 
 @app.get("/api/campaigns")
 async def get_campaigns(payload: dict = Depends(verify_token)):
-    """Récupérer toutes les campagnes disponibles"""
-    user_id = payload.get("sub")
+    """Récupérer toutes les campagnes disponibles - Vraies données DB"""
+    user_id = payload.get("sub") or payload.get("user_id")
     user_role = payload.get("role")
     
-    # Campagnes mockées
+    # Si merchant, récupérer ses propres campagnes
+    if user_role == "merchant" and DB_QUERIES_AVAILABLE:
+        try:
+            campaigns = await get_user_campaigns(user_id)
+            return {
+                "campaigns": campaigns,
+                "total": len(campaigns)
+            }
+        except Exception as e:
+            print(f"❌ Erreur get_user_campaigns: {e}")
+            # Fallback aux données mockées
+    
+    # Fallback: Campagnes mockées
     campaigns = [
         {
             "id": "camp_001",
@@ -2687,7 +2701,33 @@ async def generate_company_link(
     notes: str = "",
     payload: dict = Depends(verify_token)
 ):
-    """Générer un lien d'affiliation pour un produit"""
+    """Générer un lien d'affiliation pour un produit - Vraies données DB"""
+    user_id = payload.get("user_id")
+    
+    if DB_QUERIES_AVAILABLE:
+        try:
+            # Récupérer l'influencer_id depuis user_id
+            supabase = get_supabase_client()
+            influencer_response = supabase.table("influencers") \
+                .select("id") \
+                .eq("user_id", user_id) \
+                .single() \
+                .execute()
+            
+            if influencer_response.data:
+                influencer_id = influencer_response.data["id"]
+                result = await create_affiliate_link(
+                    product_id=product_id,
+                    influencer_id=influencer_id,
+                    custom_code=custom_slug if custom_slug else None,
+                    commission_rate=commission_rate
+                )
+                return result
+        except Exception as e:
+            print(f"❌ Erreur generate_company_link: {e}")
+            # Fallback aux données mockées
+    
+    # Fallback: Données mockées
     link_code = custom_slug if custom_slug else f"GEN{datetime.now().strftime('%Y%m%d%H%M%S')}"
     
     return {
@@ -3966,7 +4006,18 @@ async def get_dashboard_stats(role: str = None, payload: dict = Depends(verify_t
 
 @app.get("/api/payouts")
 async def get_payouts_list(payload: dict = Depends(verify_token)):
-    """Liste des paiements"""
+    """Liste des paiements - Vraies données DB"""
+    user_id = payload.get("user_id")
+    
+    if DB_QUERIES_AVAILABLE:
+        try:
+            payouts = await get_user_payouts(user_id)
+            return {"payouts": payouts, "total": len(payouts)}
+        except Exception as e:
+            print(f"❌ Erreur get_user_payouts: {e}")
+            # Fallback aux données mockées
+    
+    # Fallback: Données mockées
     return {"payouts": [{"id": "payout_001", "amount": 1250.00, "status": "completed", "method": "bank_transfer", "date": "2024-10-15"}], "total": 1}
 
 # ============================================

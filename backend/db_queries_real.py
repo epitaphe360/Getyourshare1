@@ -434,3 +434,136 @@ async def get_user_payouts(user_id: str) -> List[Dict[str, Any]]:
     except Exception as e:
         print(f"❌ Erreur get_user_payouts: {str(e)}")
         return []
+
+
+# ============================================
+# CAMPAIGNS
+# ============================================
+
+async def get_user_campaigns(user_id: str) -> List[Dict[str, Any]]:
+    """
+    Liste des campagnes d'un merchant
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Récupérer merchant_id
+        merchant_response = supabase.table("merchants") \
+            .select("id") \
+            .eq("user_id", user_id) \
+            .single() \
+            .execute()
+        
+        if not merchant_response.data:
+            return []
+        
+        merchant_id = merchant_response.data["id"]
+        
+        # Récupérer les campagnes
+        campaigns_response = supabase.table("campaigns") \
+            .select("*") \
+            .eq("merchant_id", merchant_id) \
+            .order("created_at", desc=True) \
+            .execute()
+        
+        campaigns = []
+        for campaign in campaigns_response.data:
+            campaigns.append({
+                "id": campaign["id"],
+                "name": campaign["name"],
+                "description": campaign.get("description", ""),
+                "budget": float(campaign.get("budget", 0)),
+                "spent": float(campaign.get("spent", 0)),
+                "start_date": campaign.get("start_date"),
+                "end_date": campaign.get("end_date"),
+                "status": campaign.get("status", "draft"),
+                "total_clicks": campaign.get("total_clicks", 0),
+                "total_conversions": campaign.get("total_conversions", 0),
+                "total_revenue": float(campaign.get("total_revenue", 0)),
+                "roi": float(campaign.get("roi", 0)),
+                "created_at": campaign.get("created_at")
+            })
+        
+        return campaigns
+    
+    except Exception as e:
+        print(f"❌ Erreur get_user_campaigns: {str(e)}")
+        return []
+
+
+# ============================================
+# AFFILIATE LINKS - CREATE
+# ============================================
+
+async def create_affiliate_link(
+    product_id: str, 
+    influencer_id: str, 
+    custom_code: str = None,
+    commission_rate: float = None
+) -> Dict[str, Any]:
+    """
+    Créer un lien d'affiliation pour un produit et un influenceur
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Générer un code unique si non fourni
+        if not custom_code:
+            import secrets
+            custom_code = f"LINK-{secrets.token_urlsafe(8).upper()}"
+        
+        # Récupérer les infos du produit pour le commission_rate par défaut
+        product_response = supabase.table("products") \
+            .select("commission_rate, name") \
+            .eq("id", product_id) \
+            .single() \
+            .execute()
+        
+        if not product_response.data:
+            return {"success": False, "error": "Product not found"}
+        
+        product = product_response.data
+        final_commission_rate = commission_rate if commission_rate else product.get("commission_rate", 15.00)
+        
+        # Construire les URLs
+        full_url = f"https://tracknow.io/track?code={custom_code}&product={product_id}&influencer={influencer_id}"
+        short_url = f"https://trck.now/{custom_code}"
+        
+        # Insérer le lien dans la table
+        link_data = {
+            "product_id": product_id,
+            "influencer_id": influencer_id,
+            "unique_code": custom_code,
+            "full_url": full_url,
+            "short_url": short_url,
+            "is_active": True
+        }
+        
+        link_response = supabase.table("trackable_links") \
+            .insert(link_data) \
+            .execute()
+        
+        if not link_response.data:
+            return {"success": False, "error": "Failed to create link"}
+        
+        created_link = link_response.data[0]
+        
+        return {
+            "success": True,
+            "link": {
+                "id": created_link["id"],
+                "product_id": product_id,
+                "product_name": product.get("name"),
+                "unique_code": custom_code,
+                "short_url": short_url,
+                "full_url": full_url,
+                "commission_rate": final_commission_rate,
+                "qr_code_url": f"https://api.qrserver.com/v1/create-qr-code/?data={short_url}",
+                "status": "active",
+                "created_at": created_link.get("created_at")
+            }
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur create_affiliate_link: {str(e)}")
+        return {"success": False, "error": str(e)}
