@@ -33,6 +33,7 @@ import MyLinks from './pages/influencer/MyLinks';
 import Contact from './pages/Contact';
 import AdminSocialDashboard from './pages/admin/AdminSocialDashboard';
 import UserManagement from './pages/admin/UserManagement';
+import ModerationDashboard from './pages/admin/ModerationDashboard';
 
 // Legal Pages
 import Privacy from './pages/Privacy';
@@ -464,6 +465,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <UserManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/moderation"
+            element={
+              <ProtectedRoute>
+                <ModerationDashboard />
               </ProtectedRoute>
             }
           />

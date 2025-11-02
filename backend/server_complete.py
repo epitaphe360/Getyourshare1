@@ -44,6 +44,15 @@ except ImportError as e:
     print(f"⚠️ Subscription endpoints not available: {e}")
     SUBSCRIPTION_ENDPOINTS_AVAILABLE = False
 
+# Moderation endpoints
+try:
+    from moderation_endpoints import router as moderation_router
+    MODERATION_ENDPOINTS_AVAILABLE = True
+    print("✅ Moderation endpoints loaded successfully")
+except ImportError as e:
+    print(f"⚠️ Moderation endpoints not available: {e}")
+    MODERATION_ENDPOINTS_AVAILABLE = False
+
 # Charger les variables d'environnement
 load_dotenv()
 
@@ -134,6 +143,13 @@ if SUBSCRIPTION_ENDPOINTS_AVAILABLE:
     print("✅ Subscription endpoints mounted at /api/subscriptions")
 else:
     print("⚠️ Subscription endpoints not available")
+
+# Monter le router de modération
+if MODERATION_ENDPOINTS_AVAILABLE:
+    app.include_router(moderation_router)
+    print("✅ Moderation endpoints mounted at /api/admin/moderation")
+else:
+    print("⚠️ Moderation endpoints not available")
 
 # ============================================
 # AUTHENTICATION
