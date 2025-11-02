@@ -463,3 +463,6 @@ def assert_valid_iso_datetime():
             return False
 
     return _assert_valid_iso_datetime
+
+os.environ["SUPABASE_URL"] = "http://localhost:54321"
+os.environ["SUPABASE_SERVICE_ROLE_KEY"] = "dummy-key"
