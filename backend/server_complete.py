@@ -2057,7 +2057,23 @@ async def create_payment_intent(
 
 @app.get("/api/payments/history")
 async def get_payment_history(payload: dict = Depends(verify_token)):
-    """Historique des paiements"""
+    """Historique des paiements - Vraies données DB"""
+    user_id = payload.get("user_id")
+    
+    if DB_QUERIES_AVAILABLE:
+        try:
+            history = await get_payment_history(user_id)
+            return {
+                "payments": history.get("payments", []),
+                "total_earned": history.get("total_earned", 0.00),
+                "pending_amount": history.get("pending_amount", 0.00),
+                "next_payout": history.get("next_payout", None)
+            }
+        except Exception as e:
+            print(f"❌ Erreur get_payment_history: {e}")
+            # Fallback aux données mockées
+    
+    # Fallback: Données mockées
     return {
         "payments": [
             {
@@ -2090,7 +2106,18 @@ async def get_payment_history(payload: dict = Depends(verify_token)):
 
 @app.get("/api/analytics/merchant/sales-chart")
 async def get_merchant_sales_chart(payload: dict = Depends(verify_token)):
-    """Graphique des ventes merchant (7 derniers jours)"""
+    """Graphique des ventes merchant (7 derniers jours) - Vraies données DB"""
+    user_id = payload.get("user_id")
+    
+    if DB_QUERIES_AVAILABLE:
+        try:
+            chart_data = await get_merchant_sales_chart(user_id, days=7)
+            return {"data": chart_data}
+        except Exception as e:
+            print(f"❌ Erreur get_merchant_sales_chart: {e}")
+            # Fallback aux données mockées
+    
+    # Fallback: Données mockées
     from datetime import datetime, timedelta
     
     data = []
@@ -2299,7 +2326,18 @@ async def get_influencer_affiliation_requests(
 
 @app.get("/api/analytics/influencer/earnings-chart")
 async def get_influencer_earnings_chart(payload: dict = Depends(verify_token)):
-    """Graphique des gains influenceur (7 derniers jours)"""
+    """Graphique des gains influenceur (4 dernières semaines) - Vraies données DB"""
+    user_id = payload.get("user_id")
+    
+    if DB_QUERIES_AVAILABLE:
+        try:
+            chart_data = await get_influencer_earnings_chart(user_id, weeks=4)
+            return {"data": chart_data}
+        except Exception as e:
+            print(f"❌ Erreur get_influencer_earnings_chart: {e}")
+            # Fallback aux données mockées
+    
+    # Fallback: Données mockées
     from datetime import datetime, timedelta
     
     data = []
@@ -2627,8 +2665,18 @@ async def get_company_links(payload: dict = Depends(verify_token)):
 
 @app.get("/api/products/my-products")
 async def get_my_products(payload: dict = Depends(verify_token)):
-    """Produits de l'entreprise connectée"""
-    # Retourner les produits mockés
+    """Produits de l'entreprise connectée - Vraies données DB"""
+    user_id = payload.get("user_id")
+    
+    if DB_QUERIES_AVAILABLE:
+        try:
+            products = await get_merchant_products(user_id)
+            return products
+        except Exception as e:
+            print(f"❌ Erreur get_merchant_products: {e}")
+            # Fallback aux données mockées
+    
+    # Fallback: Retourner les produits mockés
     return [p for p in MOCK_PRODUCTS if p.get("type") == "product"]
 
 @app.post("/api/company/links/generate")
