@@ -95,6 +95,7 @@ import Users from './pages/settings/Users';
 import SMTP from './pages/settings/SMTP';
 import Emails from './pages/settings/Emails';
 import WhiteLabel from './pages/settings/WhiteLabel';
+import PlatformSettings from './pages/settings/PlatformSettings';
 
 import './App.css';
 
@@ -682,6 +683,15 @@ function App() {
               <ProtectedRoute>
                 <WhiteLabel />
               </ProtectedRoute>
+            }
+          />
+          {/* PARAMÈTRES PLATEFORME - ADMIN UNIQUEMENT */}
+          <Route
+            path="/settings/platform"
+            element={
+              <RoleProtectedRoute allowedRoles={['admin']}>
+                <PlatformSettings />
+              </RoleProtectedRoute>
             }
           />
 

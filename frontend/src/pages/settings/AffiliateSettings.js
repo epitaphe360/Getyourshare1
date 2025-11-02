@@ -8,7 +8,6 @@ const AffiliateSettings = () => {
   const toast = useToast();
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
-    min_withdrawal: 50,
     auto_approval: false,
     email_verification: true,
     payment_mode: 'on_demand',
@@ -39,18 +38,6 @@ const AffiliateSettings = () => {
       <form onSubmit={handleSubmit}>
         <Card title="Configuration Générale">
           <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Montant minimum de retrait (€)
-              </label>
-              <input
-                type="number"
-                value={settings.min_withdrawal}
-                onChange={(e) => setSettings({ ...settings, min_withdrawal: parseFloat(e.target.value) })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
             <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
               <div>
                 <h3 className="font-semibold">Approbation automatique</h3>
