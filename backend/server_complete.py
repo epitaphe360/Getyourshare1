@@ -3367,8 +3367,45 @@ async def get_influencer_earnings_chart(payload: dict = Depends(verify_token)):
 
 @app.post("/api/payouts/request")
 async def request_payout(payout_data: dict, payload: dict = Depends(verify_token)):
-    """Demander un paiement"""
-    return {"message": "Demande de paiement envoyée", "payout_id": f"payout_{datetime.now().timestamp()}", "status": "pending", "amount": payout_data.get("amount")}
+    """
+    Demander un paiement (influenceur).
+    Vérifie que le montant est supérieur au minimum défini dans platform_settings.
+    """
+    try:
+        # Récupérer le montant minimum depuis platform_settings
+        supabase = get_supabase_client()
+        settings_response = supabase.table("platform_settings").select("min_payout_amount").limit(1).execute()
+        
+        min_amount = 50.00  # Valeur par défaut
+        if settings_response.data and len(settings_response.data) > 0:
+            min_amount = float(settings_response.data[0]["min_payout_amount"])
+        
+        # Valider le montant demandé
+        requested_amount = float(payout_data.get("amount", 0))
+        if requested_amount < min_amount:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Le montant minimum de retrait est de {min_amount}€"
+            )
+        
+        # TODO: Vérifier le solde disponible de l'influenceur
+        # TODO: Créer l'enregistrement de payout dans la base de données
+        
+        return {
+            "message": "Demande de paiement envoyée avec succès", 
+            "payout_id": f"payout_{datetime.now().strftime('%Y%m%d%H%M%S')}", 
+            "status": "pending", 
+            "amount": requested_amount,
+            "min_payout_amount": min_amount
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Erreur lors de la demande de payout: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la demande de paiement: {str(e)}"
+        )
 
 @app.get("/api/company/links/my-company-links")
 async def get_company_links(payload: dict = Depends(verify_token)):

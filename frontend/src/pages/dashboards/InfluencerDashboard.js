@@ -36,10 +36,24 @@ const InfluencerDashboard = () => {
   const [payoutAmount, setPayoutAmount] = useState('');
   const [payoutMethod, setPayoutMethod] = useState('bank_transfer');
   const [payoutSubmitting, setPayoutSubmitting] = useState(false);
+  const [minPayoutAmount, setMinPayoutAmount] = useState(50); // Montant minimum de retrait
 
   useEffect(() => {
     fetchData();
+    fetchMinPayoutAmount();
   }, []);
+
+  const fetchMinPayoutAmount = async () => {
+    try {
+      const response = await api.get('/api/admin/platform-settings/public/min-payout');
+      if (response.data && response.data.min_payout_amount) {
+        setMinPayoutAmount(response.data.min_payout_amount);
+      }
+    } catch (error) {
+      console.log('Could not fetch min payout amount, using default:', error);
+      // Garder la valeur par défaut de 50€
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -147,8 +161,8 @@ const InfluencerDashboard = () => {
         return;
       }
 
-      if (amount < 50) {
-        toast.error('Le montant minimum de retrait est de 50€');
+      if (amount < minPayoutAmount) {
+        toast.error(`Le montant minimum de retrait est de ${minPayoutAmount}€`);
         return;
       }
 
@@ -539,7 +553,7 @@ const InfluencerDashboard = () => {
         <div className="space-y-4">
           <p className="text-gray-600">
             Votre solde actuel est de <span className="font-bold">{(stats?.balance || 0).toLocaleString()} €</span>.
-            Le montant minimum de retrait est de 50 €.
+            Le montant minimum de retrait est de <span className="font-bold">{minPayoutAmount} €</span>.
           </p>
           <div>
             <label htmlFor="payoutAmount" className="block text-sm font-medium text-gray-700">

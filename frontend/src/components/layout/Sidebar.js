@@ -18,7 +18,8 @@ import {
   X,
   Link as LinkIcon,
   Zap,
-  MessageSquare
+  MessageSquare,
+  Shield
 } from 'lucide-react';
 
 const Sidebar = () => {
@@ -220,6 +221,11 @@ const Sidebar = () => {
         path: '/products',
       },
       {
+        title: 'Modération IA',
+        icon: <Shield size={20} />,
+        path: '/admin/moderation',
+      },
+      {
         title: 'Performance',
         icon: <TrendingUp size={20} />,
         submenu: 'performance',
@@ -277,6 +283,7 @@ const Sidebar = () => {
           { title: 'Personnel', path: '/settings/personal' },
           { title: 'Sécurité', path: '/settings/security' },
           { title: 'Entreprise', path: '/settings/company' },
+          { title: 'Plateforme', path: '/settings/platform' },
           { title: 'Affiliés', path: '/settings/affiliates' },
           { title: 'Inscription', path: '/settings/registration' },
           { title: 'MLM', path: '/settings/mlm' },
