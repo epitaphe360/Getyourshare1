@@ -20,13 +20,10 @@ RUN apt-get update && apt-get install -y \
 # Copy entire project first
 COPY . /app
 
-# Move to backend directory and install dependencies
+# Move to backend directory
 WORKDIR /app/backend
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
 
-# Move to backend directory and install dependencies
-WORKDIR /app/backend
+# Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
