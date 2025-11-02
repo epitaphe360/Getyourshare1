@@ -1,0 +1,56 @@
+# Alternative Dockerfile if main one fails
+# This one uses absolute paths from project root
+
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    make \
+    libpq-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY backend/requirements.txt requirements.txt
+
+# Install Python deps
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy backend files manually to avoid path issues
+COPY backend/server.py server.py
+COPY backend/supabase_client.py supabase_client.py
+COPY backend/db_helpers.py db_helpers.py
+COPY backend/auth.py auth.py
+COPY backend/security.py security.py
+COPY backend/subscription_helpers.py subscription_helpers.py
+COPY backend/subscription_middleware.py subscription_middleware.py
+
+# Copy all endpoint files
+COPY backend/*_endpoints.py ./
+COPY backend/*_service.py ./
+
+# Copy directories
+COPY backend/services services/
+COPY backend/middleware middleware/
+COPY backend/celery_tasks celery_tasks/
+
+# Create dirs
+RUN mkdir -p uploads logs
+
+# Env vars
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:${PORT}/health || exit 1
+
+EXPOSE 8000
+
+CMD uvicorn server:app --host 0.0.0.0 --port ${PORT:-8000}
