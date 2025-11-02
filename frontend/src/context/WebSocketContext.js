@@ -25,7 +25,7 @@ export const WebSocketProvider = ({ children }) => {
 
   // Construire l'URL WebSocket à partir de l'URL backend
   const getWebSocketUrl = () => {
-    const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+    const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
     // Convertir http(s) en ws(s)
     const wsProtocol = backendUrl.startsWith('https') ? 'wss' : 'ws';
     const wsBase = backendUrl.replace(/^https?:\/\//, '');

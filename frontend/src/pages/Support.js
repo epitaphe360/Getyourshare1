@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useToast } from '../context/ToastContext';
 import Card from '../components/common/Card';
 import Button from '../components/common/Button';
 import { MessageCircle, Mail, Phone, Clock, Send, HelpCircle, AlertCircle, CheckCircle } from 'lucide-react';
 
 const Support = () => {
+  const toast = useToast();
   const [formData, setFormData] = useState({
     subject: '',
     category: 'general',
@@ -14,7 +16,7 @@ const Support = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log('Support ticket:', formData);
-    alert('Votre demande a été envoyée avec succès! Notre équipe vous répondra dans les plus brefs délais.');
+    toast.success('Votre demande a été envoyée avec succès! Notre équipe vous répondra dans les plus brefs délais.');
     setFormData({ subject: '', category: 'general', priority: 'medium', message: '' });
   };
 

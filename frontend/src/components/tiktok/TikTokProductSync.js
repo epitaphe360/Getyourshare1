@@ -196,7 +196,45 @@ const TikTokProductSync = ({ product, onSyncSuccess, onSyncError }) => {
           </div>
 
           <button
-            onClick={() => {/* TODO: Ouvrir le générateur de script */}}
+            onClick={() => {
+              const script = `🎬 SCRIPT VIDÉO TIKTOK - ${product.name}
+
+📱 HOOK (3 premières secondes):
+"Attendez! Avant d'acheter ${product.name}, regardez ça..."
+
+🎯 PROBLÈME (5 secondes):
+"Vous en avez marre de [problème que résout le produit]?"
+
+✨ SOLUTION (10 secondes):
+"Voici ${product.name}! ${product.description}"
+
+💰 PRIX:
+Prix normal: ${product.price}€
+🔥 AVEC MON LIEN: ${product.price * 0.9}€ (10% de réduction!)
+
+🎁 CALL TO ACTION (5 secondes):
+"Cliquez sur le lien dans ma bio pour profiter de cette offre exclusive!"
+
+📊 HASHTAGS:
+#${product.name.replace(/\s+/g, '')} #TikTokMadeMeBuyIt #DealsMaroc #Promo
+
+💡 CONSEILS:
+- Montrez le produit en action
+- Soyez authentique et énergique
+- Filmez en vertical (9:16)
+- Durée idéale: 15-30 secondes
+- Ajoutez une musique tendance`;
+
+              const blob = new Blob([script], { type: 'text/plain' });
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `script-tiktok-${product.name.replace(/\s+/g, '-')}.txt`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(url);
+            }}
             className="w-full px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg font-medium hover:from-pink-600 hover:to-purple-700 transition"
           >
             🎬 Générer un script vidéo TikTok

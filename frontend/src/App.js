@@ -4,6 +4,9 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { I18nProvider } from './i18n/i18n';
 import Layout from './components/layout/Layout';
+import ChatbotWidget from './components/bot/ChatbotWidget';
+import WhatsAppFloatingButton from './components/social/WhatsAppFloatingButton';
+import HomepageV2 from './pages/HomepageV2';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Pricing from './pages/Pricing';
@@ -24,16 +27,22 @@ import InfluencerProfilePage from './pages/influencers/InfluencerProfilePage';
 import MessagingPage from './pages/MessagingPage';
 
 // New Pages V2
-import HomepageV2 from './pages/HomepageV2';
 import MarketplaceV2 from './pages/MarketplaceV2';
 import ProductDetail from './pages/ProductDetail';
 import MyLinks from './pages/influencer/MyLinks';
 import Contact from './pages/Contact';
 import AdminSocialDashboard from './pages/admin/AdminSocialDashboard';
+import UserManagement from './pages/admin/UserManagement';
+
+// Legal Pages
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
+import About from './pages/About';
 
 // New Pages V3 - Subscription System
 import PricingV3 from './pages/PricingV3';
 import MarketplaceFourTabs from './pages/MarketplaceFourTabs';
+import MarketplaceGroupon from './pages/MarketplaceGroupon';
 import SubscriptionDashboard from './pages/company/SubscriptionDashboard';
 import TeamManagement from './pages/company/TeamManagement';
 import CompanyLinksDashboard from './pages/company/CompanyLinksDashboard';
@@ -111,16 +120,34 @@ function App() {
     <AuthProvider>
       <ToastProvider>
         <I18nProvider>
-          <BrowserRouter>
+          <BrowserRouter
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true
+            }}
+          >
           <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomepageV2 />} />
+          <Route path="/home" element={<HomepageV2 />} />
           <Route path="/landing-old" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/pricing-v3" element={<PricingV3 />} />
           <Route path="/marketplace-4tabs" element={<MarketplaceFourTabs />} />
+          <Route path="/marketplace" element={<MarketplaceGroupon />} />
+          
+          {/* Product Detail - Public (accessible sans connexion) */}
+          <Route path="/marketplace/product/:productId" element={<ProductDetail />} />
+          
+          {/* Contact Page (Public) */}
+          <Route path="/contact" element={<Contact />} />
+
+          {/* Legal Pages (Public) */}
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/about" element={<About />} />
 
           {/* Protected Routes */}
           <Route
@@ -390,30 +417,24 @@ function App() {
             }
           />
 
-          {/* Marketplace */}
+          {/* Marketplace - Version Groupon (utilisée partout) */}
+          {/* Route déjà définie en haut du fichier avec MarketplaceGroupon */}
+
+          {/* Anciennes versions marketplace (pour référence) */}
           <Route
-            path="/marketplace"
+            path="/marketplace-old"
             element={
               <ProtectedRoute>
                 <Marketplace />
               </ProtectedRoute>
             }
           />
-
-          {/* New Marketplace V2 Routes */}
+          
           <Route
             path="/marketplace-v2"
             element={
               <ProtectedRoute>
                 <MarketplaceV2 />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/marketplace/product/:productId"
-            element={
-              <ProtectedRoute>
-                <ProductDetail />
               </ProtectedRoute>
             }
           />
@@ -428,15 +449,20 @@ function App() {
             }
           />
 
-          {/* Contact Page (Public) */}
-          <Route path="/contact" element={<Contact />} />
-
           {/* Admin Routes */}
           <Route
             path="/admin/social-dashboard"
             element={
               <ProtectedRoute>
                 <AdminSocialDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <ProtectedRoute>
+                <UserManagement />
               </ProtectedRoute>
             }
           />
@@ -599,6 +625,17 @@ function App() {
           <Route path="/app" element={<Navigate to="/dashboard" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        
+        {/* Chatbot Widget flottant (en bas à droite) */}
+        <ChatbotWidget />
+        
+        {/* Bouton WhatsApp flottant (en bas à gauche) */}
+        <WhatsAppFloatingButton 
+          phoneNumber="+212600000000"
+          message="Bonjour! Je suis intéressé par la plateforme ShareYourSales."
+          position="left"
+        />
+        
         </BrowserRouter>
         </I18nProvider>
       </ToastProvider>

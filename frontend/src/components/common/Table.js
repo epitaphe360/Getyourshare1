@@ -1,6 +1,6 @@
 import React, { memo, useMemo } from 'react';
 
-const Table = memo(({ columns, data, onRowClick }) => {
+const Table = memo(({ columns = [], data = [], onRowClick }) => {
   // Memoize empty state to prevent re-renders
   const emptyState = useMemo(() => (
     <tr>
@@ -9,6 +9,9 @@ const Table = memo(({ columns, data, onRowClick }) => {
       </td>
     </tr>
   ), [columns.length]);
+
+  // Ensure data is always an array
+  const safeData = Array.isArray(data) ? data : [];
 
   return (
     <div className="overflow-x-auto">
@@ -26,10 +29,10 @@ const Table = memo(({ columns, data, onRowClick }) => {
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {data.length === 0 ? (
+          {safeData.length === 0 ? (
             emptyState
           ) : (
-            data.map((row, rowIndex) => (
+            safeData.map((row, rowIndex) => (
               <tr
                 key={rowIndex}
                 onClick={() => onRowClick && onRowClick(row)}

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../context/ToastContext';
 import { api } from '../../utils/api';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
 
 const PaymentSetup = () => {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [currentConfig, setCurrentConfig] = useState(null);
@@ -102,11 +104,11 @@ const PaymentSetup = () => {
 
       await api.put('/api/merchant/payment-config', payload);
 
-      alert('✅ Configuration sauvegardée avec succès !');
+      toast.success('Configuration sauvegardée avec succès !');
       loadCurrentConfig();
     } catch (error) {
       console.error('Erreur sauvegarde:', error);
-      alert('❌ Erreur lors de la sauvegarde: ' + error.message);
+      toast.error('Erreur lors de la sauvegarde: ' + error.message);
     } finally {
       setSaving(false);
     }

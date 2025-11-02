@@ -19,17 +19,20 @@ const AdvertisersList = () => {
   const fetchAdvertisers = async () => {
     try {
       const response = await api.get('/api/advertisers');
-      setAdvertisers(response.data.data);
+      // Handle different response structures
+      const data = response.data?.data || response.data || [];
+      setAdvertisers(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error('Error fetching advertisers:', error);
+      setAdvertisers([]); // Set empty array on error
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredAdvertisers = advertisers.filter(adv =>
-    adv.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    adv.email.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredAdvertisers = (advertisers || []).filter(adv =>
+    adv?.company_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    adv?.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const columns = [

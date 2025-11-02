@@ -346,6 +346,7 @@ const Sidebar = () => {
       <NavLink
         key={item.path}
         to={item.path}
+        state={item.path === '/marketplace' ? { fromDashboard: true } : undefined}
         className={({ isActive }) =>
           `flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
             isActive

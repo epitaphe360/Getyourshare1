@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
@@ -92,7 +92,7 @@ const ProductsListPage = () => {
     return null;
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       key: 'name',
       label: 'Produit',
@@ -188,7 +188,7 @@ const ProductsListPage = () => {
         </div>
       )
     }
-  ];
+  ], [navigate]);
 
   if (loading) {
     return (

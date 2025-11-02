@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import api from '../utils/api';
 import Card from '../components/common/Card';
 import { 
@@ -12,6 +13,7 @@ import {
 const Subscription = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const [plans, setPlans] = useState([]);
   const [currentPlan, setCurrentPlan] = useState('free');
   const [loading, setLoading] = useState(true);
@@ -240,7 +242,7 @@ const Subscription = () => {
       navigate('/support');
     } else {
       // Simuler l'upgrade (à implémenter avec un vrai système de paiement)
-      alert(`Mise à niveau vers le plan ${planId}. Intégration de paiement à venir !`);
+      toast.info(`Mise à niveau vers le plan ${planId}. Intégration de paiement à venir !`);
     }
   };
 

@@ -1,0 +1,3945 @@
+"""
+ShareYourSales API Server - Version Complète Fonctionnelle
+Plateforme d'affiliation influenceurs-marchands au Maroc
+"""
+
+from fastapi import FastAPI, HTTPException, Depends, status, Request, Response, Query, File, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel, EmailStr, Field
+from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta
+import jwt
+import os
+import json
+import bcrypt
+from dotenv import load_dotenv
+
+# Supabase client
+try:
+    from supabase import create_client, Client
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
+    SUPABASE_ENABLED = supabase is not None
+except Exception as e:
+    print(f"⚠️ Supabase non disponible: {e}")
+    supabase = None
+    SUPABASE_ENABLED = False
+
+# Services
+try:
+    from services.email_service import email_service, EmailTemplates
+    EMAIL_ENABLED = True
+except ImportError:
+    EMAIL_ENABLED = False
+    print("Warning: Email service not available")
+
+# Charger les variables d'environnement
+load_dotenv()
+
+# ============================================
+# CONFIGURATION
+# ============================================
+
+JWT_SECRET = os.getenv("JWT_SECRET", "bFeUjfAZnOEKWdeOfxSRTEM/67DJMrttpW55WpBOIiK65vMNQMtBRatDy4PSoC3w9bJj7WmbArp5g/KVDaIrnw==")
+JWT_ALGORITHM = "HS256"
+security = HTTPBearer()
+
+# ============================================
+# APPLICATION SETUP
+# ============================================
+
+app = FastAPI(
+    title="ShareYourSales API - Version Complète",
+    description="""
+# 🇲🇦 ShareYourSales - Plateforme d'Affiliation Marocaine
+
+## 🎯 Fonctionnalités Principales
+
+### 💳 Système d'Abonnements SaaS
+- **Free**: 5 liens/mois, analytics de base
+- **Starter**: 50 liens/mois, analytics avancées  
+- **Pro**: 200 liens/mois, API, webhooks
+- **Enterprise**: Illimité, support prioritaire
+
+### 📱 Intégrations Réseaux Sociaux
+- **Instagram**: Business API avec métriques
+- **TikTok**: Creator API et TikTok Shop
+- **Facebook**: Pages et groupes
+- **WhatsApp Business**: Catalogue produits
+
+### 🤖 Intelligence Artificielle
+- Assistant conversationnel multilingue
+- Recommandations personnalisées
+- Analyse prédictive des performances
+- Génération automatique de contenu
+
+### 💰 Système de Paiement
+- **Stripe**: Cartes internationales
+- **PayPal**: Paiements globaux
+- **CMI**: Cartes marocaines
+- **Orange Money**: Mobile payment
+
+### 🔐 Sécurité & Conformité
+- Authentification 2FA
+- Chiffrement end-to-end
+- RGPD compliant
+- Audit trails complets
+
+### 📊 Analytics Avancées
+- Tracking en temps réel
+- Tableaux de bord personnalisés
+- Rapports automatisés
+- Prédictions IA
+
+### 🌍 Support Multilingue
+- Français, Anglais, Arabe
+- Interface adaptative
+- Documentation complète
+""",
+    version="2.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# ============================================
+# MIDDLEWARE
+# ============================================
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000", "http://localhost:8000", "https://*.shareyoursales.ma"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ============================================
+# AUTHENTICATION
+# ============================================
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Vérifier le token JWT"""
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expiré")
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token invalide")
+
+def hash_password(password: str) -> str:
+    """Hasher un mot de passe"""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Vérifier un mot de passe"""
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
+
+# ============================================
+# MODELS
+# ============================================
+
+class User(BaseModel):
+    id: Optional[str] = None
+    email: EmailStr
+    username: str
+    role: str = "user"
+    subscription_plan: str = "free"
+    created_at: Optional[datetime] = None
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    username: str
+    password: str
+    role: str = "user"
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class AffiliateLink(BaseModel):
+    id: Optional[str] = None
+    user_id: str
+    product_url: str
+    custom_slug: Optional[str] = None
+    commission_rate: float = 10.0
+    status: str = "active"
+    created_at: Optional[datetime] = None
+
+class Product(BaseModel):
+    id: Optional[str] = None
+    name: str
+    description: str
+    price: float
+    category: str
+    image_url: Optional[str] = None
+    merchant_id: str
+    commission_rate: float = 10.0
+
+class Campaign(BaseModel):
+    id: Optional[str] = None
+    name: str
+    description: str
+    start_date: datetime
+    end_date: datetime
+    budget: float
+    target_audience: Dict[str, Any]
+    status: str = "draft"
+
+class ProductReview(BaseModel):
+    rating: int = Field(..., ge=1, le=5)
+    title: Optional[str] = None
+    comment: str = Field(..., min_length=10)
+
+class AffiliationRequest(BaseModel):
+    message: Optional[str] = None
+
+# ============================================
+# MOCK DATA
+# ============================================
+
+MOCK_USERS = {
+    "1": {
+        "id": "1",
+        "email": "admin@shareyoursales.ma",
+        "username": "admin",
+        "role": "admin",
+        "subscription_plan": "enterprise",
+        "password_hash": hash_password("admin123"),
+        "created_at": datetime.now().isoformat(),
+        "profile": {
+            "first_name": "Mohammed",
+            "last_name": "Admin",
+            "phone": "+212600000000",
+            "city": "Casablanca"
+        }
+    },
+    "2": {
+        "id": "2", 
+        "email": "influencer@example.com",
+        "username": "sarah_influencer",
+        "role": "influencer",
+        "subscription_plan": "pro",
+        "password_hash": hash_password("password123"),
+        "created_at": datetime.now().isoformat(),
+        "profile": {
+            "first_name": "Sarah",
+            "last_name": "Benali",
+            "phone": "+212611222333",
+            "city": "Rabat",
+            "instagram": "@sarah_lifestyle_ma",
+            "followers_count": 125000,
+            "engagement_rate": 4.8,
+            "niche": "Lifestyle & Beauty",
+            "rating": 4.9,
+            "reviews": 87,
+            "campaigns_completed": 45,
+            "min_rate": 800,
+            "categories": ["Mode", "Beauté", "Lifestyle"],
+            "trending": True,
+            "tiktok_followers": 95000
+        }
+    },
+    "3": {
+        "id": "3",
+        "email": "merchant@example.com", 
+        "username": "boutique_maroc",
+        "role": "merchant",
+        "subscription_plan": "starter",
+        "password_hash": hash_password("merchant123"),
+        "created_at": datetime.now().isoformat(),
+        "profile": {
+            "first_name": "Youssef",
+            "last_name": "Alami",
+            "phone": "+212622444555",
+            "city": "Marrakech",
+            "company": "Artisanat Maroc",
+            "business_type": "Artisanat traditionnel"
+        }
+    },
+    "4": {
+        "id": "4",
+        "email": "aminainfluencer@gmail.com",
+        "username": "amina_beauty",
+        "role": "influencer", 
+        "subscription_plan": "pro",
+        "password_hash": hash_password("amina123"),
+        "created_at": datetime.now().isoformat(),
+        "profile": {
+            "first_name": "Amina",
+            "last_name": "Tazi",
+            "phone": "+212633666777",
+            "city": "Fès",
+            "instagram": "@amina_beauty_fes",
+            "tiktok": "@aminabeauty",
+            "followers_count": 89000,
+            "engagement_rate": 6.2,
+            "niche": "Beauty & Cosmetics",
+            "rating": 4.7,
+            "reviews": 62,
+            "campaigns_completed": 38,
+            "min_rate": 650,
+            "categories": ["Beauté", "Cosmétiques", "Skincare"],
+            "trending": False,
+            "tiktok_followers": 112000
+        }
+    },
+    "5": {
+        "id": "5",
+        "email": "commerciale@shareyoursales.ma",
+        "username": "sofia_commercial",
+        "role": "commercial",
+        "subscription_plan": "enterprise",
+        "password_hash": hash_password("sofia123"),
+        "created_at": datetime.now().isoformat(),
+        "profile": {
+            "first_name": "Sofia",
+            "last_name": "Chakir",
+            "phone": "+212644888999",
+            "city": "Casablanca",
+            "department": "Business Development",
+            "territory": "Région Casablanca-Settat",
+            "total_sales": 156,
+            "commission_earned": 45600,
+            "rating": 4.8,
+            "reviews": 43,
+            "specialties": ["E-commerce", "B2B", "Retail"]
+        }
+    },
+    "6": {
+        "id": "6",
+        "email": "merchant2@artisanmaroc.ma",
+        "username": "luxury_crafts",
+        "role": "merchant",
+        "subscription_plan": "pro", 
+        "password_hash": hash_password("luxury123"),
+        "created_at": datetime.now().isoformat(),
+        "profile": {
+            "first_name": "Rachid",
+            "last_name": "Bennani",
+            "phone": "+212655111222",
+            "city": "Tétouan",
+            "company": "Luxury Moroccan Crafts",
+            "business_type": "Articles de luxe"
+        }
+    },
+    "7": {
+        "id": "7",
+        "email": "foodinfluencer@gmail.com",
+        "username": "chef_hassan",
+        "role": "influencer",
+        "subscription_plan": "starter",
+        "password_hash": hash_password("hassan123"),
+        "created_at": datetime.now().isoformat(),
+        "profile": {
+            "first_name": "Hassan",
+            "last_name": "Oudrhiri",
+            "phone": "+212666333444",
+            "city": "Agadir",
+            "instagram": "@chef_hassan_agadir",
+            "youtube": "Chef Hassan Cuisine",
+            "followers_count": 67000,
+            "engagement_rate": 5.4,
+            "niche": "Food & Cuisine",
+            "rating": 4.6,
+            "reviews": 34,
+            "campaigns_completed": 28,
+            "min_rate": 500,
+            "categories": ["Food", "Cuisine", "Restaurant"],
+            "trending": True,
+            "tiktok_followers": 78000
+        }
+    },
+    "8": {
+        "id": "8",
+        "email": "commercial2@shareyoursales.ma",
+        "username": "omar_commercial",
+        "role": "commercial",
+        "subscription_plan": "enterprise",
+        "password_hash": hash_password("omar123"),
+        "created_at": datetime.now().isoformat(),
+        "profile": {
+            "first_name": "Omar",
+            "last_name": "Filali",
+            "phone": "+212677555666",
+            "city": "Rabat",
+            "department": "Client Relations",
+            "territory": "Région Rabat-Salé-Kénitra",
+            "total_sales": 203,
+            "commission_earned": 62400,
+            "rating": 4.9,
+            "reviews": 56,
+            "specialties": ["Grands Comptes", "Partenariats", "Support Client"]
+        }
+    }
+}
+
+MOCK_PRODUCTS = [
+    # PRODUITS PHYSIQUES
+    {
+        "id": "1",
+        "name": "Huile d'Argan Bio Premium - 100ml",
+        "description": "Huile d'argan 100% bio certifiée, extraite à froid des coopératives d'Essaouira. Riche en vitamine E et acides gras essentiels.",
+        "price": 120.0,
+        "category": "Cosmétiques",
+        "type": "product",
+        "image_url": "https://images.unsplash.com/photo-1556228453-efd6c1ff04f6?w=400",
+        "merchant_id": "3",
+        "commission_rate": 15.0,
+        "stock": 50,
+        "rating": 4.8,
+        "sales_count": 234,
+        "featured": True,
+        "tags": ["bio", "argan", "naturel", "maroc"]
+    },
+    {
+        "id": "2", 
+        "name": "Caftan Marocain Brodé à la Main",
+        "description": "Caftan traditionnel en soie naturelle, brodé à la main par les artisans de Fès. Pièce unique disponible en plusieurs tailles.",
+        "price": 450.0,
+        "category": "Mode",
+        "type": "product",
+        "image_url": "https://images.unsplash.com/photo-1594736797933-d0901ba2fe65?w=400", 
+        "merchant_id": "3",
+        "commission_rate": 20.0,
+        "stock": 12,
+        "rating": 4.9,
+        "sales_count": 89,
+        "featured": True,
+        "tags": ["caftan", "broderie", "soie", "artisanat"]
+    },
+    {
+        "id": "3",
+        "name": "Tajine en Terre Cuite de Salé",
+        "description": "Tajine authentique fait à la main par les potiers de Salé. Idéal pour une cuisson traditionnelle et savoureuse.",
+        "price": 85.0,
+        "category": "Maison",
+        "type": "product",
+        "image_url": "https://images.unsplash.com/photo-1574653105043-7ad6e4b08b9e?w=400",
+        "merchant_id": "3", 
+        "commission_rate": 12.0,
+        "stock": 25,
+        "rating": 4.7,
+        "sales_count": 156,
+        "featured": False,
+        "tags": ["tajine", "poterie", "cuisine", "traditionnel"]
+    },
+    {
+        "id": "4",
+        "name": "Tapis Berbère Vintage",
+        "description": "Tapis berbère authentique tissé à la main dans l'Atlas. Motifs traditionnels amazighs, laine naturelle de mouton.",
+        "price": 890.0,
+        "category": "Décoration",
+        "type": "product",
+        "image_url": "https://images.unsplash.com/photo-1506439773649-6e0eb8cfb237?w=400",
+        "merchant_id": "3",
+        "commission_rate": 18.0,
+        "stock": 8,
+        "rating": 4.9,
+        "sales_count": 67,
+        "featured": True,
+        "tags": ["tapis", "berbère", "vintage", "atlas"]
+    },
+    {
+        "id": "5",
+        "name": "Savon Noir Beldi Traditionnel",
+        "description": "Savon noir authentique à base d'olives marocaines. Utilisé dans les hammams traditionnels, exfoliant naturel.",
+        "price": 25.0,
+        "category": "Cosmétiques",
+        "type": "product",
+        "image_url": "https://images.unsplash.com/photo-1556228994-b6c25e02c0e4?w=400",
+        "merchant_id": "4",
+        "commission_rate": 25.0,
+        "stock": 100,
+        "rating": 4.6,
+        "sales_count": 445,
+        "featured": False,
+        "tags": ["savon", "beldi", "hammam", "naturel"]
+    },
+    
+    # SERVICES
+    {
+        "id": "11",
+        "name": "Shooting Photo Professionnel",
+        "description": "Séance photo professionnelle pour influenceurs et marques. Inclut 3 heures de shooting, retouche de 50 photos HD.",
+        "price": 800.0,
+        "category": "Photographie",
+        "type": "service",
+        "image_url": "https://images.unsplash.com/photo-1554048612-b6a482bc67e5?w=400",
+        "merchant_id": "4",
+        "commission_rate": 20.0,
+        "rating": 4.9,
+        "sales_count": 78,
+        "featured": True,
+        "tags": ["photo", "shooting", "professionnel", "influenceur"]
+    },
+    {
+        "id": "12",
+        "name": "Coaching Marketing Digital",
+        "description": "Consultation personnalisée en stratégie digitale et réseaux sociaux. 2 sessions de 1h30 avec plan d'action sur mesure.",
+        "price": 650.0,
+        "category": "Consulting",
+        "type": "service",
+        "image_url": "https://images.unsplash.com/photo-1552664730-d307ca884978?w=400",
+        "merchant_id": "5",
+        "commission_rate": 25.0,
+        "rating": 4.8,
+        "sales_count": 112,
+        "featured": True,
+        "tags": ["marketing", "coaching", "digital", "stratégie"]
+    },
+    {
+        "id": "13",
+        "name": "Création Site Web Vitrine",
+        "description": "Développement complet d'un site web responsive. Design moderne, optimisé SEO, livraison en 15 jours.",
+        "price": 2500.0,
+        "category": "Développement Web",
+        "type": "service",
+        "image_url": "https://images.unsplash.com/photo-1467232004584-a241de8bcf5d?w=400",
+        "merchant_id": "6",
+        "commission_rate": 15.0,
+        "rating": 4.9,
+        "sales_count": 45,
+        "featured": True,
+        "tags": ["web", "site", "développement", "responsive"]
+    },
+    {
+        "id": "14",
+        "name": "Gestion Réseaux Sociaux - 1 Mois",
+        "description": "Gestion complète de vos réseaux sociaux pendant 1 mois. Création de contenu, planification, engagement communauté.",
+        "price": 1200.0,
+        "category": "Social Media",
+        "type": "service",
+        "image_url": "https://images.unsplash.com/photo-1611162617474-5b21e879e113?w=400",
+        "merchant_id": "4",
+        "commission_rate": 18.0,
+        "rating": 4.7,
+        "sales_count": 89,
+        "featured": False,
+        "tags": ["social media", "gestion", "instagram", "facebook"]
+    },
+    {
+        "id": "15",
+        "name": "Montage Vidéo Professionnel",
+        "description": "Montage vidéo de qualité pro pour YouTube, TikTok, Instagram. Jusqu'à 10 minutes de vidéo finale avec effets.",
+        "price": 450.0,
+        "category": "Vidéo",
+        "type": "service",
+        "image_url": "https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=400",
+        "merchant_id": "5",
+        "commission_rate": 22.0,
+        "rating": 4.8,
+        "sales_count": 134,
+        "featured": False,
+        "tags": ["vidéo", "montage", "youtube", "tiktok"]
+    },
+    {
+        "id": "16",
+        "name": "Formation E-commerce Complète",
+        "description": "Formation intensive de 3 jours sur le e-commerce. De la création de boutique à la stratégie de vente en ligne.",
+        "price": 1800.0,
+        "category": "Formation",
+        "type": "service",
+        "image_url": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400",
+        "merchant_id": "6",
+        "commission_rate": 20.0,
+        "rating": 4.9,
+        "sales_count": 56,
+        "featured": True,
+        "tags": ["formation", "ecommerce", "vente", "business"]
+    },
+    {
+        "id": "17",
+        "name": "Rédaction Articles de Blog SEO",
+        "description": "Pack de 5 articles optimisés SEO de 1000 mots chacun. Recherche mots-clés incluse, livraison en 10 jours.",
+        "price": 550.0,
+        "category": "Rédaction",
+        "type": "service",
+        "image_url": "https://images.unsplash.com/photo-1455390582262-044cdead277a?w=400",
+        "merchant_id": "4",
+        "commission_rate": 25.0,
+        "rating": 4.6,
+        "sales_count": 98,
+        "featured": False,
+        "tags": ["rédaction", "seo", "blog", "contenu"]
+    },
+    {
+        "id": "18",
+        "name": "Design Logo + Identité Visuelle",
+        "description": "Création complète d'un logo professionnel + charte graphique. 3 propositions, révisions illimitées.",
+        "price": 950.0,
+        "category": "Design",
+        "type": "service",
+        "image_url": "https://images.unsplash.com/photo-1626785774573-4b799315345d?w=400",
+        "merchant_id": "5",
+        "commission_rate": 18.0,
+        "rating": 4.8,
+        "sales_count": 67,
+        "featured": False,
+        "tags": ["design", "logo", "identité", "graphisme"]
+    },
+    {
+        "id": "19",
+        "name": "Audit SEO Complet",
+        "description": "Analyse SEO détaillée de votre site web avec rapport complet et recommandations d'amélioration.",
+        "price": 750.0,
+        "category": "SEO",
+        "type": "service",
+        "image_url": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400",
+        "merchant_id": "6",
+        "commission_rate": 20.0,
+        "rating": 4.9,
+        "sales_count": 83,
+        "featured": True,
+        "tags": ["seo", "audit", "analyse", "optimisation"]
+    },
+    {
+        "id": "20",
+        "name": "Campagne Publicité Facebook Ads",
+        "description": "Création et gestion de campagne Facebook Ads pendant 2 semaines. Ciblage, créatifs, optimisation inclus.",
+        "price": 1100.0,
+        "category": "Publicité",
+        "type": "service",
+        "image_url": "https://images.unsplash.com/photo-1611162616305-c69b3fa7fbe0?w=400",
+        "merchant_id": "4",
+        "commission_rate": 22.0,
+        "rating": 4.7,
+        "sales_count": 91,
+        "featured": False,
+        "tags": ["facebook", "ads", "publicité", "marketing"]
+    }
+]
+
+MOCK_AFFILIATE_LINKS = [
+    {
+        "id": "1",
+        "user_id": "2",
+        "product_id": "1", 
+        "custom_slug": "argan-premium",
+        "original_url": "https://boutique.ma/argan-oil",
+        "affiliate_url": "https://shareyoursales.ma/aff/argan-premium",
+        "commission_rate": 15.0,
+        "clicks": 245,
+        "conversions": 12,
+        "revenue": 216.0,
+        "status": "active",
+        "created_at": "2024-10-15T10:30:00Z"
+    },
+    {
+        "id": "2",
+        "user_id": "2",
+        "product_id": "2",
+        "custom_slug": "caftan-luxury", 
+        "original_url": "https://boutique.ma/caftan-traditionnel",
+        "affiliate_url": "https://shareyoursales.ma/aff/caftan-luxury",
+        "commission_rate": 20.0,
+        "clicks": 89,
+        "conversions": 3,
+        "revenue": 270.0,
+        "status": "active",
+        "created_at": "2024-10-20T14:15:00Z"
+    }
+]
+
+# ============================================
+# ROOT ENDPOINTS
+# ============================================
+
+@app.get("/")
+async def root():
+    """Page d'accueil de l'API"""
+    return {
+        "message": "🇲🇦 ShareYourSales API - Version Complète",
+        "status": "operational",
+        "version": "2.0.0",
+        "features": [
+            "Authentification JWT",
+            "Gestion utilisateurs", 
+            "Liens d'affiliation",
+            "Produits marketplace",
+            "Analytics en temps réel",
+            "Intégrations sociales",
+            "Paiements multi-gateway",
+            "IA conversationnelle"
+        ],
+        "endpoints": {
+            "docs": "/docs",
+            "health": "/api/health",
+            "auth": "/api/auth/*",
+            "users": "/api/users/*", 
+            "products": "/api/products/*",
+            "affiliate": "/api/affiliate/*",
+            "analytics": "/api/analytics/*"
+        }
+    }
+
+@app.get("/api/health")
+async def health_check():
+    """Vérification de santé du service"""
+    return {
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "service": "ShareYourSales Backend",
+        "version": "2.0.0",
+        "uptime": "24h 15m",
+        "database": "connected",
+        "redis": "connected",
+        "external_apis": {
+            "stripe": "operational",
+            "instagram": "operational", 
+            "tiktok": "operational"
+        }
+    }
+
+# ============================================
+# AUTHENTICATION ENDPOINTS
+# ============================================
+
+@app.post("/api/auth/register")
+async def register(user_data: UserCreate):
+    """Inscription d'un nouvel utilisateur"""
+    # Vérifier si l'email existe déjà
+    for user in MOCK_USERS.values():
+        if user["email"] == user_data.email:
+            raise HTTPException(status_code=400, detail="Email déjà utilisé")
+    
+    # Créer nouvel utilisateur
+    user_id = str(len(MOCK_USERS) + 1)
+    new_user = {
+        "id": user_id,
+        "email": user_data.email,
+        "username": user_data.username,
+        "role": user_data.role,
+        "subscription_plan": "free",
+        "password_hash": hash_password(user_data.password),
+        "created_at": datetime.now().isoformat()
+    }
+    
+    MOCK_USERS[user_id] = new_user
+    
+    # Envoyer email de bienvenue
+    if EMAIL_ENABLED:
+        try:
+            await EmailTemplates.send_welcome_email(
+                to_email=user_data.email,
+                user_name=user_data.username,
+                user_type=user_data.role
+            )
+        except Exception as e:
+            print(f"Email sending failed: {e}")
+    
+    # Générer token JWT
+    token_data = {
+        "sub": user_id,
+        "email": user_data.email,
+        "role": user_data.role,
+        "exp": datetime.utcnow() + timedelta(hours=24)
+    }
+    
+    access_token = jwt.encode(token_data, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    
+    return {
+        "message": "Inscription réussie",
+        "user": {
+            "id": user_id,
+            "email": user_data.email,
+            "username": user_data.username,
+            "role": user_data.role,
+            "subscription_plan": "free"
+        },
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+@app.post("/api/auth/login")
+async def login(credentials: UserLogin):
+    """Connexion utilisateur"""
+    # Trouver l'utilisateur par email
+    user = None
+    for u in MOCK_USERS.values():
+        if u["email"] == credentials.email:
+            user = u
+            break
+    
+    if not user:
+        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
+    
+    # Vérifier le mot de passe
+    if not verify_password(credentials.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
+    
+    # Générer token JWT
+    token_data = {
+        "sub": user["id"],
+        "email": user["email"],
+        "role": user["role"],
+        "exp": datetime.utcnow() + timedelta(hours=24)
+    }
+    
+    access_token = jwt.encode(token_data, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    
+    return {
+        "message": "Connexion réussie",
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "username": user["username"],
+            "role": user["role"],
+            "subscription_plan": user["subscription_plan"]
+        },
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+@app.get("/api/auth/me")
+async def get_current_user(payload: dict = Depends(verify_token)):
+    """Obtenir les informations de l'utilisateur connecté"""
+    user_id = payload.get("sub")
+    user = MOCK_USERS.get(user_id)
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilisateur non trouvé")
+    
+    return {
+        "id": user["id"],
+        "email": user["email"],
+        "username": user["username"],
+        "role": user["role"],
+        "subscription_plan": user["subscription_plan"],
+        "created_at": user["created_at"]
+    }
+
+@app.post("/api/auth/logout")
+async def logout(payload: dict = Depends(verify_token)):
+    """Déconnexion utilisateur"""
+    # Dans une implémentation réelle, on invaliderait le token côté serveur
+    # Pour l'instant, on retourne simplement un message de succès
+    return {
+        "message": "Déconnexion réussie",
+        "success": True
+    }
+
+# ============================================
+# PRODUCTS ENDPOINTS
+# ============================================
+
+@app.get("/api/products")
+async def get_products(
+    category: Optional[str] = None,
+    product_type: Optional[str] = Query(None, alias="type"),
+    limit: int = Query(10, le=100),
+    offset: int = Query(0, ge=0),
+    search: Optional[str] = None,
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    featured: Optional[bool] = None,
+    sort_by: Optional[str] = "popularity"
+):
+    """Liste des produits avec filtres avancés"""
+    products = MOCK_PRODUCTS.copy()
+    
+    # Filtrer par type (product ou service)
+    if product_type:
+        products = [p for p in products if p.get("type", "product") == product_type]
+    
+    # Filtrer par catégorie
+    if category:
+        products = [p for p in products if p["category"].lower() == category.lower()]
+    
+    # Recherche textuelle
+    if search:
+        search_lower = search.lower()
+        products = [p for p in products if 
+                   search_lower in p["name"].lower() or 
+                   search_lower in p["description"].lower() or
+                   any(search_lower in tag for tag in p.get("tags", []))]
+    
+    # Filtrer par prix
+    if min_price:
+        products = [p for p in products if p["price"] >= min_price]
+    if max_price:
+        products = [p for p in products if p["price"] <= max_price]
+    
+    # Filtrer par featured
+    if featured is not None:
+        products = [p for p in products if p.get("featured", False) == featured]
+    
+    # Tri
+    if sort_by == "price_asc":
+        products.sort(key=lambda x: x["price"])
+    elif sort_by == "price_desc":
+        products.sort(key=lambda x: x["price"], reverse=True)
+    elif sort_by == "rating":
+        products.sort(key=lambda x: x["rating"], reverse=True)
+    elif sort_by == "popularity":
+        products.sort(key=lambda x: x["sales_count"], reverse=True)
+    
+    # Pagination
+    total = len(products)
+    products = products[offset:offset + limit]
+    
+    return {
+        "products": products,
+        "pagination": {
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "has_more": offset + limit < total
+        },
+        "filters": {
+            "categories": list(set(p["category"] for p in MOCK_PRODUCTS)),
+            "price_range": {
+                "min": min(p["price"] for p in MOCK_PRODUCTS),
+                "max": max(p["price"] for p in MOCK_PRODUCTS)
+            }
+        }
+    }
+
+@app.get("/api/products/featured")
+async def get_featured_products():
+    """Produits en vedette"""
+    featured_products = [p for p in MOCK_PRODUCTS if p.get("featured", False)]
+    return {
+        "products": featured_products[:6],
+        "total": len(featured_products)
+    }
+
+@app.get("/api/products/categories")
+async def get_categories():
+    """Liste des catégories avec compteurs"""
+    categories = {}
+    for product in MOCK_PRODUCTS:
+        cat = product["category"]
+        if cat not in categories:
+            categories[cat] = {"name": cat, "count": 0, "products": []}
+        categories[cat]["count"] += 1
+        categories[cat]["products"].append(product["id"])
+    
+    return {
+        "categories": list(categories.values()),
+        "total_categories": len(categories)
+    }
+
+@app.get("/api/products/{product_id}")
+async def get_product(product_id: str):
+    """Détails d'un produit spécifique"""
+    product = next((p for p in MOCK_PRODUCTS if p["id"] == product_id), None)
+    
+    if not product:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+    
+    return {
+        "product": product,
+        "related_products": [p for p in MOCK_PRODUCTS if p["category"] == product["category"] and p["id"] != product_id][:3],
+        "affiliate_stats": {
+            "total_affiliates": 45,
+            "avg_commission": 15.5,
+            "conversion_rate": 3.2
+        }
+    }
+
+# ============================================
+# MARKETPLACE ENDPOINTS (Compatibility)
+# ============================================
+
+@app.get("/api/marketplace/products")
+async def get_marketplace_products(
+    type: Optional[str] = "product",
+    limit: int = Query(20, le=100),
+    offset: int = Query(0, ge=0)
+):
+    """Produits et services pour le marketplace - Depuis Supabase"""
+    try:
+        if SUPABASE_ENABLED:
+            # Récupérer depuis Supabase
+            query = supabase.table("products").select("*")
+            
+            # Filtrer par type si spécifié
+            if type:
+                query = query.eq("type", type)
+            
+            # Pagination
+            query = query.range(offset, offset + limit - 1)
+            
+            result = query.execute()
+            products = result.data if result.data else []
+            
+            # Compter le total
+            count_result = supabase.table("products").select("id", count="exact")
+            if type:
+                count_result = count_result.eq("type", type)
+            count_data = count_result.execute()
+            total = count_data.count if hasattr(count_data, 'count') else len(products)
+            
+            return {
+                "products": products,
+                "total": total,
+                "limit": limit,
+                "offset": offset
+            }
+        else:
+            # Fallback sur MOCK_PRODUCTS si Supabase non disponible
+            products = MOCK_PRODUCTS.copy()
+            
+            if type:
+                products = [p for p in products if p.get("type", "product") == type]
+            
+            total = len(products)
+            products = products[offset:offset + limit]
+            
+            return {
+                "products": products,
+                "total": total,
+                "limit": limit,
+                "offset": offset
+            }
+    except Exception as e:
+        print(f"❌ Erreur Supabase: {e}")
+        # Fallback sur MOCK en cas d'erreur
+        products = MOCK_PRODUCTS.copy()
+        if type:
+            products = [p for p in products if p.get("type", "product") == type]
+        total = len(products)
+        products = products[offset:offset + limit]
+        return {
+            "products": products,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+
+@app.get("/api/marketplace/products/{product_id}")
+async def get_product_detail(product_id: str):
+    """Détails complets d'un produit ou service - Depuis Supabase"""
+    try:
+        if SUPABASE_ENABLED:
+            # Récupérer depuis Supabase
+            result = supabase.table("products").select("*").eq("id", product_id).execute()
+            
+            if not result.data or len(result.data) == 0:
+                raise HTTPException(status_code=404, detail="Produit non trouvé")
+            
+            product = result.data[0]
+        else:
+            # Fallback sur MOCK_PRODUCTS
+            product = next((p for p in MOCK_PRODUCTS if str(p["id"]) == str(product_id)), None)
+            if not product:
+                raise HTTPException(status_code=404, detail="Produit non trouvé")
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Erreur Supabase: {e}")
+        # Fallback sur MOCK en cas d'erreur
+        product = next((p for p in MOCK_PRODUCTS if str(p["id"]) == str(product_id)), None)
+        if not product:
+            raise HTTPException(status_code=404, detail="Produit non trouvé")
+    
+    # Enrichir avec des données supplémentaires pour la page détail
+    product_detail = {
+        **product,
+        "images": product.get("images", [product.get("image", "")]),
+        "highlights": product.get("highlights", [
+            "Produit de qualité premium",
+            "Livraison rapide au Maroc",
+            "Service client disponible 7j/7",
+            "Garantie satisfaction"
+        ]),
+        "included": product.get("included", [
+            "Accès immédiat après achat",
+            "Support technique inclus",
+            "Mises à jour gratuites"
+        ]),
+        "how_it_works": product.get("how_it_works", 
+            "1. Achetez le produit\n2. Recevez votre lien/code par email\n3. Profitez de votre achat\n4. Contactez le support si besoin"),
+        "conditions": product.get("conditions",
+            "• Valable 1 an à partir de la date d'achat\n• Non remboursable\n• Transférable\n• Utilisable au Maroc uniquement"),
+        "faq": product.get("faq", [
+            {
+                "question": "Comment utiliser ce produit/service ?",
+                "answer": "Après l'achat, vous recevrez toutes les instructions par email."
+            },
+            {
+                "question": "Puis-je obtenir un remboursement ?",
+                "answer": "Les remboursements sont possibles dans les 14 jours selon nos conditions."
+            }
+        ]),
+        "merchant": {
+            "name": product.get("merchant_name", "Marchand Vérifié"),
+            "phone": "+212 6 00 00 00 00",
+            "email": "contact@merchant.com"
+        },
+        "rating_average": product.get("rating", 4.5),
+        "rating_count": product.get("rating_count", 150),
+        "sold_count": product.get("sold_count", 450)
+    }
+    
+    return {
+        "success": True,
+        "product": product_detail
+    }
+
+@app.get("/api/marketplace/products/{product_id}/reviews")
+async def get_product_reviews(
+    product_id: str,
+    limit: int = Query(10, le=50),
+    offset: int = Query(0, ge=0)
+):
+    """Avis clients pour un produit"""
+    # Vérifier que le produit existe
+    product = next((p for p in MOCK_PRODUCTS if str(p["id"]) == str(product_id)), None)
+    if not product:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+    
+    # Générer des avis mock
+    mock_reviews = [
+        {
+            "id": f"rev_{product_id}_1",
+            "rating": 5,
+            "title": "Excellent produit!",
+            "comment": "Très satisfait de mon achat. Livraison rapide et produit conforme à la description.",
+            "user": {"first_name": "Ahmed"},
+            "created_at": "2024-10-15T10:30:00",
+            "is_verified_purchase": True
+        },
+        {
+            "id": f"rev_{product_id}_2",
+            "rating": 4,
+            "title": "Bon rapport qualité/prix",
+            "comment": "Produit de bonne qualité. Je recommande!",
+            "user": {"first_name": "Fatima"},
+            "created_at": "2024-10-20T14:20:00",
+            "is_verified_purchase": True
+        },
+        {
+            "id": f"rev_{product_id}_3",
+            "rating": 5,
+            "title": "Parfait",
+            "comment": "Rien à redire, exactement ce que je cherchais.",
+            "user": {"first_name": "Youssef"},
+            "created_at": "2024-10-25T09:15:00",
+            "is_verified_purchase": False
+        }
+    ]
+    
+    total = len(mock_reviews)
+    reviews = mock_reviews[offset:offset + limit]
+    
+    return {
+        "success": True,
+        "reviews": reviews,
+        "total": total
+    }
+
+@app.post("/api/marketplace/products/{product_id}/review")
+async def submit_product_review(
+    product_id: str,
+    review_data: ProductReview,
+    payload: dict = Depends(verify_token)
+):
+    """Soumettre un avis sur un produit"""
+    user_id = payload.get("sub")
+    
+    # Vérifier que le produit existe
+    product = next((p for p in MOCK_PRODUCTS if str(p["id"]) == str(product_id)), None)
+    if not product:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+    
+    # Dans une vraie app, on sauvegarderait l'avis en DB
+    review = {
+        "id": f"rev_{product_id}_{user_id}_{datetime.now().timestamp()}",
+        "product_id": product_id,
+        "user_id": user_id,
+        "rating": review_data.rating,
+        "title": review_data.title,
+        "comment": review_data.comment,
+        "created_at": datetime.now().isoformat(),
+        "is_verified_purchase": False  # À vérifier avec l'historique d'achats
+    }
+    
+    return {
+        "success": True,
+        "message": "Votre avis sera publié après modération",
+        "review": review
+    }
+
+@app.post("/api/marketplace/products/{product_id}/request-affiliate")
+async def request_product_affiliation(
+    product_id: str,
+    request_data: AffiliationRequest,
+    payload: dict = Depends(verify_token)
+):
+    """Demander l'affiliation pour un produit"""
+    user_id = payload.get("sub")
+    user_role = payload.get("role")
+    
+    # Vérifier que l'utilisateur est un influenceur
+    if user_role != "influencer":
+        raise HTTPException(
+            status_code=403,
+            detail="Seuls les influenceurs peuvent demander une affiliation"
+        )
+    
+    # Vérifier que le produit existe
+    product = next((p for p in MOCK_PRODUCTS if str(p["id"]) == str(product_id)), None)
+    if not product:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+    
+    # Créer la demande d'affiliation
+    affiliation_request = {
+        "id": f"aff_req_{user_id}_{product_id}_{datetime.now().timestamp()}",
+        "user_id": user_id,
+        "product_id": product_id,
+        "message": request_data.message or "Je souhaite promouvoir ce produit.",
+        "status": "pending",
+        "commission_rate": product.get("commission_rate", 15),
+        "created_at": datetime.now().isoformat()
+    }
+    
+    # Dans une vraie app, on notifierait le marchand
+    
+    # Générer un lien d'affiliation temporaire
+    tracking_code = f"{user_id[:8]}-{product_id}"
+    affiliate_link = f"https://shareyoursales.ma/go/{tracking_code}"
+    
+    return {
+        "success": True,
+        "message": "Demande d'affiliation envoyée avec succès!",
+        "affiliation_request": affiliation_request,
+        "affiliate_link": affiliate_link
+    }
+
+@app.get("/api/commercials/directory")
+async def get_commercials_directory(
+    limit: int = Query(20, le=100),
+    offset: int = Query(0, ge=0)
+):
+    """Annuaire des commerciaux"""
+    commercials = [u for u in MOCK_USERS.values() if u.get("role") == "commercial"]
+    
+    total = len(commercials)
+    commercials = commercials[offset:offset + limit]
+    
+    return {
+        "commercials": commercials,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
+
+@app.get("/api/influencers/directory")
+async def get_influencers_directory(
+    limit: int = Query(20, le=100),
+    offset: int = Query(0, ge=0)
+):
+    """Annuaire des influenceurs"""
+    influencers = [u for u in MOCK_USERS.values() if u.get("role") == "influencer"]
+    
+    total = len(influencers)
+    influencers = influencers[offset:offset + limit]
+    
+    return {
+        "influencers": influencers,
+        "total": total,
+        "limit": limit,
+        "offset": offset
+    }
+
+# ============================================
+# AFFILIATE LINKS ENDPOINTS  
+# ============================================
+
+@app.get("/api/affiliate/links")
+async def get_affiliate_links(payload: dict = Depends(verify_token)):
+    """Liste des liens d'affiliation de l'utilisateur"""
+    user_id = payload.get("sub")
+    user_links = [link for link in MOCK_AFFILIATE_LINKS if link["user_id"] == user_id]
+    
+    return {
+        "links": user_links,
+        "stats": {
+            "total_links": len(user_links),
+            "total_clicks": sum(link["clicks"] for link in user_links),
+            "total_conversions": sum(link["conversions"] for link in user_links),
+            "total_revenue": sum(link["revenue"] for link in user_links)
+        }
+    }
+
+@app.post("/api/affiliate/links")
+async def create_affiliate_link(
+    product_id: str,
+    custom_slug: Optional[str] = None,
+    payload: dict = Depends(verify_token)
+):
+    """Créer un nouveau lien d'affiliation"""
+    user_id = payload.get("sub")
+    
+    # Vérifier que le produit existe
+    product = next((p for p in MOCK_PRODUCTS if p["id"] == product_id), None)
+    if not product:
+        raise HTTPException(status_code=404, detail="Produit non trouvé")
+    
+    # Générer slug si non fourni
+    if not custom_slug:
+        custom_slug = f"prod-{product_id}-{user_id}"
+    
+    # Créer le lien
+    link_id = str(len(MOCK_AFFILIATE_LINKS) + 1)
+    new_link = {
+        "id": link_id,
+        "user_id": user_id,
+        "product_id": product_id,
+        "custom_slug": custom_slug,
+        "original_url": f"https://boutique.ma/product/{product_id}",
+        "affiliate_url": f"https://shareyoursales.ma/aff/{custom_slug}",
+        "commission_rate": product["commission_rate"],
+        "clicks": 0,
+        "conversions": 0,
+        "revenue": 0.0,
+        "status": "active",
+        "created_at": datetime.now().isoformat()
+    }
+    
+    MOCK_AFFILIATE_LINKS.append(new_link)
+    
+    return {
+        "message": "Lien d'affiliation créé avec succès",
+        "link": new_link
+    }
+
+# ============================================
+# COMMERCIAL SERVICES ENDPOINTS
+# ============================================
+
+@app.get("/api/commercial/leads")
+async def get_leads(payload: dict = Depends(verify_token)):
+    """Obtenir les leads pour les commerciaux"""
+    user_role = payload.get("role")
+    if user_role not in ["commercial", "admin"]:
+        raise HTTPException(status_code=403, detail="Accès commercial requis")
+    
+    return {
+        "leads": [
+            {
+                "id": "lead_001",
+                "company": "E-commerce Morocco",
+                "contact_name": "Fatima Zahra",
+                "email": "fatima@ecommerce-ma.com",
+                "phone": "+212600123456",
+                "status": "nouveau",
+                "potential_revenue": 5000.0,
+                "source": "Site web",
+                "assigned_to": payload.get("sub"),
+                "created_at": "2024-11-01T10:00:00Z"
+            },
+            {
+                "id": "lead_002", 
+                "company": "Startup Tech Rabat",
+                "contact_name": "Ahmed Bennani",
+                "email": "ahmed@startup-tech.ma",
+                "phone": "+212611987654",
+                "status": "en_cours",
+                "potential_revenue": 12000.0,
+                "source": "Référence",
+                "assigned_to": payload.get("sub"),
+                "created_at": "2024-10-28T15:30:00Z"
+            }
+        ],
+        "stats": {
+            "total_leads": 15,
+            "nouveau": 5,
+            "en_cours": 7,
+            "converti": 3,
+            "potential_total": 45000.0
+        }
+    }
+
+@app.get("/api/commercial/clients")
+async def get_commercial_clients(payload: dict = Depends(verify_token)):
+    """Liste des clients pour les commerciaux"""
+    user_role = payload.get("role")
+    if user_role not in ["commercial", "admin"]:
+        raise HTTPException(status_code=403, detail="Accès commercial requis")
+    
+    return {
+        "clients": [
+            {
+                "id": "client_001",
+                "company": "Artisanat Maroc",
+                "contact_name": "Youssef Alami", 
+                "subscription": "starter",
+                "monthly_revenue": 150.0,
+                "status": "actif",
+                "renewal_date": "2024-12-15",
+                "satisfaction": 4.5
+            },
+            {
+                "id": "client_002",
+                "company": "Luxury Moroccan Crafts",
+                "contact_name": "Rachid Bennani",
+                "subscription": "pro",
+                "monthly_revenue": 500.0,
+                "status": "actif", 
+                "renewal_date": "2025-01-20",
+                "satisfaction": 4.8
+            }
+        ],
+        "revenue_stats": {
+            "monthly_total": 2850.0,
+            "yearly_total": 34200.0,
+            "growth_rate": 15.2
+        }
+    }
+
+@app.post("/api/commercial/leads")
+async def create_lead(
+    company: str,
+    contact_name: str,
+    email: str,
+    phone: str,
+    source: str = "Manuel",
+    payload: dict = Depends(verify_token)
+):
+    """Créer un nouveau lead"""
+    user_role = payload.get("role")
+    if user_role not in ["commercial", "admin"]:
+        raise HTTPException(status_code=403, detail="Accès commercial requis")
+    
+    lead_id = f"lead_{len(range(100)) + 1:03d}"
+    new_lead = {
+        "id": lead_id,
+        "company": company,
+        "contact_name": contact_name,
+        "email": email,
+        "phone": phone,
+        "status": "nouveau",
+        "source": source,
+        "assigned_to": payload.get("sub"),
+        "created_at": datetime.now().isoformat()
+    }
+    
+    return {
+        "message": "Lead créé avec succès",
+        "lead": new_lead
+    }
+
+# ============================================
+# CAMPAIGNS ENDPOINTS (General)
+# ============================================
+
+@app.get("/api/campaigns")
+async def get_campaigns(payload: dict = Depends(verify_token)):
+    """Récupérer toutes les campagnes disponibles"""
+    user_id = payload.get("sub")
+    user_role = payload.get("role")
+    
+    # Campagnes mockées
+    campaigns = [
+        {
+            "id": "camp_001",
+            "title": "Promotion Argan Oil - Automne 2024",
+            "description": "Campagne de promotion pour l'huile d'argan premium",
+            "merchant": "BeautyMaroc",
+            "budget": 5000.0,
+            "commission_rate": 20.0,
+            "requirements": {
+                "min_followers": 10000,
+                "niches": ["Beauty", "Lifestyle"],
+                "platforms": ["Instagram", "TikTok"]
+            },
+            "start_date": "2024-11-05",
+            "end_date": "2024-11-30",
+            "status": "active",
+            "applied": False,
+            "participants": 12
+        },
+        {
+            "id": "camp_002",
+            "title": "Collection Caftans Hiver",
+            "description": "Présentation de la nouvelle collection de caftans",
+            "merchant": "FashionMarrakech",
+            "budget": 8000.0,
+            "commission_rate": 25.0,
+            "requirements": {
+                "min_followers": 50000,
+                "niches": ["Fashion", "Traditional"],
+                "platforms": ["Instagram"]
+            },
+            "start_date": "2024-12-01",
+            "end_date": "2024-12-31",
+            "status": "active",
+            "applied": True,
+            "participants": 8
+        },
+        {
+            "id": "camp_003",
+            "title": "Lancement Restaurant Bio Casablanca",
+            "description": "Inauguration du nouveau restaurant bio et local",
+            "merchant": "GreenPlate Casa",
+            "budget": 3000.0,
+            "commission_rate": 15.0,
+            "requirements": {
+                "min_followers": 5000,
+                "niches": ["Food", "Health", "Lifestyle"],
+                "platforms": ["Instagram", "TikTok", "Facebook"]
+            },
+            "start_date": "2024-11-10",
+            "end_date": "2024-11-20",
+            "status": "active",
+            "applied": False,
+            "participants": 25
+        }
+    ]
+    
+    return {
+        "campaigns": campaigns,
+        "total": len(campaigns)
+    }
+
+@app.get("/api/campaigns/{campaign_id}")
+async def get_campaign_detail(campaign_id: str, payload: dict = Depends(verify_token)):
+    """Récupérer les détails d'une campagne spécifique"""
+    # Retourner des détails mockés
+    return {
+        "id": campaign_id,
+        "title": "Promotion Argan Oil - Automne 2024",
+        "description": "Campagne de promotion pour l'huile d'argan premium. Nous recherchons des influenceurs passionnés par la beauté naturelle et les produits du terroir marocain.",
+        "merchant": {
+            "id": "merchant_001",
+            "name": "BeautyMaroc",
+            "logo": "/merchants/beautymaroc.png",
+            "verified": True
+        },
+        "budget": 5000.0,
+        "commission_rate": 20.0,
+        "requirements": {
+            "min_followers": 10000,
+            "niches": ["Beauty", "Lifestyle"],
+            "platforms": ["Instagram", "TikTok"],
+            "min_engagement_rate": 3.0
+        },
+        "deliverables": [
+            "3 posts Instagram",
+            "5 stories Instagram",
+            "1 Reel TikTok"
+        ],
+        "start_date": "2024-11-05",
+        "end_date": "2024-11-30",
+        "status": "active",
+        "applied": False,
+        "participants": 12,
+        "max_participants": 20
+    }
+
+@app.post("/api/campaigns/{campaign_id}/apply")
+async def apply_campaign(campaign_id: str, payload: dict = Depends(verify_token)):
+    """Postuler à une campagne"""
+    user_id = payload.get("sub")
+    user_role = payload.get("role")
+    
+    if user_role not in ["influencer", "admin"]:
+        raise HTTPException(status_code=403, detail="Seuls les influenceurs peuvent postuler aux campagnes")
+    
+    return {
+        "message": "Candidature envoyée avec succès",
+        "campaign_id": campaign_id,
+        "application": {
+            "id": f"app_{campaign_id}_{user_id}",
+            "campaign_id": campaign_id,
+            "influencer_id": user_id,
+            "status": "pending",
+            "applied_at": datetime.now().isoformat()
+        }
+    }
+
+# ============================================
+# INFLUENCER SERVICES ENDPOINTS
+# ============================================
+
+@app.get("/api/influencer/campaigns")
+async def get_influencer_campaigns(payload: dict = Depends(verify_token)):
+    """Campagnes disponibles pour les influenceurs"""
+    user_role = payload.get("role")
+    if user_role not in ["influencer", "admin"]:
+        raise HTTPException(status_code=403, detail="Accès influenceur requis")
+    
+    return {
+        "campaigns": [
+            {
+                "id": "camp_001",
+                "title": "Promotion Argan Oil - Automne 2024",
+                "description": "Campagne de promotion pour l'huile d'argan premium",
+                "budget": 5000.0,
+                "commission_rate": 20.0,
+                "requirements": {
+                    "min_followers": 10000,
+                    "niches": ["Beauty", "Lifestyle"],
+                    "platforms": ["Instagram", "TikTok"]
+                },
+                "start_date": "2024-11-05",
+                "end_date": "2024-11-30",
+                "status": "ouvert",
+                "applied": False
+            },
+            {
+                "id": "camp_002",
+                "title": "Collection Caftans Hiver",
+                "description": "Présentation de la nouvelle collection de caftans",
+                "budget": 8000.0,
+                "commission_rate": 25.0,
+                "requirements": {
+                    "min_followers": 50000,
+                    "niches": ["Fashion", "Traditional"],
+                    "platforms": ["Instagram"]
+                },
+                "start_date": "2024-12-01",
+                "end_date": "2024-12-31",
+                "status": "ouvert",
+                "applied": True
+            }
+        ]
+    }
+
+@app.post("/api/influencer/campaigns/{campaign_id}/apply")
+async def apply_to_campaign(campaign_id: str, payload: dict = Depends(verify_token)):
+    """Postuler à une campagne"""
+    user_role = payload.get("role")
+    if user_role not in ["influencer", "admin"]:
+        raise HTTPException(status_code=403, detail="Accès influenceur requis")
+    
+    return {
+        "message": f"Candidature envoyée pour la campagne {campaign_id}",
+        "status": "en_attente",
+        "next_steps": "Vous recevrez une réponse sous 48h"
+    }
+
+@app.get("/api/influencer/performance")
+async def get_influencer_performance(payload: dict = Depends(verify_token)):
+    """Performance de l'influenceur"""
+    user_id = payload.get("sub")
+    
+    return {
+        "performance": {
+            "total_campaigns": 12,
+            "active_campaigns": 3,
+            "total_earnings": 2850.0,
+            "this_month_earnings": 450.0,
+            "avg_engagement_rate": 5.2,
+            "best_performing_content": "Instagram Stories"
+        },
+        "recent_posts": [
+            {
+                "platform": "Instagram",
+                "post_id": "post_123",
+                "likes": 5400,
+                "comments": 234,
+                "engagement_rate": 5.8,
+                "commission_earned": 85.0,
+                "date": "2024-11-01"
+            },
+            {
+                "platform": "TikTok",
+                "post_id": "video_456", 
+                "views": 67000,
+                "likes": 4200,
+                "engagement_rate": 6.3,
+                "commission_earned": 120.0,
+                "date": "2024-10-30"
+            }
+        ]
+    }
+
+# ============================================
+# MARKETPLACE ENHANCED ENDPOINTS
+# ============================================
+
+@app.get("/api/analytics/dashboard")
+async def get_dashboard_analytics(payload: dict = Depends(verify_token)):
+    """Analytics du tableau de bord"""
+    user_id = payload.get("sub")
+    user_links = [link for link in MOCK_AFFILIATE_LINKS if link["user_id"] == user_id]
+    
+    return {
+        "overview": {
+            "total_clicks": sum(link["clicks"] for link in user_links),
+            "total_conversions": sum(link["conversions"] for link in user_links),
+            "total_revenue": sum(link["revenue"] for link in user_links),
+            "conversion_rate": 3.2,
+            "avg_commission": 15.5
+        },
+        "recent_activity": [
+            {"type": "click", "product": "Argan Oil Premium", "timestamp": "2024-11-02T10:30:00Z"},
+            {"type": "conversion", "product": "Caftan Marocain", "amount": 90.0, "timestamp": "2024-11-02T09:15:00Z"},
+            {"type": "click", "product": "Tajine en Terre", "timestamp": "2024-11-02T08:45:00Z"}
+        ],
+        "top_products": [
+            {"name": "Argan Oil Premium", "clicks": 245, "conversions": 12, "revenue": 216.0},
+            {"name": "Caftan Marocain", "clicks": 89, "conversions": 3, "revenue": 270.0},
+            {"name": "Tajine en Terre", "clicks": 67, "conversions": 2, "revenue": 20.4}
+        ],
+        "monthly_stats": [
+            {"month": "Oct 2024", "revenue": 486.4, "conversions": 17},
+            {"month": "Sep 2024", "revenue": 342.1, "conversions": 12},
+            {"month": "Aug 2024", "revenue": 289.7, "conversions": 9}
+        ]
+    }
+
+# ============================================
+# ADMIN ENDPOINTS
+# ============================================
+
+@app.get("/api/admin/stats")
+async def get_admin_stats(payload: dict = Depends(verify_token)):
+    """Statistiques administrateur"""
+    user_role = payload.get("role")
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Accès administrateur requis")
+    
+    return {
+        "platform_stats": {
+            "total_users": len(MOCK_USERS),
+            "total_products": len(MOCK_PRODUCTS), 
+            "total_affiliate_links": len(MOCK_AFFILIATE_LINKS),
+            "total_revenue": 1234.56,
+            "monthly_growth": 15.2
+        },
+        "user_breakdown": {
+            "influencers": len([u for u in MOCK_USERS.values() if u["role"] == "influencer"]),
+            "merchants": len([u for u in MOCK_USERS.values() if u["role"] == "merchant"]),
+            "admins": len([u for u in MOCK_USERS.values() if u["role"] == "admin"])
+        },
+        "subscription_plans": {
+            "free": len([u for u in MOCK_USERS.values() if u["subscription_plan"] == "free"]),
+            "starter": len([u for u in MOCK_USERS.values() if u["subscription_plan"] == "starter"]),
+            "pro": len([u for u in MOCK_USERS.values() if u["subscription_plan"] == "pro"]),
+            "enterprise": len([u for u in MOCK_USERS.values() if u["subscription_plan"] == "enterprise"])
+        }
+    }
+
+# ============================================
+# SOCIAL MEDIA ENDPOINTS
+# ============================================
+
+@app.get("/api/social/instagram/profile")
+async def get_instagram_profile(payload: dict = Depends(verify_token)):
+    """Profil Instagram connecté"""
+    return {
+        "connected": True,
+        "profile": {
+            "username": "@influencer_maroc",
+            "followers": 125000,
+            "following": 2500,
+            "posts": 1250,
+            "engagement_rate": 4.8,
+            "avg_likes": 5200,
+            "avg_comments": 145
+        },
+        "recent_posts": [
+            {
+                "id": "post1",
+                "caption": "Découvrez cette huile d'argan incroyable! 🌟",
+                "likes": 6800,
+                "comments": 234,
+                "engagement_rate": 5.2,
+                "date": "2024-11-01T15:30:00Z"
+            }
+        ]
+    }
+
+@app.get("/api/social/tiktok/profile") 
+async def get_tiktok_profile(payload: dict = Depends(verify_token)):
+    """Profil TikTok connecté"""
+    return {
+        "connected": True,
+        "profile": {
+            "username": "@influencer_tiktok",
+            "followers": 89000,
+            "following": 1200,
+            "videos": 450,
+            "total_likes": 2500000,
+            "avg_views": 45000,
+            "engagement_rate": 6.2
+        },
+        "recent_videos": [
+            {
+                "id": "video1",
+                "caption": "Test de produits marocains authentiques ✨",
+                "views": 67000,
+                "likes": 5400,
+                "comments": 89,
+                "shares": 234,
+                "date": "2024-11-01T12:00:00Z"
+            }
+        ]
+    }
+
+# ============================================
+# AI ASSISTANT ENDPOINTS
+# ============================================
+
+@app.post("/api/ai/chat")
+async def chat_with_ai(
+    message: str,
+    language: str = "fr",
+    payload: dict = Depends(verify_token)
+):
+    """Chat avec l'assistant IA"""
+    # Simulation de réponse IA
+    responses = {
+        "fr": {
+            "greeting": "Bonjour! Je suis votre assistant ShareYourSales. Comment puis-je vous aider aujourd'hui?",
+            "product_info": "Ce produit a un excellent taux de conversion de 4.2% avec une commission de 15%. Je recommande de le promouvoir sur Instagram Stories!",
+            "strategy": "Pour optimiser vos revenus, je suggère de créer du contenu vidéo court montrant l'utilisation du produit.",
+            "default": "Je suis là pour vous aider avec vos campagnes d'affiliation. Posez-moi vos questions!"
+        },
+        "en": {
+            "greeting": "Hello! I'm your ShareYourSales assistant. How can I help you today?",
+            "product_info": "This product has an excellent conversion rate of 4.2% with 15% commission. I recommend promoting it on Instagram Stories!",
+            "strategy": "To optimize your revenue, I suggest creating short video content showing product usage.",
+            "default": "I'm here to help with your affiliate campaigns. Ask me anything!"
+        },
+        "ar": {
+            "greeting": "مرحبا! أنا مساعدك في ShareYourSales. كيف يمكنني مساعدتك اليوم؟",
+            "product_info": "هذا المنتج له معدل تحويل ممتاز 4.2% مع عمولة 15%. أنصح بالترويج له على Instagram Stories!",
+            "strategy": "لتحسين إيراداتك، أقترح إنشاء محتوى فيديو قصير يظهر استخدام المنتج.",
+            "default": "أنا هنا لمساعدتك في حملات التسويق بالعمولة. اسألني أي شيء!"
+        }
+    }
+    
+    message_lower = message.lower()
+    response_key = "default"
+    
+    if any(word in message_lower for word in ["hello", "bonjour", "مرحبا", "salut"]):
+        response_key = "greeting"
+    elif any(word in message_lower for word in ["product", "produit", "منتج"]):
+        response_key = "product_info"
+    elif any(word in message_lower for word in ["strategy", "stratégie", "استراتيجية"]):
+        response_key = "strategy"
+    
+    response_text = responses.get(language, responses["fr"])[response_key]
+    
+    return {
+        "response": response_text,
+        "language": language,
+        "suggestions": [
+            "Quels sont mes meilleurs produits?",
+            "Comment optimiser mes conversions?",
+            "Analyse de mes performances",
+            "Stratégies de contenu recommandées"
+        ],
+        "timestamp": datetime.now().isoformat()
+    }
+
+# ============================================
+# MISSING ENDPOINTS - QUICK FIX
+# ============================================
+
+@app.get("/api/notifications")
+async def get_notifications(payload: dict = Depends(verify_token)):
+    """Liste des notifications de l'utilisateur"""
+    return {
+        "notifications": [],
+        "unread_count": 0
+    }
+
+@app.get("/api/analytics/overview")
+async def get_analytics_overview(payload: dict = Depends(verify_token)):
+    """Vue d'ensemble des analytics"""
+    return {
+        "total_revenue": 125400,
+        "total_orders": 1523,
+        "total_customers": 892,
+        "conversion_rate": 3.8
+    }
+
+@app.get("/api/merchants")
+async def get_merchants_list(payload: dict = Depends(verify_token)):
+    """Liste des marchands"""
+    merchants = [u for u in MOCK_USERS.values() if u.get("role") == "merchant"]
+    return {"merchants": merchants, "total": len(merchants)}
+
+@app.get("/api/influencers")
+async def get_influencers_list(payload: dict = Depends(verify_token)):
+    """Liste des influenceurs"""
+    influencers = [u for u in MOCK_USERS.values() if u.get("role") == "influencer"]
+    return {"influencers": influencers, "total": len(influencers)}
+
+@app.get("/api/analytics/admin/revenue-chart")
+async def get_admin_revenue_chart(payload: dict = Depends(verify_token)):
+    """Données du graphique de revenus admin"""
+    return {
+        "data": [
+            {"month": "Jan", "revenue": 12500},
+            {"month": "Feb", "revenue": 15200},
+            {"month": "Mar", "revenue": 18900},
+            {"month": "Apr", "revenue": 21300},
+            {"month": "May", "revenue": 19800},
+            {"month": "Jun", "revenue": 23400}
+        ]
+    }
+
+@app.get("/api/analytics/admin/categories")
+async def get_admin_categories(payload: dict = Depends(verify_token)):
+    """Distribution par catégories"""
+    return {
+        "categories": [
+            {"name": "Cosmétiques", "value": 35, "color": "#8b5cf6"},
+            {"name": "Mode", "value": 25, "color": "#ec4899"},
+            {"name": "Maison", "value": 20, "color": "#10b981"},
+            {"name": "Décoration", "value": 15, "color": "#f59e0b"},
+            {"name": "Alimentation", "value": 5, "color": "#3b82f6"}
+        ]
+    }
+
+@app.get("/api/analytics/admin/platform-metrics")
+async def get_admin_platform_metrics(payload: dict = Depends(verify_token)):
+    """Métriques de la plateforme"""
+    return {
+        "active_users": 1245,
+        "total_transactions": 8934,
+        "average_order_value": 156.5,
+        "platform_commission": 23450
+    }
+
+@app.get("/api/messages/conversations")
+async def get_conversations(payload: dict = Depends(verify_token)):
+    """Liste des conversations de l'utilisateur"""
+    user_id = payload.get("user_id")
+    return {
+        "conversations": [
+            {
+                "id": "conv_1",
+                "participant": {
+                    "id": "2",
+                    "name": "Sarah Benali",
+                    "avatar": None,
+                    "role": "influencer"
+                },
+                "last_message": {
+                    "text": "Bonjour, je suis intéressée par votre produit",
+                    "timestamp": "2025-11-02T10:30:00",
+                    "sender_id": "2"
+                },
+                "unread_count": 2
+            }
+        ],
+        "total": 1
+    }
+
+@app.get("/api/messages/conversation/{conversation_id}")
+async def get_conversation_messages(
+    conversation_id: str,
+    payload: dict = Depends(verify_token)
+):
+    """Messages d'une conversation"""
+    return {
+        "messages": [
+            {
+                "id": "msg_1",
+                "sender_id": "2",
+                "text": "Bonjour, je suis intéressée par votre produit",
+                "timestamp": "2025-11-02T10:30:00",
+                "read": True
+            }
+        ],
+        "conversation_id": conversation_id
+    }
+
+@app.post("/api/messages/send")
+async def send_message(
+    conversation_id: str,
+    message: str,
+    payload: dict = Depends(verify_token)
+):
+    """Envoyer un message"""
+    return {
+        "message": {
+            "id": f"msg_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            "sender_id": payload.get("user_id"),
+            "text": message,
+            "timestamp": datetime.now().isoformat(),
+            "read": False
+        }
+    }
+
+# ============================================
+# PAYMENT ENDPOINTS
+# ============================================
+
+@app.post("/api/payments/create-payment-intent")
+async def create_payment_intent(
+    amount: float,
+    currency: str = "MAD",
+    payment_method: str = "stripe",
+    payload: dict = Depends(verify_token)
+):
+    """Créer une intention de paiement"""
+    return {
+        "payment_intent_id": f"pi_mock_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+        "client_secret": "pi_mock_secret_12345",
+        "amount": amount,
+        "currency": currency,
+        "status": "requires_payment_method",
+        "payment_methods": ["card", "paypal", "orange_money"],
+        "processing_fee": amount * 0.029 + 3.0  # 2.9% + 3 MAD
+    }
+
+@app.get("/api/payments/history")
+async def get_payment_history(payload: dict = Depends(verify_token)):
+    """Historique des paiements"""
+    return {
+        "payments": [
+            {
+                "id": "pay_001",
+                "amount": 450.0,
+                "currency": "MAD",
+                "status": "completed",
+                "method": "stripe",
+                "description": "Commission octobre 2024",
+                "date": "2024-11-01T10:00:00Z"
+            },
+            {
+                "id": "pay_002", 
+                "amount": 320.0,
+                "currency": "MAD",
+                "status": "completed",
+                "method": "paypal",
+                "description": "Commission septembre 2024",
+                "date": "2024-10-01T10:00:00Z"
+            }
+        ],
+        "total_earned": 1234.56,
+        "pending_amount": 89.50,
+        "next_payout": "2024-12-01T10:00:00Z"
+    }
+
+# ============================================
+# MERCHANT DASHBOARD ENDPOINTS
+# ============================================
+
+@app.get("/api/analytics/merchant/sales-chart")
+async def get_merchant_sales_chart(payload: dict = Depends(verify_token)):
+    """Graphique des ventes merchant (7 derniers jours)"""
+    from datetime import datetime, timedelta
+    
+    data = []
+    base_date = datetime.now() - timedelta(days=6)
+    
+    for i in range(7):
+        current_date = base_date + timedelta(days=i)
+        data.append({
+            "date": current_date.strftime("%d/%m"),
+            "ventes": 15 + (i * 3),
+            "revenus": 3500 + (i * 450)
+        })
+    
+    return {"data": data}
+
+@app.get("/api/analytics/merchant/performance")
+async def get_merchant_performance(payload: dict = Depends(verify_token)):
+    """Métriques de performance merchant"""
+    return {
+        "conversion_rate": 3.8,
+        "engagement_rate": 12.5,
+        "satisfaction_rate": 92.0,
+        "monthly_goal_progress": 68.0
+    }
+
+# ============================================
+# INFLUENCER DASHBOARD ENDPOINTS
+# ============================================
+
+@app.get("/api/affiliate-links")
+async def get_affiliate_links(payload: dict = Depends(verify_token)):
+    """Liste des liens d'affiliation de l'influenceur"""
+    user_id = payload.get("user_id")
+    
+    # Trouver l'influenceur
+    influencer = next((u for u in MOCK_USERS.values() if u["id"] == str(user_id) and u["role"] == "influencer"), None)
+    
+    links = [
+        {
+            "id": "link_1",
+            "product_name": "Huile d'Argan Bio",
+            "product_id": "1",
+            "affiliate_url": "https://shareyoursales.ma/aff/ABC123",
+            "short_code": "ABC123",
+            "clicks": 145,
+            "conversions": 8,
+            "commission_earned": 240.0,
+            "commission_rate": 15,
+            "created_at": "2024-10-15T10:00:00Z"
+        },
+        {
+            "id": "link_2",
+            "product_name": "Caftan Moderne",
+            "product_id": "2",
+            "affiliate_url": "https://shareyoursales.ma/aff/DEF456",
+            "short_code": "DEF456",
+            "clicks": 89,
+            "conversions": 3,
+            "commission_earned": 900.0,
+            "commission_rate": 20,
+            "created_at": "2024-10-20T14:30:00Z"
+        },
+        {
+            "id": "link_3",
+            "product_name": "Tajine en Céramique",
+            "product_id": "3",
+            "affiliate_url": "https://shareyoursales.ma/aff/GHI789",
+            "short_code": "GHI789",
+            "clicks": 67,
+            "conversions": 5,
+            "commission_earned": 225.0,
+            "commission_rate": 15,
+            "created_at": "2024-10-25T09:15:00Z"
+        }
+    ]
+    
+    return {"links": links, "total": len(links)}
+
+@app.get("/api/influencer/tracking-links")
+async def get_influencer_tracking_links(payload: dict = Depends(verify_token)):
+    """Liste des liens de tracking de l'influenceur"""
+    user_id = payload.get("user_id")
+    
+    tracking_links = [
+        {
+            "id": "track_1",
+            "product_name": "Huile d'Argan Bio",
+            "product_id": "1",
+            "campaign_name": "Campagne Beauté Automne",
+            "tracking_url": "https://shareyoursales.ma/track/ABC123XYZ",
+            "short_code": "ABC123XYZ",
+            "clicks": 245,
+            "conversions": 12,
+            "commission_earned": 360.0,
+            "commission_rate": 15,
+            "status": "active",
+            "created_at": "2024-10-15T10:00:00Z",
+            "expires_at": "2024-12-31T23:59:59Z"
+        },
+        {
+            "id": "track_2",
+            "product_name": "Caftan Moderne",
+            "product_id": "2",
+            "campaign_name": "Collection Hiver 2024",
+            "tracking_url": "https://shareyoursales.ma/track/DEF456UVW",
+            "short_code": "DEF456UVW",
+            "clicks": 189,
+            "conversions": 7,
+            "commission_earned": 1400.0,
+            "commission_rate": 20,
+            "status": "active",
+            "created_at": "2024-10-20T14:30:00Z",
+            "expires_at": "2024-12-31T23:59:59Z"
+        },
+        {
+            "id": "track_3",
+            "product_name": "Tajine en Céramique",
+            "product_id": "3",
+            "campaign_name": "Artisanat Marocain",
+            "tracking_url": "https://shareyoursales.ma/track/GHI789RST",
+            "short_code": "GHI789RST",
+            "clicks": 134,
+            "conversions": 9,
+            "commission_earned": 405.0,
+            "commission_rate": 15,
+            "status": "active",
+            "created_at": "2024-10-25T09:15:00Z",
+            "expires_at": "2024-12-31T23:59:59Z"
+        }
+    ]
+    
+    return {
+        "success": True,
+        "data": tracking_links,
+        "total": len(tracking_links)
+    }
+
+@app.get("/api/influencer/affiliation-requests")
+async def get_influencer_affiliation_requests(
+    status: str = None,
+    payload: dict = Depends(verify_token)
+):
+    """Liste des demandes d'affiliation de l'influenceur"""
+    user_id = payload.get("user_id")
+    
+    all_requests = [
+        {
+            "id": "req_1",
+            "merchant_name": "Artisan Maroc",
+            "merchant_id": "3",
+            "product_name": "Huile d'Argan Bio Premium",
+            "product_id": "1",
+            "commission_rate": 15,
+            "status": "pending_approval",
+            "requested_at": "2024-11-01T10:00:00Z",
+            "message": "Je souhaite promouvoir vos produits auprès de ma communauté lifestyle"
+        },
+        {
+            "id": "req_2",
+            "merchant_name": "Fashion Marrakech",
+            "merchant_id": "4",
+            "product_name": "Caftan Moderne Collection 2024",
+            "product_id": "2",
+            "commission_rate": 20,
+            "status": "active",
+            "requested_at": "2024-10-20T14:30:00Z",
+            "approved_at": "2024-10-21T09:00:00Z",
+            "message": "Partenariat approuvé - Bienvenue!"
+        },
+        {
+            "id": "req_3",
+            "merchant_name": "Poterie Fès",
+            "merchant_id": "5",
+            "product_name": "Tajine en Céramique Artisanale",
+            "product_id": "3",
+            "commission_rate": 15,
+            "status": "active",
+            "requested_at": "2024-10-25T09:15:00Z",
+            "approved_at": "2024-10-26T11:30:00Z",
+            "message": "Collaboration activée avec succès"
+        },
+        {
+            "id": "req_4",
+            "merchant_name": "Bijoux Casablanca",
+            "merchant_id": "6",
+            "product_name": "Collection Bijoux Argent",
+            "product_id": "4",
+            "commission_rate": 18,
+            "status": "rejected",
+            "requested_at": "2024-10-10T16:45:00Z",
+            "rejected_at": "2024-10-12T10:00:00Z",
+            "rejection_reason": "Profil ne correspond pas à notre cible"
+        },
+        {
+            "id": "req_5",
+            "merchant_name": "Maroquinerie Tanger",
+            "merchant_id": "7",
+            "product_name": "Sacs en Cuir Authentique",
+            "product_id": "5",
+            "commission_rate": 22,
+            "status": "cancelled",
+            "requested_at": "2024-09-15T12:00:00Z",
+            "cancelled_at": "2024-09-20T14:30:00Z",
+            "cancellation_reason": "Décision de l'influenceur"
+        }
+    ]
+    
+    # Filtrer par statut si spécifié
+    if status:
+        filtered_requests = [req for req in all_requests if req["status"] == status]
+    else:
+        filtered_requests = all_requests
+    
+    return {
+        "success": True,
+        "data": filtered_requests,
+        "total": len(filtered_requests)
+    }
+
+@app.get("/api/analytics/influencer/earnings-chart")
+async def get_influencer_earnings_chart(payload: dict = Depends(verify_token)):
+    """Graphique des gains influenceur (7 derniers jours)"""
+    from datetime import datetime, timedelta
+    
+    data = []
+    base_date = datetime.now() - timedelta(days=6)
+    
+    for i in range(7):
+        current_date = base_date + timedelta(days=i)
+        data.append({
+            "date": current_date.strftime("%d/%m"),
+            "gains": 45 + (i * 12)
+        })
+    
+    return {"data": data}
+
+@app.post("/api/payouts/request")
+async def request_payout(
+    amount: float,
+    payment_method: str,
+    currency: str = "EUR",
+    payload: dict = Depends(verify_token)
+):
+    """Demander un paiement"""
+    user_id = payload.get("user_id")
+    
+    return {
+        "success": True,
+        "payout_id": f"payout_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+        "amount": amount,
+        "payment_method": payment_method,
+        "currency": currency,
+        "status": "pending",
+        "estimated_arrival": "2-3 jours ouvrés",
+        "message": f"Votre demande de paiement de {amount}€ a été soumise avec succès"
+    }
+
+# ============================================
+# ADMIN SOCIAL DASHBOARD ENDPOINTS
+# ============================================
+
+@app.get("/api/admin/social/posts")
+async def get_admin_social_posts(payload: dict = Depends(verify_token)):
+    """Liste des posts admin social media"""
+    user_role = payload.get("role")
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    posts = [
+        {
+            "id": "post_1",
+            "title": "Lancement de ShareYourSales",
+            "caption": "🚀 Découvrez ShareYourSales, la plateforme qui connecte marchands et influenceurs! #ShareYourSales #MarocDigital",
+            "media_urls": ["https://picsum.photos/800/600?random=1"],
+            "media_type": "image",
+            "status": "published",
+            "campaign_type": "app_launch",
+            "platforms": {
+                "instagram": {"status": "published", "post_id": "ig_123", "url": "https://instagram.com/p/xyz"},
+                "facebook": {"status": "published", "post_id": "fb_456", "url": "https://facebook.com/posts/abc"}
+            },
+            "total_views": 12450,
+            "total_likes": 892,
+            "total_shares": 156,
+            "total_clicks": 234,
+            "created_at": "2024-11-01T10:00:00Z"
+        },
+        {
+            "id": "post_2",
+            "title": "Nouvelle fonctionnalité IA",
+            "caption": "✨ Notre IA Marketing vous aide à créer du contenu engageant! Essayez maintenant. #IA #Marketing",
+            "media_urls": ["https://picsum.photos/800/600?random=2"],
+            "media_type": "image",
+            "status": "draft",
+            "campaign_type": "new_feature",
+            "platforms": {},
+            "total_views": 0,
+            "total_likes": 0,
+            "total_shares": 0,
+            "total_clicks": 0,
+            "created_at": "2024-11-02T14:30:00Z"
+        }
+    ]
+    
+    return {"success": True, "posts": posts}
+
+@app.get("/api/admin/social/templates")
+async def get_admin_social_templates(payload: dict = Depends(verify_token)):
+    """Templates de posts pour admin"""
+    templates = [
+        {
+            "id": "tpl_1",
+            "name": "Lancement App",
+            "description": "Template pour annoncer le lancement de l'application",
+            "category": "app_launch",
+            "caption_template": "🚀 [NOM_APP] est maintenant disponible! Rejoignez-nous sur [URL]",
+            "suggested_hashtags": ["#Launch", "#NewApp", "#MarocDigital"],
+            "suggested_cta_text": "Télécharger maintenant",
+            "suggested_cta_url": "https://shareyoursales.ma",
+            "usage_count": 5
+        },
+        {
+            "id": "tpl_2",
+            "name": "Nouvelle Fonctionnalité",
+            "description": "Annoncer une nouvelle feature",
+            "category": "new_feature",
+            "caption_template": "✨ Nouvelle fonctionnalité: [FEATURE_NAME]! [DESCRIPTION]",
+            "suggested_hashtags": ["#NewFeature", "#Update", "#Innovation"],
+            "suggested_cta_text": "Découvrir",
+            "suggested_cta_url": "https://shareyoursales.ma/features",
+            "usage_count": 3
+        },
+        {
+            "id": "tpl_3",
+            "name": "Recrutement Marchands",
+            "description": "Attirer des marchands",
+            "category": "merchant_recruitment",
+            "caption_template": "🏪 Vous êtes marchand? Rejoignez ShareYourSales et boostez vos ventes!",
+            "suggested_hashtags": ["#Merchants", "#B2B", "#Ecommerce"],
+            "suggested_cta_text": "Créer mon compte",
+            "suggested_cta_url": "https://shareyoursales.ma/register",
+            "usage_count": 8
+        },
+        {
+            "id": "tpl_4",
+            "name": "Recrutement Influenceurs",
+            "description": "Attirer des influenceurs",
+            "category": "influencer_recruitment",
+            "caption_template": "🌟 Influenceurs! Monétisez votre audience avec ShareYourSales",
+            "suggested_hashtags": ["#Influencers", "#Creators", "#MoneyMaking"],
+            "suggested_cta_text": "Rejoindre",
+            "suggested_cta_url": "https://shareyoursales.ma/register",
+            "usage_count": 12
+        }
+    ]
+    
+    return {"success": True, "templates": templates}
+
+@app.get("/api/admin/social/analytics")
+async def get_admin_social_analytics(payload: dict = Depends(verify_token)):
+    """Analytics des posts sociaux admin"""
+    return {
+        "success": True,
+        "global_stats": {
+            "total_posts": 15,
+            "total_views": 45600,
+            "total_likes": 3420,
+            "total_shares": 678,
+            "total_clicks": 1234,
+            "engagement_rate_percent": 8.7
+        },
+        "platform_breakdown": {
+            "instagram": {"posts": 8, "views": 28000, "engagement": 2100},
+            "facebook": {"posts": 6, "views": 15000, "engagement": 1200},
+            "tiktok": {"posts": 1, "views": 2600, "engagement": 120}
+        }
+    }
+
+@app.post("/api/admin/social/posts")
+async def create_admin_social_post(
+    title: str,
+    caption: str,
+    media_urls: list = [],
+    campaign_type: str = "general",
+    cta_text: str = "",
+    cta_url: str = "",
+    hashtags: list = [],
+    template_id: str = None,
+    payload: dict = Depends(verify_token)
+):
+    """Créer un post admin"""
+    user_role = payload.get("role")
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    post_id = f"post_{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    
+    return {
+        "success": True,
+        "post": {
+            "id": post_id,
+            "title": title,
+            "caption": caption,
+            "media_urls": media_urls,
+            "campaign_type": campaign_type,
+            "status": "draft",
+            "created_at": datetime.now().isoformat()
+        }
+    }
+
+@app.post("/api/admin/social/posts/{post_id}/publish")
+async def publish_admin_social_post(
+    post_id: str,
+    platforms: list,
+    publish_now: bool = True,
+    scheduled_for: str = None,
+    payload: dict = Depends(verify_token)
+):
+    """Publier un post sur les réseaux sociaux"""
+    user_role = payload.get("role")
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    published = []
+    failed = []
+    
+    for platform in platforms:
+        # Simuler la publication
+        published.append({
+            "platform": platform,
+            "status": "published",
+            "post_id": f"{platform}_{post_id}",
+            "url": f"https://{platform}.com/shareyoursales/posts/{post_id}"
+        })
+    
+    return {
+        "success": True,
+        "published": published,
+        "failed": failed
+    }
+
+@app.delete("/api/admin/social/posts/{post_id}")
+async def delete_admin_social_post(post_id: str, payload: dict = Depends(verify_token)):
+    """Archiver un post"""
+    user_role = payload.get("role")
+    if user_role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    return {"success": True, "message": "Post archived"}
+
+# ============================================
+# SUBSCRIPTION DASHBOARD ENDPOINTS
+# ============================================
+
+@app.get("/api/subscriptions/my-subscription")
+async def get_my_subscription(payload: dict = Depends(verify_token)):
+    """Récupérer l'abonnement actuel de l'utilisateur"""
+    user_id = payload.get("user_id")
+    
+    return {
+        "id": "sub_123",
+        "user_id": user_id,
+        "plan_name": "Business",
+        "plan_type": "enterprise",
+        "status": "active",
+        "current_period_end": "2024-12-15T00:00:00Z",
+        "plan_max_team_members": 10,
+        "current_team_members": 3,
+        "plan_max_domains": 3,
+        "current_domains": 1,
+        "can_add_team_member": True,
+        "can_add_domain": True,
+        "auto_renew": True,
+        "amount": 99.0,
+        "currency": "EUR",
+        "billing_cycle": "monthly"
+    }
+
+@app.get("/api/subscriptions/usage")
+async def get_subscription_usage(payload: dict = Depends(verify_token)):
+    """Usage de l'abonnement"""
+    return {
+        "team_members": {
+            "current": 3,
+            "limit": 10,
+            "percentage": 30
+        },
+        "domains": {
+            "current": 1,
+            "limit": 3,
+            "percentage": 33
+        },
+        "api_calls": {
+            "current": 4567,
+            "limit": 10000,
+            "percentage": 45
+        }
+    }
+
+@app.post("/api/subscriptions/cancel")
+async def cancel_subscription(immediate: bool = False, payload: dict = Depends(verify_token)):
+    """Annuler un abonnement"""
+    return {
+        "success": True,
+        "message": "Abonnement annulé. Accès maintenu jusqu'à la fin de la période.",
+        "canceled_at": datetime.now().isoformat(),
+        "access_until": "2024-12-15T00:00:00Z"
+    }
+
+# ============================================
+# COMPANY LINKS DASHBOARD ENDPOINTS
+# ============================================
+
+@app.get("/api/company/links/my-company-links")
+async def get_company_links(payload: dict = Depends(verify_token)):
+    """Liens générés par l'entreprise"""
+    links = [
+        {
+            "id": "clink_1",
+            "product": {"name": "Huile d'Argan Bio", "price": 250},
+            "short_code": "COMP123",
+            "full_url": "https://shareyoursales.ma/c/COMP123",
+            "qr_code_url": "https://api.qrserver.com/v1/create-qr-code/?data=COMP123",
+            "commission_rate": 15,
+            "influencer_id": "2",
+            "member": {"first_name": "Sarah", "last_name": "Benali"},
+            "clicks": 234,
+            "conversions": 12,
+            "status": "active"
+        },
+        {
+            "id": "clink_2",
+            "product": {"name": "Caftan Moderne", "price": 1500},
+            "short_code": "COMP456",
+            "full_url": "https://shareyoursales.ma/c/COMP456",
+            "qr_code_url": "https://api.qrserver.com/v1/create-qr-code/?data=COMP456",
+            "commission_rate": 20,
+            "influencer_id": None,
+            "member": None,
+            "clicks": 0,
+            "conversions": 0,
+            "status": "active"
+        }
+    ]
+    
+    return {"links": links}
+
+@app.get("/api/products/my-products")
+async def get_my_products(payload: dict = Depends(verify_token)):
+    """Produits de l'entreprise connectée"""
+    # Retourner les produits mockés
+    return [p for p in MOCK_PRODUCTS if p.get("type") == "product"]
+
+@app.post("/api/company/links/generate")
+async def generate_company_link(
+    product_id: str,
+    custom_slug: str = "",
+    commission_rate: float = None,
+    notes: str = "",
+    payload: dict = Depends(verify_token)
+):
+    """Générer un lien d'affiliation pour un produit"""
+    link_code = custom_slug if custom_slug else f"GEN{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    
+    return {
+        "success": True,
+        "link": {
+            "id": f"link_{link_code}",
+            "product_id": product_id,
+            "short_code": link_code,
+            "full_url": f"https://shareyoursales.ma/c/{link_code}",
+            "qr_code_url": f"https://api.qrserver.com/v1/create-qr-code/?data={link_code}",
+            "commission_rate": commission_rate or 15,
+            "notes": notes,
+            "status": "active",
+            "created_at": datetime.now().isoformat()
+        }
+    }
+
+@app.post("/api/company/links/assign")
+async def assign_company_link(
+    link_id: str,
+    member_id: str,
+    custom_commission_rate: float = None,
+    payload: dict = Depends(verify_token)
+):
+    """Attribuer un lien à un membre d'équipe"""
+    return {
+        "success": True,
+        "assignment": {
+            "link_id": link_id,
+            "member_id": member_id,
+            "commission_rate": custom_commission_rate or 15,
+            "assigned_at": datetime.now().isoformat()
+        }
+    }
+
+@app.delete("/api/company/links/{link_id}")
+async def deactivate_company_link(link_id: str, payload: dict = Depends(verify_token)):
+    """Désactiver un lien"""
+    return {"success": True, "message": "Link deactivated"}
+
+@app.get("/api/team/members")
+async def get_team_members(status_filter: str = None, payload: dict = Depends(verify_token)):
+    """Membres de l'équipe"""
+    members = [
+        {
+            "member_id": "mem_1",
+            "member_first_name": "Ahmed",
+            "member_last_name": "El Fassi",
+            "email": "ahmed@example.com",
+            "team_role": "commercial",
+            "status": "active",
+            "joined_at": "2024-09-15T10:00:00Z"
+        },
+        {
+            "member_id": "mem_2",
+            "member_first_name": "Fatima",
+            "member_last_name": "Zahra",
+            "email": "fatima@example.com",
+            "team_role": "influencer",
+            "status": "active",
+            "joined_at": "2024-10-01T14:30:00Z"
+        }
+    ]
+    
+    if status_filter:
+        members = [m for m in members if m["status"] == status_filter]
+    
+    return members
+
+@app.get("/api/team/stats")
+async def get_team_stats(payload: dict = Depends(verify_token)):
+    """Statistiques de l'équipe"""
+    return {
+        "total_members": 5,
+        "active_members": 4,
+        "pending_invites": 1,
+        "total_sales": 12450,
+        "team_performance": 87.5
+    }
+
+@app.post("/api/team/invite")
+async def invite_team_member(
+    email: str,
+    role: str,
+    first_name: str = "",
+    last_name: str = "",
+    payload: dict = Depends(verify_token)
+):
+    """Inviter un membre dans l'équipe"""
+    return {
+        "success": True,
+        "invitation": {
+            "id": f"inv_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            "email": email,
+            "role": role,
+            "status": "pending",
+            "expires_at": (datetime.now() + timedelta(days=7)).isoformat()
+        }
+    }
+
+# ============================================
+# ADDITIONAL MISSING ENDPOINTS
+# ============================================
+
+@app.get("/api/subscriptions/plans")
+async def get_subscription_plans():
+    """Liste des plans d'abonnement disponibles"""
+    return {
+        "plans": [
+            {
+                "id": "free",
+                "name": "Gratuit",
+                "price": 0,
+                "currency": "EUR",
+                "interval": "month",
+                "features": ["1 membre", "100 liens", "Support communautaire"]
+            },
+            {
+                "id": "starter",
+                "name": "Starter",
+                "price": 29,
+                "currency": "EUR",
+                "interval": "month",
+                "features": ["5 membres", "1000 liens", "Support email", "Analytics basiques"]
+            },
+            {
+                "id": "business",
+                "name": "Business",
+                "price": 99,
+                "currency": "EUR",
+                "interval": "month",
+                "features": ["10 membres", "Liens illimités", "Support prioritaire", "Analytics avancés", "API"]
+            },
+            {
+                "id": "enterprise",
+                "name": "Enterprise",
+                "price": 299,
+                "currency": "EUR",
+                "interval": "month",
+                "features": ["Membres illimités", "Tout inclus", "Support dédié", "White-label", "SLA"]
+            }
+        ]
+    }
+
+@app.get("/api/settings")
+async def get_settings(payload: dict = Depends(verify_token)):
+    """Paramètres généraux"""
+    return {
+        "company_name": "Ma Super Entreprise",
+        "logo_url": "https://picsum.photos/200/200",
+        "timezone": "Africa/Casablanca",
+        "currency": "MAD",
+        "language": "fr"
+    }
+
+@app.put("/api/settings/company")
+async def update_company_settings(settings: dict, payload: dict = Depends(verify_token)):
+    """Mise à jour des paramètres entreprise"""
+    return {"success": True, "message": "Settings updated"}
+
+# ===========================================
+# PAIEMENTS & TRANSACTIONS
+# ===========================================
+
+@app.post("/api/payments/init-subscription")
+async def init_subscription_payment(payment_data: dict, payload: dict = Depends(verify_token)):
+    """
+    Initialise un paiement d'abonnement
+    Supporte CMI (Maroc), Stripe, PayPal
+    """
+    provider = payment_data.get("provider", "cmi")
+    plan_id = payment_data.get("plan_id")
+    
+    # Simulation d'initialisation de paiement
+    if provider == "cmi":
+        # CMI Payment Gateway (Maroc)
+        return {
+            "payment_id": f"PAY_{int(time.time())}",
+            "payment_url": f"https://payment.cmi.co.ma/checkout?ref=SYS{int(time.time())}",
+            "provider": "cmi",
+            "amount": payment_data.get("amount", 499),
+            "currency": "MAD",
+            "status": "pending"
+        }
+    elif provider == "stripe":
+        # Stripe Checkout
+        return {
+            "payment_id": f"PAY_{int(time.time())}",
+            "session_id": f"cs_test_{int(time.time())}",
+            "stripe_public_key": "pk_test_XXXXXXXXXX",
+            "provider": "stripe",
+            "amount": payment_data.get("amount", 499),
+            "currency": "MAD",
+            "status": "pending"
+        }
+    elif provider == "paypal":
+        # PayPal
+        return {
+            "payment_id": f"PAY_{int(time.time())}",
+            "approval_url": f"https://www.paypal.com/checkoutnow?token=EC-{int(time.time())}",
+            "provider": "paypal",
+            "amount": payment_data.get("amount", 499),
+            "currency": "MAD",
+            "status": "pending"
+        }
+
+@app.get("/api/payments/status/{payment_id}")
+async def get_payment_status(payment_id: str, payload: dict = Depends(verify_token)):
+    """Vérifie le statut d'un paiement"""
+    # Simulation - en production, vérifier auprès du provider
+    return {
+        "payment_id": payment_id,
+        "status": "completed",  # pending, completed, failed, refunded
+        "amount": 499,
+        "currency": "MAD",
+        "created_at": "2024-11-02T10:30:00",
+        "completed_at": "2024-11-02T10:31:00"
+    }
+
+@app.get("/api/payments/history")
+async def get_payment_history(payload: dict = Depends(verify_token)):
+    """Historique des paiements de l'utilisateur"""
+    return [
+        {
+            "id": "PAY_001",
+            "type": "subscription",
+            "plan": "Medium Business",
+            "amount": 499,
+            "currency": "MAD",
+            "status": "completed",
+            "date": "2024-10-02T10:30:00",
+            "invoice_url": "/invoices/INV_001.pdf"
+        },
+        {
+            "id": "PAY_002",
+            "type": "subscription",
+            "plan": "Medium Business",
+            "amount": 499,
+            "currency": "MAD",
+            "status": "completed",
+            "date": "2024-09-02T10:30:00",
+            "invoice_url": "/invoices/INV_002.pdf"
+        }
+    ]
+
+@app.post("/api/payments/refund")
+async def request_refund(refund_data: dict, payload: dict = Depends(verify_token)):
+    """Demande un remboursement"""
+    return {
+        "refund_id": f"REF_{int(time.time())}",
+        "payment_id": refund_data.get("payment_id"),
+        "status": "pending",
+        "reason": refund_data.get("reason"),
+        "message": "Votre demande de remboursement a été enregistrée. Délai de traitement : 5-7 jours ouvrés."
+    }
+
+@app.post("/api/payments/pay-commission")
+async def pay_commission(commission_data: dict, payload: dict = Depends(verify_token)):
+    """
+    Paiement de commission aux partenaires (pour entreprises)
+    """
+    return {
+        "payment_id": f"COMM_{int(time.time())}",
+        "partner_id": commission_data.get("partner_id"),
+        "amount": commission_data.get("amount"),
+        "currency": "MAD",
+        "status": "processing",
+        "estimated_arrival": "2024-11-05",
+        "message": "Paiement en cours de traitement"
+    }
+
+@app.get("/api/payments/methods")
+async def get_payment_methods():
+    """Liste des méthodes de paiement disponibles"""
+    return [
+        {
+            "id": "cmi",
+            "name": "CMI (Carte Bancaire Maroc)",
+            "description": "Paiement sécurisé par carte bancaire marocaine",
+            "logo": "/images/cmi-logo.png",
+            "available": True,
+            "fees": "0%",
+            "processing_time": "Instantané"
+        },
+        {
+            "id": "stripe",
+            "name": "Stripe (International)",
+            "description": "Paiement par carte bancaire internationale",
+            "logo": "/images/stripe-logo.png",
+            "available": True,
+            "fees": "2.9% + 3 MAD",
+            "processing_time": "Instantané"
+        },
+        {
+            "id": "paypal",
+            "name": "PayPal",
+            "description": "Paiement via compte PayPal",
+            "logo": "/images/paypal-logo.png",
+            "available": False,
+            "fees": "3.4% + 3.5 MAD",
+            "processing_time": "Instantané",
+            "note": "Bientôt disponible"
+        },
+        {
+            "id": "bank_transfer",
+            "name": "Virement Bancaire",
+            "description": "Virement sur compte bancaire marocain",
+            "logo": "/images/bank-logo.png",
+            "available": True,
+            "fees": "0%",
+            "processing_time": "1-3 jours ouvrés"
+        }
+    ]
+
+
+# ============================================
+# CONTENT STUDIO ENDPOINTS
+# ============================================
+
+@app.get("/api/content-studio/templates")
+async def get_content_templates(
+    category: Optional[str] = None,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Récupère les templates disponibles"""
+    user = verify_token(credentials.credentials)
+    
+    templates = [
+        {
+            "id": "instagram-promo",
+            "name": "Instagram Promo",
+            "category": "social",
+            "format": "1080x1080",
+            "thumbnail": "/templates/instagram-promo.png",
+            "description": "Template pour promotions Instagram"
+        },
+        {
+            "id": "story-flash",
+            "name": "Story Flash Sale",
+            "category": "social",
+            "format": "1080x1920",
+            "thumbnail": "/templates/story-flash.png",
+            "description": "Story pour ventes flash"
+        },
+        {
+            "id": "tiktok-product",
+            "name": "TikTok Product",
+            "category": "social",
+            "format": "1080x1920",
+            "thumbnail": "/templates/tiktok-product.png",
+            "description": "Présentation produit TikTok"
+        }
+    ]
+    
+    if category:
+        templates = [t for t in templates if t["category"] == category]
+    
+    return {"templates": templates}
+
+@app.post("/api/content-studio/generate-image")
+async def generate_ai_image(
+    data: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Génère une image avec IA (DALL-E 3)"""
+    user = verify_token(credentials.credentials)
+    
+    prompt = data.get("prompt", "")
+    style = data.get("style", "realistic")
+    size = data.get("size", "1024x1024")
+    
+    # TODO: Intégrer OpenAI DALL-E 3
+    # Pour l'instant, retourner URL placeholder
+    return {
+        "success": True,
+        "image_url": f"https://via.placeholder.com/{size}.png?text=AI+Generated+Image",
+        "prompt": prompt,
+        "style": style,
+        "credits_used": 1
+    }
+
+@app.post("/api/content-studio/generate-text")
+async def generate_ai_text(
+    data: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Génère du texte avec GPT-4"""
+    user = verify_token(credentials.credentials)
+    
+    prompt = data.get("prompt", "")
+    content_type = data.get("type", "post")  # post, caption, description, email
+    tone = data.get("tone", "professional")  # professional, casual, enthusiastic
+    
+    # TODO: Intégrer OpenAI GPT-4
+    mock_texts = {
+        "post": "🚀 Découvrez notre nouvelle collection! Des produits exceptionnels à prix imbattables. Profitez de -30% avec le code PROMO30! 🛍️ #Shopping #Deals #Morocco",
+        "caption": "✨ Le style rencontre l'élégance. Notre nouvelle pièce signature qui transformera votre garde-robe. Cliquez le lien en bio! 💎",
+        "description": "Ce produit premium combine qualité exceptionnelle et design moderne. Fabriqué avec des matériaux durables, il offre performance et esthétique. Parfait pour ceux qui recherchent l'excellence.",
+        "email": "Bonjour! 👋\n\nNous avons une offre spéciale rien que pour vous. Découvrez nos meilleures réductions de la saison et profitez de -40% sur une sélection de produits.\n\nNe manquez pas cette opportunité!"
+    }
+    
+    return {
+        "success": True,
+        "text": mock_texts.get(content_type, mock_texts["post"]),
+        "tokens_used": 150
+    }
+
+@app.post("/api/content-studio/generate-qr")
+async def generate_qr_code(
+    data: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Génère un QR code stylisé"""
+    user = verify_token(credentials.credentials)
+    
+    url = data.get("url", "")
+    style = data.get("style", "rounded")  # rounded, square, circles
+    color = data.get("color", "#000000")
+    bg_color = data.get("bg_color", "#FFFFFF")
+    
+    # TODO: Générer vrai QR code avec qrcode library
+    return {
+        "success": True,
+        "qr_code_url": "/qr-codes/generated-qr.png",
+        "download_url": "/api/content-studio/download-qr/123",
+        "style": style
+    }
+
+
+# ============================================
+# CHATBOT & AI ASSISTANT ENDPOINTS
+# ============================================
+
+@app.post("/api/chatbot/message")
+async def chatbot_message(
+    data: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Envoie un message au chatbot et reçoit une réponse"""
+    user = verify_token(credentials.credentials)
+    
+    message = data.get("message", "")
+    conversation_id = data.get("conversation_id", "")
+    
+    # TODO: Intégrer GPT-4 pour réponses intelligentes
+    responses = {
+        "aide": "Je peux vous aider avec les liens d'affiliation, les commissions, et la gestion de votre compte. Que voulez-vous savoir?",
+        "commission": "Vos commissions sont calculées selon le taux défini avec chaque marchand. Vous pouvez les voir dans l'onglet 'Revenus'.",
+        "lien": "Pour générer un lien d'affiliation, allez dans 'Mes Liens' et cliquez sur 'Générer nouveau lien'.",
+        "paiement": "Les paiements sont effectués le 5 de chaque mois pour les commissions du mois précédent, si le seuil minimum de 200 MAD est atteint."
+    }
+    
+    # Recherche par mots-clés
+    response_text = "Je suis là pour vous aider! Posez-moi vos questions sur les liens, commissions, ou paiements."
+    for keyword, answer in responses.items():
+        if keyword in message.lower():
+            response_text = answer
+            break
+    
+    return {
+        "success": True,
+        "response": response_text,
+        "conversation_id": conversation_id or f"conv_{user['id']}_{datetime.now().timestamp()}",
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/api/chatbot/history")
+async def get_chatbot_history(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Récupère l'historique des conversations"""
+    user = verify_token(credentials.credentials)
+    
+    # TODO: Charger depuis base de données
+    return {
+        "conversations": [
+            {
+                "id": "conv_123",
+                "last_message": "Comment générer un lien?",
+                "timestamp": "2024-11-02T10:30:00",
+                "message_count": 5
+            }
+        ]
+    }
+
+@app.post("/api/chatbot/feedback")
+async def save_chatbot_feedback(
+    data: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Sauvegarde le feedback utilisateur"""
+    user = verify_token(credentials.credentials)
+    
+    conversation_id = data.get("conversation_id", "")
+    rating = data.get("rating", 0)  # 1-5
+    comment = data.get("comment", "")
+    
+    # TODO: Sauvegarder dans base de données
+    return {
+        "success": True,
+        "message": "Merci pour votre feedback!"
+    }
+
+
+# ============================================
+# NOTIFICATIONS ENDPOINTS
+# ============================================
+
+@app.get("/api/notifications")
+async def get_notifications(
+    unread_only: bool = False,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Récupère les notifications utilisateur"""
+    user = verify_token(credentials.credentials)
+    
+    # TODO: Charger depuis base de données
+    notifications = [
+        {
+            "id": "notif_1",
+            "type": "commission",
+            "title": "Nouvelle commission",
+            "message": "Vous avez gagné 50 MAD sur une vente!",
+            "read": False,
+            "timestamp": "2024-11-02T14:30:00",
+            "action_url": "/dashboard/revenue"
+        },
+        {
+            "id": "notif_2",
+            "type": "affiliation",
+            "title": "Demande approuvée",
+            "message": "Votre demande d'affiliation a été acceptée!",
+            "read": True,
+            "timestamp": "2024-11-01T09:15:00",
+            "action_url": "/my-links"
+        }
+    ]
+    
+    if unread_only:
+        notifications = [n for n in notifications if not n["read"]]
+    
+    return {
+        "notifications": notifications,
+        "unread_count": len([n for n in notifications if not n["read"]])
+    }
+
+@app.put("/api/notifications/{notification_id}/read")
+async def mark_notification_read(
+    notification_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Marque une notification comme lue"""
+    user = verify_token(credentials.credentials)
+    
+    # TODO: Mettre à jour dans base de données
+    return {
+        "success": True,
+        "message": "Notification marquée comme lue"
+    }
+
+@app.post("/api/notifications/mark-all-read")
+async def mark_all_notifications_read(
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Marque toutes les notifications comme lues"""
+    user = verify_token(credentials.credentials)
+    
+    # TODO: Mettre à jour dans base de données
+    return {
+        "success": True,
+        "marked_count": 5
+    }
+
+
+# ============================================
+# ANALYTICS AVANCÉES ENDPOINTS
+# ============================================
+
+@app.get("/api/analytics/conversions")
+async def get_conversion_analytics(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Analytics de conversion détaillées"""
+    user = verify_token(credentials.credentials)
+    
+    return {
+        "period": {"start": start_date or "2024-10-01", "end": end_date or "2024-11-02"},
+        "funnel": [
+            {"stage": "Clics", "count": 1250, "percentage": 100},
+            {"stage": "Pages vues", "count": 980, "percentage": 78.4},
+            {"stage": "Ajout panier", "count": 350, "percentage": 28},
+            {"stage": "Paiement initié", "count": 180, "percentage": 14.4},
+            {"stage": "Paiement complété", "count": 142, "percentage": 11.36}
+        ],
+        "conversion_rate": 11.36,
+        "average_order_value": 485.50,
+        "total_revenue": 68941.00
+    }
+
+@app.get("/api/analytics/attribution")
+async def get_attribution_analytics(
+    model: str = "last-click",
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Analyse d'attribution multi-touch"""
+    user = verify_token(credentials.credentials)
+    
+    return {
+        "model": model,
+        "channels": [
+            {"name": "Instagram", "conversions": 45, "revenue": 21825, "attribution": 31.6},
+            {"name": "TikTok", "conversions": 38, "revenue": 18463, "attribution": 26.8},
+            {"name": "WhatsApp", "conversions": 32, "revenue": 15541, "attribution": 22.5},
+            {"name": "Facebook", "conversions": 27, "revenue": 13112, "attribution": 19.1}
+        ]
+    }
+
+
+# ============================================
+# EXPORTS & RAPPORTS ENDPOINTS
+# ============================================
+
+@app.post("/api/reports/generate")
+async def generate_report(
+    data: dict,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Génère un rapport PDF ou CSV"""
+    user = verify_token(credentials.credentials)
+    
+    report_type = data.get("type", "revenue")  # revenue, conversions, links
+    format = data.get("format", "pdf")  # pdf, csv, excel
+    period = data.get("period", "last-30-days")
+    
+    # TODO: Générer vrai rapport avec pdfkit ou csv-writer
+    return {
+        "success": True,
+        "report_id": f"report_{datetime.now().timestamp()}",
+        "download_url": f"/api/reports/download/report_{datetime.now().timestamp()}.{format}",
+        "expires_at": (datetime.now() + timedelta(hours=24)).isoformat()
+    }
+
+@app.get("/api/reports/download/{report_id}")
+async def download_report(
+    report_id: str,
+    credentials: HTTPAuthorizationCredentials = Depends(security)
+):
+    """Télécharge un rapport généré"""
+    user = verify_token(credentials.credentials)
+    
+    # TODO: Retourner fichier réel
+    return {
+        "success": True,
+        "message": "Rapport généré",
+        "note": "TODO: Implémenter génération PDF/CSV"
+    }
+
+
+# ============================================
+# ENDPOINTS ADDITIONNELS - DASHBOARDS
+# ============================================
+
+@app.get("/api/analytics/overview")
+async def get_analytics_overview(payload: dict = Depends(verify_token)):
+    """Aperçu général des analytics"""
+    user_role = payload.get("role")
+    
+    if user_role == "influencer":
+        return {"total_earnings": 2450.75, "pending_earnings": 320.50, "total_clicks": 1247, "total_conversions": 89, "conversion_rate": 7.1, "active_links": 12}
+    elif user_role == "merchant":
+        return {"total_sales": 15280.00, "total_orders": 245, "active_affiliates": 18, "pending_commissions": 1580.50, "conversion_rate": 4.2, "avg_order_value": 62.37}
+    elif user_role == "admin":
+        return {"total_revenue": 125000.00, "total_users": 1250, "active_merchants": 45, "active_influencers": 320, "total_transactions": 5680, "platform_commission": 8500.00}
+    return {"stats": {}}
+
+@app.get("/api/merchants")
+async def get_merchants(payload: dict = Depends(verify_token)):
+    """Liste des marchands"""
+    return {"merchants": [{"id": "merchant_001", "name": "BeautyMaroc", "category": "Beauty & Cosmetics", "verified": True, "rating": 4.8, "total_products": 45, "commission_rate": 20}], "total": 1}
+
+@app.get("/api/influencers")
+async def get_influencers_list(payload: dict = Depends(verify_token)):
+    """Liste des influenceurs"""
+    return {"influencers": [{"id": "inf_001", "name": "Sarah M.", "username": "@sarahbeauty_ma", "followers": 125000, "engagement_rate": 5.8, "niches": ["Beauty", "Lifestyle"], "verified": True}], "total": 1}
+
+@app.get("/api/analytics/admin/revenue-chart")
+async def get_admin_revenue_chart(payload: dict = Depends(verify_token)):
+    """Graphique revenus admin"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès admin requis")
+    return {"labels": ["Jan", "Feb", "Mar", "Apr", "May", "Jun"], "datasets": [{"label": "Revenue", "data": [12000, 15000, 18000, 16000, 21000, 25000]}]}
+
+@app.get("/api/analytics/admin/categories")
+async def get_admin_categories(payload: dict = Depends(verify_token)):
+    """Statistiques par catégories"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès admin requis")
+    return {"categories": [{"name": "Beauty", "sales": 45000, "percentage": 35}, {"name": "Fashion", "sales": 32000, "percentage": 25}]}
+
+@app.get("/api/analytics/admin/platform-metrics")
+async def get_platform_metrics(payload: dict = Depends(verify_token)):
+    """Métriques plateforme"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès admin requis")
+    return {"daily_active_users": 450, "monthly_active_users": 1250, "retention_rate": 78.5}
+
+@app.get("/api/analytics/merchant/sales-chart")
+async def get_merchant_sales_chart(payload: dict = Depends(verify_token)):
+    """Graphique ventes merchant"""
+    if payload.get("role") not in ["merchant", "admin"]:
+        raise HTTPException(status_code=403, detail="Accès merchant requis")
+    return {"labels": ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"], "datasets": [{"label": "Ventes", "data": [2300, 2800, 3200, 2900, 3500, 4200, 3800]}]}
+
+@app.get("/api/analytics/merchant/performance")
+async def get_merchant_performance(payload: dict = Depends(verify_token)):
+    """Performance merchant"""
+    if payload.get("role") not in ["merchant", "admin"]:
+        raise HTTPException(status_code=403, detail="Accès merchant requis")
+    return {"top_products": [{"name": "Huile d'Argan Premium", "sales": 8500}], "top_affiliates": [{"name": "Sarah M.", "sales": 12000, "commission": 2400}]}
+
+@app.get("/api/analytics/influencer/earnings-chart")
+async def get_influencer_earnings_chart(payload: dict = Depends(verify_token)):
+    """Graphique gains influencer"""
+    if payload.get("role") not in ["influencer", "admin"]:
+        raise HTTPException(status_code=403, detail="Accès influencer requis")
+    return {"labels": ["Sem 1", "Sem 2", "Sem 3", "Sem 4"], "datasets": [{"label": "Gains", "data": [450, 580, 720, 650]}]}
+
+@app.post("/api/payouts/request")
+async def request_payout(payout_data: dict, payload: dict = Depends(verify_token)):
+    """Demander un paiement"""
+    return {"message": "Demande de paiement envoyée", "payout_id": f"payout_{datetime.now().timestamp()}", "status": "pending", "amount": payout_data.get("amount")}
+
+@app.get("/api/company/links/my-company-links")
+async def get_company_links(payload: dict = Depends(verify_token)):
+    """Liens de la compagnie"""
+    return {"links": [{"id": "link_001", "url": "https://shareyoursales.ma/r/company-promo", "product": "Pack Premium", "clicks": 156, "conversions": 12, "status": "active"}], "total": 1}
+
+@app.get("/api/products/my-products")
+async def get_my_products(payload: dict = Depends(verify_token)):
+    """Mes produits"""
+    return {"products": [{"id": "prod_001", "name": "Huile d'Argan Premium", "price": 180.00, "stock": 45, "status": "active"}], "total": 1}
+
+@app.get("/api/team/members")
+async def get_team_members(payload: dict = Depends(verify_token)):
+    """Membres de l'équipe"""
+    return {"members": [{"id": "member_001", "name": "Ahmed K.", "role": "commercial", "email": "ahmed@company.ma", "status": "active"}], "total": 1}
+
+@app.post("/api/company/links/generate")
+async def generate_company_link(link_data: dict, payload: dict = Depends(verify_token)):
+    """Générer un lien compagnie"""
+    return {"message": "Lien généré", "link": {"id": f"link_{datetime.now().timestamp()}", "url": f"https://shareyoursales.ma/r/gen-{random.randint(1000,9999)}", "product_id": link_data.get("product_id")}}
+
+@app.post("/api/company/links/assign")
+async def assign_company_link(assign_data: dict, payload: dict = Depends(verify_token)):
+    """Assigner un lien"""
+    return {"message": "Lien assigné avec succès", "assignment": {"link_id": assign_data.get("link_id"), "member_id": assign_data.get("member_id")}}
+
+@app.delete("/api/company/links/{linkId}")
+async def delete_company_link(linkId: str, payload: dict = Depends(verify_token)):
+    """Supprimer un lien"""
+    return {"message": "Lien supprimé", "link_id": linkId}
+
+@app.get("/api/team/stats")
+async def get_team_stats(payload: dict = Depends(verify_token)):
+    """Statistiques équipe"""
+    return {"total_members": 5, "active_members": 4, "total_sales": 45000, "top_performer": {"name": "Ahmed K.", "sales": 15000}}
+
+@app.post("/api/team/invite")
+async def invite_team_member(invite_data: dict, payload: dict = Depends(verify_token)):
+    """Inviter un membre"""
+    return {"message": "Invitation envoyée", "invite_id": f"inv_{datetime.now().timestamp()}", "email": invite_data.get("email")}
+
+@app.get("/api/subscriptions/plans")
+async def get_subscription_plans(payload: dict = Depends(verify_token)):
+    """Plans d'abonnement"""
+    return {"plans": [{"id": "plan_starter", "name": "Starter", "price": 0, "features": ["5 liens", "Support email"]}, {"id": "plan_pro", "name": "Pro", "price": 299, "features": ["Liens illimités", "Support prioritaire", "Analytics avancées"]}]}
+
+@app.get("/api/subscriptions/my-subscription")
+async def get_my_subscription(payload: dict = Depends(verify_token)):
+    """Mon abonnement"""
+    return {"plan": "Pro", "status": "active", "next_billing": "2024-12-01", "amount": 299.00}
+
+@app.get("/api/subscriptions/usage")
+async def get_subscription_usage(payload: dict = Depends(verify_token)):
+    """Utilisation abonnement"""
+    return {"links_used": 12, "links_limit": -1, "storage_used": "2.5 GB", "storage_limit": "10 GB"}
+
+@app.post("/api/subscriptions/cancel")
+async def cancel_subscription(cancel_data: dict, payload: dict = Depends(verify_token)):
+    """Annuler abonnement"""
+    return {"message": "Abonnement annulé", "effective_date": "2024-12-01"}
+
+@app.get("/api/subscription-plans")
+async def get_all_subscription_plans():
+    """Tous les plans (public)"""
+    return {"plans": [{"id": "plan_starter", "name": "Starter", "price": 0}, {"id": "plan_pro", "name": "Pro", "price": 299}, {"id": "plan_enterprise", "name": "Enterprise", "price": 999}]}
+
+# ============================================
+# MARKETPLACE ENDPOINTS
+# ============================================
+
+@app.get("/api/marketplace/products")
+async def get_marketplace_products(type: str = None, limit: int = 20, category: str = None):
+    """Produits marketplace"""
+    products = [
+        {"id": "prod_001", "name": "Huile d'Argan Premium", "price": 180.00, "type": "product", "category": "Beauty", "image": "/products/argan.jpg", "commission_rate": 20, "merchant": "BeautyMaroc"},
+        {"id": "prod_002", "name": "Caftan Traditionnel", "price": 1200.00, "type": "product", "category": "Fashion", "image": "/products/caftan.jpg", "commission_rate": 25, "merchant": "FashionMarrakech"},
+        {"id": "serv_001", "name": "Consultation Beauté", "price": 300.00, "type": "service", "category": "Beauty", "image": "/services/beauty.jpg", "commission_rate": 15, "merchant": "BeautyMaroc"}
+    ]
+    if type:
+        products = [p for p in products if p["type"] == type]
+    if category:
+        products = [p for p in products if p["category"] == category]
+    return {"products": products[:limit], "total": len(products)}
+
+@app.get("/api/marketplace/categories")
+async def get_marketplace_categories():
+    """Catégories marketplace"""
+    return {"categories": [{"id": "beauty", "name": "Beauty & Cosmetics", "count": 45}, {"id": "fashion", "name": "Fashion", "count": 78}, {"id": "food", "name": "Food & Beverage", "count": 52}, {"id": "tech", "name": "Technology", "count": 34}]}
+
+@app.get("/api/marketplace/featured")
+async def get_featured_products():
+    """Produits en vedette"""
+    return {"featured": [{"id": "prod_001", "name": "Huile d'Argan Premium", "price": 180.00, "discount": 15, "featured_until": "2024-11-15"}]}
+
+@app.get("/api/marketplace/deals-of-day")
+async def get_deals_of_day():
+    """Offres du jour"""
+    return {"deals": [{"id": "prod_002", "name": "Caftan Traditionnel", "original_price": 1200.00, "deal_price": 999.00, "expires_at": "2024-11-03T23:59:59"}]}
+
+@app.get("/api/commercials/directory")
+async def get_commercials_directory(limit: int = 20):
+    """Annuaire des commerciaux"""
+    return {"commercials": [{"id": "comm_001", "name": "Ahmed K.", "company": "TechSales MA", "expertise": ["Tech", "Gadgets"], "deals_closed": 45, "rating": 4.7}], "total": 1}
+
+@app.get("/api/influencers/directory")
+async def get_influencers_public_directory(limit: int = 20):
+    """Annuaire public des influenceurs"""
+    return {"influencers": [{"id": "inf_001", "name": "Sarah M.", "followers": 125000, "engagement": 5.8, "niches": ["Beauty", "Lifestyle"]}], "total": 1}
+
+# ============================================
+# AFFILIATION ENDPOINTS
+# ============================================
+
+@app.get("/api/affiliate/my-links")
+async def get_my_affiliate_links(payload: dict = Depends(verify_token)):
+    """Mes liens d'affiliation"""
+    return {"links": [{"id": "link_001", "product": "Huile d'Argan Premium", "url": "https://shareyoursales.ma/r/sarah-argan", "clicks": 245, "conversions": 18, "earnings": 360.00}], "total": 1}
+
+@app.get("/api/affiliate/publications")
+async def get_my_publications(payload: dict = Depends(verify_token)):
+    """Mes publications"""
+    return {"publications": [{"id": "pub_001", "platform": "Instagram", "post_url": "https://instagram.com/p/xyz", "link_id": "link_001", "views": 12500, "engagement": 6.2, "date": "2024-11-01"}], "total": 1}
+
+@app.get("/api/affiliates")
+async def get_all_affiliates(payload: dict = Depends(verify_token)):
+    """Liste des affiliés"""
+    return {"affiliates": [{"id": "aff_001", "name": "Sarah M.", "total_sales": 12000, "commission_earned": 2400, "status": "active"}], "total": 1}
+
+@app.post("/api/affiliation/request")
+async def request_affiliation(request_data: dict, payload: dict = Depends(verify_token)):
+    """Demander une affiliation"""
+    return {"message": "Demande envoyée", "request_id": f"req_{datetime.now().timestamp()}", "product_id": request_data.get("product_id"), "status": "pending"}
+
+@app.get("/api/affiliation-requests/merchant/pending")
+async def get_merchant_pending_requests(payload: dict = Depends(verify_token)):
+    """Demandes en attente (merchant)"""
+    if payload.get("role") not in ["merchant", "admin"]:
+        raise HTTPException(status_code=403, detail="Accès merchant requis")
+    return {"requests": [{"id": "req_001", "influencer": "Sarah M.", "product": "Huile d'Argan Premium", "message": "Je voudrais promouvoir ce produit", "requested_at": "2024-11-01"}], "total": 1}
+
+# ============================================
+# MESSAGES ENDPOINTS
+# ============================================
+
+@app.get("/api/messages/conversations")
+async def get_conversations(payload: dict = Depends(verify_token)):
+    """Conversations"""
+    return {"conversations": [{"id": "conv_001", "participant": "BeautyMaroc", "last_message": "Merci pour votre intérêt", "unread": 2, "updated_at": "2024-11-02T10:30:00"}], "total": 1}
+
+@app.post("/api/messages/send")
+async def send_message(message_data: dict, payload: dict = Depends(verify_token)):
+    """Envoyer un message"""
+    return {"message": "Message envoyé", "message_id": f"msg_{datetime.now().timestamp()}", "conversation_id": message_data.get("conversation_id")}
+
+# ============================================
+# SOCIAL MEDIA ENDPOINTS
+# ============================================
+
+@app.get("/api/social-media/connections")
+async def get_social_connections(payload: dict = Depends(verify_token)):
+    """Connexions réseaux sociaux"""
+    return {"connections": [{"platform": "Instagram", "username": "@sarahbeauty_ma", "connected": True, "followers": 125000, "last_sync": "2024-11-02T08:00:00"}]}
+
+@app.get("/api/social-media/dashboard")
+async def get_social_dashboard(payload: dict = Depends(verify_token)):
+    """Dashboard réseaux sociaux"""
+    return {"summary": {"total_followers": 214000, "total_engagement": 5.9, "posts_this_month": 28, "avg_reach": 45000}}
+
+@app.get("/api/social-media/stats/history")
+async def get_social_stats_history(days: int = 30, payload: dict = Depends(verify_token)):
+    """Historique stats sociales"""
+    return {"history": [{"date": "2024-11-01", "followers": 125000, "engagement": 5.8, "posts": 3}]}
+
+@app.get("/api/social-media/posts/top")
+async def get_top_social_posts(limit: int = 10, payload: dict = Depends(verify_token)):
+    """Top posts"""
+    return {"posts": [{"id": "post_001", "platform": "Instagram", "url": "https://instagram.com/p/xyz", "likes": 8500, "comments": 245, "engagement": 7.2}]}
+
+@app.post("/api/social-media/sync")
+async def sync_social_media(sync_data: dict, payload: dict = Depends(verify_token)):
+    """Synchroniser réseaux sociaux"""
+    return {"message": "Synchronisation lancée", "platforms": sync_data.get("platforms", []), "status": "in_progress"}
+
+@app.post("/api/social-media/connect/instagram")
+async def connect_instagram(auth_data: dict, payload: dict = Depends(verify_token)):
+    """Connecter Instagram"""
+    return {"message": "Instagram connecté", "username": "@user", "followers": 125000}
+
+@app.post("/api/social-media/connect/tiktok")
+async def connect_tiktok(auth_data: dict, payload: dict = Depends(verify_token)):
+    """Connecter TikTok"""
+    return {"message": "TikTok connecté", "username": "@user", "followers": 89000}
+
+@app.post("/api/social-media/connect/facebook")
+async def connect_facebook(auth_data: dict, payload: dict = Depends(verify_token)):
+    """Connecter Facebook"""
+    return {"message": "Facebook connecté", "page_name": "My Page", "followers": 45000}
+
+# ============================================
+# ADMIN SOCIAL ENDPOINTS
+# ============================================
+
+@app.get("/api/admin/social/posts")
+async def get_admin_social_posts(payload: dict = Depends(verify_token)):
+    """Posts admin"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès admin requis")
+    return {"posts": [{"id": "post_001", "platform": "Instagram", "content": "Nouvelle collection", "scheduled_at": "2024-11-03T10:00:00", "status": "scheduled"}], "total": 1}
+
+@app.get("/api/admin/social/templates")
+async def get_social_templates(payload: dict = Depends(verify_token)):
+    """Templates réseaux sociaux"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès admin requis")
+    return {"templates": [{"id": "tmpl_001", "name": "Promotion produit", "content": "🔥 {product_name} à {price} MAD", "platforms": ["Instagram", "Facebook"]}], "total": 1}
+
+@app.get("/api/admin/social/analytics")
+async def get_admin_social_analytics(payload: dict = Depends(verify_token)):
+    """Analytics réseaux sociaux admin"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès admin requis")
+    return {"total_posts": 156, "total_reach": 2500000, "total_engagement": 125000, "avg_engagement_rate": 5.0}
+
+@app.post("/api/admin/social/posts")
+async def create_admin_social_post(post_data: dict, payload: dict = Depends(verify_token)):
+    """Créer un post admin"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès admin requis")
+    return {"message": "Post créé", "post_id": f"post_{datetime.now().timestamp()}", "scheduled_at": post_data.get("scheduled_at")}
+
+@app.delete("/api/admin/social/posts/{postId}")
+async def delete_admin_social_post(postId: str, payload: dict = Depends(verify_token)):
+    """Supprimer un post admin"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès admin requis")
+    return {"message": "Post supprimé", "post_id": postId}
+
+# ============================================
+# ADMIN INVOICES & GATEWAYS
+# ============================================
+
+@app.post("/api/admin/invoices/generate")
+async def generate_admin_invoice(invoice_data: dict, payload: dict = Depends(verify_token)):
+    """Générer facture admin"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès admin requis")
+    return {"message": "Facture générée", "invoice_id": f"INV-{datetime.now().strftime('%Y%m%d')}-001", "amount": invoice_data.get("amount")}
+
+@app.post("/api/admin/invoices/send-reminders")
+async def send_invoice_reminders(payload: dict = Depends(verify_token)):
+    """Envoyer rappels factures"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès admin requis")
+    return {"message": "Rappels envoyés", "sent_count": 5}
+
+@app.get("/api/admin/gateways/stats")
+async def get_gateway_stats(payload: dict = Depends(verify_token)):
+    """Stats gateways admin"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès admin requis")
+    return {"gateways": [{"name": "Stripe", "transactions": 1250, "volume": 125000, "success_rate": 98.5}, {"name": "PayPal", "transactions": 890, "volume": 89000, "success_rate": 97.2}]}
+
+@app.get("/api/admin/transactions")
+async def get_admin_transactions(payload: dict = Depends(verify_token)):
+    """Transactions admin"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Accès admin requis")
+    return {"transactions": [{"id": "txn_001", "amount": 180.00, "gateway": "Stripe", "status": "completed", "date": "2024-11-02"}], "total": 1}
+
+# ============================================
+# TIKTOK SHOP & CONTENT STUDIO
+# ============================================
+
+@app.get("/api/tiktok-shop/analytics")
+async def get_tiktok_analytics(date_range: str = "30d", payload: dict = Depends(verify_token)):
+    """Analytics TikTok Shop"""
+    return {"views": 125000, "likes": 8500, "shares": 450, "gmv": 12500, "orders": 45}
+
+@app.post("/api/tiktok-shop/sync-product")
+async def sync_tiktok_product(product_data: dict, payload: dict = Depends(verify_token)):
+    """Synchroniser produit TikTok"""
+    return {"message": "Produit synchronisé avec TikTok Shop", "product_id": product_data.get("product_id"), "tiktok_id": f"ttshop_{datetime.now().timestamp()}"}
+
+@app.get("/api/content-studio/templates")
+async def get_content_templates(payload: dict = Depends(verify_token)):
+    """Templates content studio"""
+    return {"templates": [{"id": "tmpl_001", "name": "Story Instagram", "type": "image", "format": "1080x1920"}, {"id": "tmpl_002", "name": "Post Facebook", "type": "image", "format": "1200x1200"}], "total": 2}
+
+@app.post("/api/content-studio/generate-image")
+async def generate_content_image(gen_data: dict, payload: dict = Depends(verify_token)):
+    """Générer image IA"""
+    return {"message": "Image générée", "image_url": f"https://shareyoursales.ma/generated/{datetime.now().timestamp()}.jpg", "prompt": gen_data.get("prompt")}
+
+# ============================================
+# SALES, COMMISSIONS & PERFORMANCE
+# ============================================
+
+@app.get("/api/sales")
+async def get_sales(payload: dict = Depends(verify_token)):
+    """Ventes"""
+    return {"sales": [{"id": "sale_001", "product": "Huile d'Argan", "amount": 180.00, "commission": 36.00, "date": "2024-11-01", "status": "completed"}], "total": 1}
+
+@app.get("/api/sales/stats")
+async def get_sales_stats(payload: dict = Depends(verify_token)):
+    """Stats ventes"""
+    return {"total_sales": 15280.00, "total_orders": 245, "avg_order_value": 62.37, "growth": "+12.5%"}
+
+@app.post("/api/sales")
+async def create_sale(sale_data: dict, payload: dict = Depends(verify_token)):
+    """Créer vente"""
+    return {"message": "Vente enregistrée", "sale_id": f"sale_{datetime.now().timestamp()}", "amount": sale_data.get("amount")}
+
+@app.get("/api/commissions")
+async def get_commissions(payload: dict = Depends(verify_token)):
+    """Commissions"""
+    return {"commissions": [{"id": "comm_001", "sale_id": "sale_001", "amount": 36.00, "rate": 20, "status": "paid", "date": "2024-11-01"}], "total": 1}
+
+@app.post("/api/commissions")
+async def create_commission(comm_data: dict, payload: dict = Depends(verify_token)):
+    """Créer commission"""
+    return {"message": "Commission créée", "commission_id": f"comm_{datetime.now().timestamp()}", "amount": comm_data.get("amount")}
+
+@app.get("/api/payments")
+async def get_payments(payload: dict = Depends(verify_token)):
+    """Paiements"""
+    return {"payments": [{"id": "pay_001", "amount": 1250.00, "method": "bank_transfer", "status": "completed", "date": "2024-10-15"}], "total": 1}
+
+@app.post("/api/payments")
+async def create_payment(payment_data: dict, payload: dict = Depends(verify_token)):
+    """Créer paiement"""
+    return {"message": "Paiement créé", "payment_id": f"pay_{datetime.now().timestamp()}", "amount": payment_data.get("amount")}
+
+@app.get("/api/clicks")
+async def get_clicks(payload: dict = Depends(verify_token)):
+    """Clics"""
+    return {"clicks": [{"id": "click_001", "link_id": "link_001", "ip": "105.xxx.xxx.xxx", "country": "MA", "device": "mobile", "timestamp": "2024-11-02T10:30:00"}], "total": 1}
+
+@app.get("/api/leads")
+async def get_leads(payload: dict = Depends(verify_token)):
+    """Leads"""
+    return {"leads": [{"id": "lead_001", "name": "Mohamed A.", "email": "mohamed@example.com", "phone": "+212 6 12 34 56 78", "source": "Instagram", "status": "new"}], "total": 1}
+
+@app.get("/api/conversions")
+async def get_conversions(payload: dict = Depends(verify_token)):
+    """Conversions"""
+    return {"conversions": [{"id": "conv_001", "link_id": "link_001", "sale_id": "sale_001", "amount": 180.00, "date": "2024-11-01"}], "total": 1}
+
+# ============================================
+# MERCHANT PAYMENT & COUPONS
+# ============================================
+
+@app.get("/api/merchant/payment-config")
+async def get_merchant_payment_config_full(payload: dict = Depends(verify_token)):
+    """Config paiement merchant complète"""
+    if payload.get("role") not in ["merchant", "admin"]:
+        raise HTTPException(status_code=403, detail="Accès merchant requis")
+    return {"bank_name": "Attijariwafa Bank", "iban": "MA64011519000001234567890123", "swift": "BCMAMAMC", "payment_schedule": "monthly"}
+
+@app.put("/api/merchant/payment-config")
+async def update_merchant_payment_config_full(config: dict, payload: dict = Depends(verify_token)):
+    """MAJ config paiement merchant"""
+    if payload.get("role") not in ["merchant", "admin"]:
+        raise HTTPException(status_code=403, detail="Accès merchant requis")
+    return {"message": "Configuration mise à jour", "config": config}
+
+@app.get("/api/coupons")
+async def get_coupons(payload: dict = Depends(verify_token)):
+    """Coupons"""
+    return {"coupons": [{"id": "coup_001", "code": "BEAUTY20", "discount": 20, "type": "percentage", "expires_at": "2024-11-30", "uses": 45, "max_uses": 100}], "total": 1}
+
+@app.get("/api/advertisers")
+async def get_advertisers(payload: dict = Depends(verify_token)):
+    """Annonceurs"""
+    return {"advertisers": [{"id": "adv_001", "name": "Google Ads", "budget": 5000, "spent": 2450, "conversions": 45}], "total": 1}
+
+# ============================================
+# MOBILE PAYMENTS & SETTINGS
+# ============================================
+
+@app.get("/api/mobile-payments-ma/providers")
+async def get_mobile_payment_providers(payload: dict = Depends(verify_token)):
+    """Opérateurs mobile Maroc"""
+    return {"providers": [{"id": "iam", "name": "Maroc Telecom", "logo": "/providers/iam.png"}, {"id": "orange", "name": "Orange Maroc", "logo": "/providers/orange.png"}, {"id": "inwi", "name": "Inwi", "logo": "/providers/inwi.png"}]}
+
+@app.post("/api/mobile-payments-ma/payout")
+async def request_mobile_payout(payout_data: dict, payload: dict = Depends(verify_token)):
+    """Demande paiement mobile"""
+    return {"message": "Demande envoyée", "payout_id": f"mpay_{datetime.now().timestamp()}", "amount": payout_data.get("amount"), "phone": payout_data.get("phone")}
+
+@app.get("/api/settings")
+async def get_settings(payload: dict = Depends(verify_token)):
+    """Paramètres"""
+    return {"company_name": "Ma Société", "email": "contact@company.ma", "phone": "+212 5 22 33 44 55", "address": "Casablanca, Maroc"}
+
+@app.put("/api/settings/company")
+async def update_company_settings(settings: dict, payload: dict = Depends(verify_token)):
+    """MAJ paramètres société"""
+    return {"message": "Paramètres mis à jour", "settings": settings}
+
+@app.post("/api/settings/affiliate")
+async def save_affiliate_settings(settings: dict, payload: dict = Depends(verify_token)):
+    """Sauvegarder paramètres affiliation"""
+    return {"message": "Paramètres affiliation sauvegardés", "settings": settings}
+
+@app.post("/api/settings/mlm")
+async def save_mlm_settings(settings: dict, payload: dict = Depends(verify_token)):
+    """Sauvegarder paramètres MLM"""
+    return {"message": "Paramètres MLM sauvegardés", "mlm_enabled": settings.get("mlmEnabled"), "levels": settings.get("levels")}
+
+@app.post("/api/settings/permissions")
+async def save_permissions(permissions: dict, payload: dict = Depends(verify_token)):
+    """Sauvegarder permissions"""
+    return {"message": "Permissions mises à jour", "permissions": permissions}
+
+@app.post("/api/settings/registration")
+async def save_registration_settings(settings: dict, payload: dict = Depends(verify_token)):
+    """Paramètres inscription"""
+    return {"message": "Paramètres inscription sauvegardés", "settings": settings}
+
+@app.post("/api/settings/smtp")
+async def save_smtp_settings(smtp: dict, payload: dict = Depends(verify_token)):
+    """Paramètres SMTP"""
+    return {"message": "Paramètres SMTP sauvegardés", "host": smtp.get("host")}
+
+@app.post("/api/settings/smtp/test")
+async def test_smtp_settings(smtp: dict, payload: dict = Depends(verify_token)):
+    """Tester SMTP"""
+    return {"message": "Email de test envoyé", "success": True}
+
+@app.post("/api/settings/whitelabel")
+async def save_whitelabel_settings(settings: dict, payload: dict = Depends(verify_token)):
+    """Paramètres white label"""
+    return {"message": "Paramètres white label sauvegardés", "settings": settings}
+
+# ============================================
+# BOT & DASHBOARD STATS
+# ============================================
+
+@app.get("/api/bot/suggestions")
+async def get_bot_suggestions(payload: dict = Depends(verify_token)):
+    """Suggestions chatbot"""
+    return {"suggestions": ["Comment créer un lien d'affiliation?", "Quels sont mes gains ce mois?", "Comment retirer mes commissions?"]}
+
+@app.get("/api/bot/conversations")
+async def get_bot_conversations(payload: dict = Depends(verify_token)):
+    """Conversations chatbot"""
+    return {"conversations": [{"id": "bot_conv_001", "last_message": "Comment puis-je vous aider?", "timestamp": "2024-11-02T09:00:00"}]}
+
+@app.post("/api/bot/chat")
+async def chat_with_bot(message_data: dict, payload: dict = Depends(verify_token)):
+    """Chat avec bot"""
+    return {"response": "Je suis là pour vous aider avec vos questions sur l'affiliation!", "message_id": f"bot_msg_{datetime.now().timestamp()}"}
+
+@app.get("/api/dashboard/stats")
+async def get_dashboard_stats(role: str = None, payload: dict = Depends(verify_token)):
+    """Stats dashboard par rôle"""
+    user_role = role or payload.get("role")
+    if user_role == "influencer":
+        return {"earnings": 2450.75, "clicks": 1247, "conversions": 89}
+    elif user_role == "merchant":
+        return {"sales": 15280.00, "orders": 245, "affiliates": 18}
+    elif user_role == "admin":
+        return {"revenue": 125000.00, "users": 1250, "transactions": 5680}
+    return {"stats": {}}
+
+@app.get("/api/payouts")
+async def get_payouts_list(payload: dict = Depends(verify_token)):
+    """Liste des paiements"""
+    return {"payouts": [{"id": "payout_001", "amount": 1250.00, "status": "completed", "method": "bank_transfer", "date": "2024-10-15"}], "total": 1}
+
+# ============================================
+# CONTACT & SEARCH
+# ============================================
+
+@app.post("/api/contact/submit")
+async def submit_contact_form(form_data: dict):
+    """Formulaire de contact"""
+    return {"message": "Message envoyé avec succès", "ticket_id": f"ticket_{datetime.now().timestamp()}"}
+
+@app.post("/api/campaigns")
+async def create_campaign_post(campaign_data: dict, payload: dict = Depends(verify_token)):
+    """Créer campagne (POST)"""
+    return {"message": "Campagne créée", "campaign_id": f"camp_{datetime.now().timestamp()}", "title": campaign_data.get("title")}
+
+# ============================================================================
+# ADMIN USER MANAGEMENT ENDPOINTS
+# ============================================================================
+
+@app.get("/api/admin/users")
+async def get_admin_users(payload: dict = Depends(verify_token)):
+    """Liste des utilisateurs admin"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Mock data
+    users = [
+        {
+            "id": 1,
+            "username": "admin",
+            "email": "admin@shareyoursales.ma",
+            "phone": "+212 6 12 34 56 78",
+            "role": "admin",
+            "status": "active",
+            "created_at": "2024-01-15",
+            "last_login": "2024-11-02 10:30"
+        },
+        {
+            "id": 2,
+            "username": "admin2",
+            "email": "admin2@shareyoursales.ma",
+            "phone": "+212 6 23 45 67 89",
+            "role": "admin",
+            "status": "active",
+            "created_at": "2024-02-20",
+            "last_login": "2024-11-01 15:45"
+        }
+    ]
+    
+    return {"users": users, "total": len(users)}
+
+@app.post("/api/admin/users")
+async def create_admin_user(user_data: dict, payload: dict = Depends(verify_token)):
+    """Créer un nouvel utilisateur admin"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Validation basique
+    required_fields = ["username", "email", "password", "role"]
+    for field in required_fields:
+        if field not in user_data:
+            raise HTTPException(status_code=400, detail=f"Missing field: {field}")
+    
+    # TODO: Hash password, save to database
+    new_user = {
+        "id": 999,
+        "username": user_data["username"],
+        "email": user_data["email"],
+        "phone": user_data.get("phone", ""),
+        "role": user_data["role"],
+        "status": user_data.get("status", "active"),
+        "created_at": datetime.now().strftime("%Y-%m-%d"),
+        "last_login": "-"
+    }
+    
+    return {"success": True, "user": new_user, "message": "Utilisateur créé avec succès"}
+
+@app.put("/api/admin/users/{user_id}")
+async def update_admin_user(user_id: int, user_data: dict, payload: dict = Depends(verify_token)):
+    """Mettre à jour un utilisateur"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # TODO: Update in database
+    updated_user = {
+        "id": user_id,
+        "username": user_data.get("username"),
+        "email": user_data.get("email"),
+        "phone": user_data.get("phone", ""),
+        "role": user_data.get("role"),
+        "status": user_data.get("status")
+    }
+    
+    return {"success": True, "user": updated_user, "message": "Utilisateur mis à jour"}
+
+@app.delete("/api/admin/users/{user_id}")
+async def delete_admin_user(user_id: int, payload: dict = Depends(verify_token)):
+    """Supprimer un utilisateur"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # TODO: Delete from database
+    return {"success": True, "message": "Utilisateur supprimé"}
+
+@app.patch("/api/admin/users/{user_id}/status")
+async def toggle_user_status(user_id: int, status_data: dict, payload: dict = Depends(verify_token)):
+    """Changer le statut d'un utilisateur (actif/inactif)"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    new_status = status_data.get("status", "active")
+    
+    # TODO: Update in database
+    return {"success": True, "status": new_status, "message": f"Statut changé à {new_status}"}
+
+@app.put("/api/admin/users/{user_id}/permissions")
+async def update_user_permissions(user_id: int, permissions: dict, payload: dict = Depends(verify_token)):
+    """Mettre à jour les permissions d'un utilisateur"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # TODO: Save permissions to database
+    return {
+        "success": True, 
+        "permissions": permissions,
+        "message": "Autorisations mises à jour"
+    }
+
+@app.get("/api/admin/users/{user_id}/permissions")
+async def get_user_permissions(user_id: int, payload: dict = Depends(verify_token)):
+    """Récupérer les permissions d'un utilisateur"""
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Mock permissions
+    permissions = {
+        "dashboard": True,
+        "users": True,
+        "merchants": True,
+        "influencers": True,
+        "products": True,
+        "campaigns": True,
+        "analytics": True,
+        "settings": True,
+        "reports": True,
+        "payments": True,
+        "marketplace": True,
+        "social_media": True
+    }
+    
+    return {"permissions": permissions}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

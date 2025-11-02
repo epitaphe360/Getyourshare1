@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import api from '../../utils/api';
 import Card from '../../components/common/Card';
 import Modal from '../../components/common/Modal';
@@ -20,6 +21,7 @@ import {
  */
 const AffiliationRequestsPage = () => {
   const { user } = useAuth();
+  const toast = useToast();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -62,17 +64,17 @@ const AffiliationRequestsPage = () => {
         fetchPendingRequests();
         setActionModal({ isOpen: false, action: null });
         setIsModalOpen(false);
-        alert(`✅ Demande approuvée ! Lien généré: ${response.data.short_code}`);
+        toast.success(`Demande approuvée ! Lien généré: ${response.data.short_code}`);
       }
     } catch (error) {
       console.error('Error approving request:', error);
-      alert('Erreur lors de l\'approbation: ' + error.response?.data?.detail);
+      toast.error('Erreur lors de l\'approbation: ' + error.response?.data?.detail);
     }
   };
 
   const handleReject = async () => {
     if (!formData.rejection_reason) {
-      alert('Veuillez indiquer la raison du refus');
+      toast.warning('Veuillez indiquer la raison du refus');
       return;
     }
 
@@ -88,11 +90,11 @@ const AffiliationRequestsPage = () => {
         fetchPendingRequests();
         setActionModal({ isOpen: false, action: null });
         setIsModalOpen(false);
-        alert('❌ Demande refusée. L\'influenceur a été notifié.');
+        toast.info('Demande refusée. L\'influenceur a été notifié.');
       }
     } catch (error) {
       console.error('Error rejecting request:', error);
-      alert('Erreur lors du refus: ' + error.response?.data?.detail);
+      toast.error('Erreur lors du refus: ' + error.response?.data?.detail);
     }
   };
 

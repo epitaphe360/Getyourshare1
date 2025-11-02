@@ -44,10 +44,13 @@ const TrackingLinks = () => {
     try {
       setLoading(true);
       const response = await api.get('/api/influencer/tracking-links');
-      setLinks(response.data || []);
+      // Gérer différentes structures de réponse
+      const linksData = response.data?.data || response.data || [];
+      setLinks(Array.isArray(linksData) ? linksData : []);
     } catch (error) {
       console.error('Erreur lors du chargement des liens:', error);
       toast.error('Impossible de charger les liens de tracking');
+      setLinks([]); // Toujours définir un tableau vide en cas d'erreur
     } finally {
       setLoading(false);
     }
@@ -75,11 +78,17 @@ const TrackingLinks = () => {
         api.get('/api/influencer/affiliation-requests?status=cancelled')
       ]);
 
+      // Extraire les données en gérant différentes structures de réponse
+      const extractData = (res) => {
+        const data = res.data?.data || res.data || [];
+        return Array.isArray(data) ? data : [];
+      };
+
       const allRequests = [
-        ...(pendingRes.data || []),
-        ...(activeRes.data || []),
-        ...(rejectedRes.data || []),
-        ...(cancelledRes.data || [])
+        ...extractData(pendingRes),
+        ...extractData(activeRes),
+        ...extractData(rejectedRes),
+        ...extractData(cancelledRes)
       ];
 
       setPendingRequests(allRequests);
@@ -91,6 +100,8 @@ const TrackingLinks = () => {
 
   // Animation des statistiques au chargement
   useEffect(() => {
+    if (!links || links.length === 0) return;
+    
     const totalClicks = links.reduce((sum, l) => sum + l.clicks, 0);
     const totalConversions = links.reduce((sum, l) => sum + l.conversions, 0);
     const totalRevenue = links.reduce((sum, l) => sum + (l.revenue || 0), 0);
@@ -139,7 +150,7 @@ const TrackingLinks = () => {
     setRealtimeActivity(activities);
 
     // Ajouter une nouvelle activité toutes les 5 secondes (seulement si des liens existent)
-    if (links.length === 0) return;
+    if (!links || links.length === 0) return;
 
     const interval = setInterval(() => {
       const randomLink = links[Math.floor(Math.random() * links.length)];
@@ -415,7 +426,7 @@ const TrackingLinks = () => {
                 </div>
                 <div className="flex items-center space-x-2 bg-white/20 backdrop-blur-sm px-3 py-1 rounded-full">
                   <Zap size={16} />
-                  <span>{links.length} Liens Actifs</span>
+                  <span>{links?.length || 0} Liens Actifs</span>
                 </div>
               </div>
             </div>
@@ -503,7 +514,7 @@ const TrackingLinks = () => {
                 <p className="text-sm text-gray-600 font-medium">Liens Actifs</p>
               </div>
               <p className="text-4xl font-bold text-orange-600">
-                {links.length}
+                {links?.length || 0}
               </p>
               <div className="flex items-center space-x-1 mt-2 text-blue-500 text-xs">
                 <Activity size={14} className="animate-pulse" />
@@ -576,7 +587,7 @@ const TrackingLinks = () => {
                 </div>
               </div>
             ))}
-            {realtimeActivity.length === 0 && (
+            {(!realtimeActivity || realtimeActivity.length === 0) && (
               <div className="text-center py-8 text-gray-400">
                 <Activity size={48} className="mx-auto mb-2 animate-pulse" />
                 <p>En attente d'activité...</p>
@@ -647,7 +658,7 @@ const TrackingLinks = () => {
                 </option>
               ))}
             </select>
-            {products.length === 0 && !loading && (
+            {(!products || products.length === 0) && !loading && (
               <p className="text-sm text-gray-500 mt-2">
                 Aucun produit disponible. Visitez le Marketplace pour découvrir les produits.
               </p>

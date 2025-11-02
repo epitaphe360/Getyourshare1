@@ -232,7 +232,7 @@ const InfluencerDashboard = () => {
             <RefreshCw size={18} />
           </button>
           <button
-            onClick={() => navigate('/marketplace')}
+            onClick={() => navigate('/marketplace', { state: { fromDashboard: true } })}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
           >
             🛍️ Marketplace

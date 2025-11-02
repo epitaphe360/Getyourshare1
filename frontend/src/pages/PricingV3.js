@@ -25,6 +25,8 @@ import PersonIcon from '@mui/icons-material/Person';
 import StarIcon from '@mui/icons-material/Star';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import paymentService from '../services/paymentService';
+import { useToast } from '../context/ToastContext';
 
 /**
  * Page des tarifs - 4 plans d'abonnement conformes aux spécifications
@@ -40,11 +42,13 @@ import api from '../services/api';
 
 const PricingV3 = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [annualBilling, setAnnualBilling] = useState(false);
   const [currentSubscription, setCurrentSubscription] = useState(null);
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   useEffect(() => {
     fetchPlans();
@@ -54,11 +58,14 @@ const PricingV3 = () => {
   const fetchPlans = async () => {
     try {
       const response = await api.get('/api/subscriptions/plans');
-      setPlans(response.data);
+      // S'assurer que response.data est bien un tableau
+      const plansData = Array.isArray(response.data) ? response.data : (response.data.plans || []);
+      setPlans(plansData);
       setLoading(false);
     } catch (err) {
       console.error('Error fetching plans:', err);
       setError('Erreur lors du chargement des plans');
+      setPlans([]); // S'assurer que plans reste un tableau même en cas d'erreur
       setLoading(false);
     }
   };
@@ -74,12 +81,37 @@ const PricingV3 = () => {
   };
 
   const handleSubscribe = async (planId) => {
+    if (processingPayment) return;
+    
     try {
-      // For now, navigate to a checkout page (to be implemented)
-      navigate(`/subscribe/${planId}`);
+      setProcessingPayment(true);
+      
+      // Trouver le plan sélectionné
+      const selectedPlan = plans.find(p => p.id === planId);
+      if (!selectedPlan) {
+        toast.error('Plan non trouvé');
+        return;
+      }
+      
+      // Calculer le montant (annuel ou mensuel)
+      const amount = annualBilling ? selectedPlan.price * 10 : selectedPlan.price;
+      
+      toast.info('Redirection vers la page de paiement sécurisée...');
+      
+      // Initialiser le paiement via notre service
+      await paymentService.initiateSubscriptionPayment({
+        plan_id: planId,
+        plan_name: selectedPlan.name,
+        amount: amount,
+        billing_cycle: annualBilling ? 'annual' : 'monthly'
+      }, 'cmi'); // CMI par défaut pour le Maroc, ou 'stripe' pour international
+      
+      // La redirection vers la page de paiement est gérée automatiquement par le service
+      
     } catch (err) {
       console.error('Error initiating subscription:', err);
-      alert('Erreur lors de la souscription');
+      toast.error(err.message || 'Erreur lors de l\'initialisation du paiement');
+      setProcessingPayment(false);
     }
   };
 
@@ -112,8 +144,8 @@ const PricingV3 = () => {
   }
 
   // Séparer les plans entreprise et marketplace
-  const enterprisePlans = plans.filter(p => p.type === 'enterprise').sort((a, b) => a.price_mad - b.price_mad);
-  const marketplacePlans = plans.filter(p => p.type === 'marketplace');
+  const enterprisePlans = Array.isArray(plans) ? plans.filter(p => p.type === 'enterprise').sort((a, b) => a.price_mad - b.price_mad) : [];
+  const marketplacePlans = Array.isArray(plans) ? plans.filter(p => p.type === 'marketplace') : [];
 
   return (
     <Box sx={{ bgcolor: '#f8f9fa', minHeight: '100vh', py: 6 }}>

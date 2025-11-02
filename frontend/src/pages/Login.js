@@ -23,7 +23,14 @@ const Login = () => {
     const result = await login(email, password);
     
     if (result.success) {
-      navigate('/dashboard');
+      // Vérifier s'il y a une redirection en attente
+      const redirectPath = localStorage.getItem('redirectAfterLogin');
+      if (redirectPath) {
+        localStorage.removeItem('redirectAfterLogin');
+        navigate(redirectPath);
+      } else {
+        navigate('/dashboard');
+      }
     } else if (result.requires_2fa || result.requires2FA) {
       // 2FA requis (support snake_case et camelCase)
       setRequires2FA(true);
@@ -45,7 +52,14 @@ const Login = () => {
     const result = await login(testEmail, testPassword);
     
     if (result.success) {
-      navigate('/dashboard');
+      // Vérifier s'il y a une redirection en attente
+      const redirectPath = localStorage.getItem('redirectAfterLogin');
+      if (redirectPath) {
+        localStorage.removeItem('redirectAfterLogin');
+        navigate(redirectPath);
+      } else {
+        navigate('/dashboard');
+      }
     } else if (result.requires_2fa || result.requires2FA) {
       setRequires2FA(true);
       setTempToken(result.temp_token || result.tempToken);
@@ -62,7 +76,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+      const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
       const response = await fetch(`${API_URL}/api/auth/verify-2fa`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,8 +93,15 @@ const Login = () => {
         // Stocker le token et l'utilisateur
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('user', JSON.stringify(data.user));
-        // Utiliser navigate au lieu de window.location.href pour éviter les redirections non sécurisées
-        navigate('/dashboard');
+        
+        // Vérifier s'il y a une redirection en attente
+        const redirectPath = localStorage.getItem('redirectAfterLogin');
+        if (redirectPath) {
+          localStorage.removeItem('redirectAfterLogin');
+          navigate(redirectPath);
+        } else {
+          navigate('/dashboard');
+        }
       } else {
         setError(data.detail || 'Code 2FA incorrect');
       }
@@ -190,7 +211,7 @@ const Login = () => {
 
                     <div className="mt-6 space-y-3">
                       <button
-                        onClick={() => quickLogin('admin@shareyoursales.com', 'admin123')}
+                        onClick={() => quickLogin('admin@shareyoursales.ma', 'admin123')}
                         disabled={loading}
                         className="w-full flex items-center justify-between px-4 py-3 border-2 border-purple-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition disabled:opacity-50"
                       >
@@ -200,14 +221,14 @@ const Login = () => {
                           </div>
                           <div className="ml-3 text-left">
                             <p className="text-sm font-semibold text-gray-900">Admin</p>
-                            <p className="text-xs text-gray-500">admin@shareyoursales.com</p>
+                            <p className="text-xs text-gray-500">admin@shareyoursales.ma</p>
                           </div>
                         </div>
                         <span className="text-xs text-purple-600 font-medium">Connexion →</span>
                       </button>
 
                       <button
-                        onClick={() => quickLogin('contact@techstyle.fr', 'merchant123')}
+                        onClick={() => quickLogin('merchant@example.com', 'merchant123')}
                         disabled={loading}
                         className="w-full flex items-center justify-between px-4 py-3 border-2 border-blue-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition disabled:opacity-50"
                       >
@@ -217,14 +238,14 @@ const Login = () => {
                           </div>
                           <div className="ml-3 text-left">
                             <p className="text-sm font-semibold text-gray-900">Merchant</p>
-                            <p className="text-xs text-gray-500">contact@techstyle.fr</p>
+                            <p className="text-xs text-gray-500">merchant@example.com</p>
                           </div>
                         </div>
                         <span className="text-xs text-blue-600 font-medium">Connexion →</span>
                       </button>
 
                       <button
-                        onClick={() => quickLogin('emma.style@instagram.com', 'influencer123')}
+                        onClick={() => quickLogin('influencer@example.com', 'password123')}
                         disabled={loading}
                         className="w-full flex items-center justify-between px-4 py-3 border-2 border-pink-200 rounded-lg hover:border-pink-400 hover:bg-pink-50 transition disabled:opacity-50"
                       >
@@ -234,7 +255,7 @@ const Login = () => {
                           </div>
                           <div className="ml-3 text-left">
                             <p className="text-sm font-semibold text-gray-900">Influenceur</p>
-                            <p className="text-xs text-gray-500">emma.style@instagram.com</p>
+                            <p className="text-xs text-gray-500">influencer@example.com</p>
                           </div>
                         </div>
                         <span className="text-xs text-pink-600 font-medium">Connexion →</span>

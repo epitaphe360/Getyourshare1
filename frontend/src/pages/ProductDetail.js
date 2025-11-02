@@ -5,7 +5,7 @@ import { useToast } from '../context/ToastContext';
 import api from '../utils/api';
 import {
   Star, MapPin, Clock, Tag, Share2, Heart,
-  ShoppingCart, Sparkles, ChevronLeft, ChevronRight,
+  Sparkles, ChevronLeft, ChevronRight,
   Check, X, Calendar, Users, Award, Phone,
   Mail, Globe, AlertCircle, ThumbsUp, ThumbsDown
 } from 'lucide-react';
@@ -25,6 +25,11 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showReviewForm, setShowReviewForm] = useState(false);
+  const [showAffiliateModal, setShowAffiliateModal] = useState(false);
+  const [affiliateData, setAffiliateData] = useState({
+    selectedProduct: '',
+    message: ''
+  });
   const [reviewData, setReviewData] = useState({
     rating: 5,
     title: '',
@@ -65,27 +70,53 @@ const ProductDetail = () => {
   };
 
   const handleRequestAffiliation = async () => {
-    if (user?.role !== 'influencer') {
-      toast.warning('Vous devez être un influenceur pour demander une affiliation');
+    // Vérifier si l'utilisateur est connecté
+    if (!user) {
+      toast.info('Veuillez vous connecter pour demander une affiliation');
+      // Sauvegarder l'URL actuelle pour rediriger après connexion
+      localStorage.setItem('redirectAfterLogin', window.location.pathname);
+      navigate('/login');
+      return;
+    }
+
+    // Vérifier le rôle
+    if (user.role !== 'influencer' && user.role !== 'commercial') {
+      toast.warning('Vous devez être un influenceur ou commercial pour demander une affiliation');
+      return;
+    }
+
+    // Ouvrir la modale
+    setShowAffiliateModal(true);
+    setAffiliateData({
+      selectedProduct: product.name,
+      message: ''
+    });
+  };
+
+  const handleSubmitAffiliateRequest = async (e) => {
+    e.preventDefault();
+
+    if (!affiliateData.message.trim()) {
+      toast.warning('Veuillez rédiger un message de présentation');
       return;
     }
 
     try {
       const response = await api.post(`/api/marketplace/products/${productId}/request-affiliate`, {
-        message: 'Je souhaite promouvoir ce produit.'
+        message: affiliateData.message
       });
 
       if (response.data.success) {
-        toast.success('Demande d\'affiliation envoyée!');
+        toast.success('Demande d\'affiliation envoyée avec succès!');
+        if (response.data.affiliate_link) {
+          toast.info(`Votre lien: ${response.data.affiliate_link}`);
+        }
+        setShowAffiliateModal(false);
+        setAffiliateData({ selectedProduct: '', message: '' });
       }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Erreur lors de la demande');
     }
-  };
-
-  const handleBuyNow = () => {
-    // TODO: Implement buy flow
-    toast.info('Redirection vers le site marchand...');
   };
 
   const handleSubmitReview = async (e) => {
@@ -108,17 +139,31 @@ const ProductDetail = () => {
   };
 
   const getImages = () => {
-    if (!product?.images) return [];
-    if (Array.isArray(product.images)) return product.images;
-    if (typeof product.images === 'string') {
-      try {
-        const parsed = JSON.parse(product.images);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
+    // Utiliser l'image principale du produit (image_url) comme dans le marketplace
+    const mainImage = product?.image_url || 
+                     (product?.type === 'service' 
+                       ? `https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&h=600&fit=crop&q=80`
+                       : `https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&h=600&fit=crop&q=80`);
+    
+    // Si images existe, l'utiliser en complément
+    if (product?.images) {
+      if (Array.isArray(product.images)) {
+        return [mainImage, ...product.images];
+      }
+      if (typeof product.images === 'string') {
+        try {
+          const parsed = JSON.parse(product.images);
+          if (Array.isArray(parsed)) {
+            return [mainImage, ...parsed];
+          }
+        } catch {
+          // Ignore parsing error
+        }
       }
     }
-    return [];
+    
+    // Par défaut, retourner seulement l'image principale
+    return [mainImage];
   };
 
   const getHighlights = () => {
@@ -197,6 +242,15 @@ const ProductDetail = () => {
                   src={images[currentImageIndex]}
                   alt={product.name}
                   className="w-full h-96 object-cover"
+                  onError={(e) => {
+                    // Fallback selon le type (product ou service)
+                    e.target.onerror = null;
+                    if (product?.type === 'service') {
+                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect fill="%233b82f6" width="800" height="600"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="32" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EService%3C/text%3E%3C/svg%3E';
+                    } else {
+                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect fill="%2310b981" width="800" height="600"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="32" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EProduit%3C/text%3E%3C/svg%3E';
+                    }
+                  }}
                 />
                 {images.length > 1 && (
                   <>
@@ -227,8 +281,11 @@ const ProductDetail = () => {
                 )}
               </div>
             ) : (
-              <div className="w-full h-96 bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
-                <ShoppingCart className="w-32 h-32 text-purple-300" />
+              <div className="w-full h-96 bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center">
+                <div className="text-center">
+                  <Sparkles className="w-24 h-24 text-green-400 mx-auto mb-4" />
+                  <p className="text-gray-600 font-medium">Image du produit</p>
+                </div>
               </div>
             )}
           </div>
@@ -546,26 +603,29 @@ const ProductDetail = () => {
               </div>
             )}
 
-            {/* Buy Button */}
+            {/* Request Affiliation Button - Principal et toujours visible */}
             <button
-              onClick={handleBuyNow}
-              disabled={product.stock_quantity === 0}
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white py-4 rounded-lg font-bold text-lg hover:from-purple-700 hover:to-pink-700 transition disabled:opacity-50 disabled:cursor-not-allowed mb-3"
+              onClick={handleRequestAffiliation}
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 rounded-lg font-bold text-lg hover:from-green-600 hover:to-emerald-700 transition flex items-center justify-center shadow-lg mb-3"
             >
-              <ShoppingCart className="inline-block w-6 h-6 mr-2" />
-              Acheter Maintenant
+              <Sparkles className="inline-block w-6 h-6 mr-2" />
+              {user ? 'Demander un Lien d\'Affiliation' : 'Se connecter pour devenir Affilié'}
             </button>
 
-            {/* Request Affiliation Button */}
-            {user?.role === 'influencer' && (
-              <button
-                onClick={handleRequestAffiliation}
-                className="w-full bg-green-500 text-white py-3 rounded-lg font-semibold hover:bg-green-600 transition"
-              >
-                <Sparkles className="inline-block w-5 h-5 mr-2" />
-                Demander l'Affiliation
-              </button>
-            )}
+            {/* Commission Info */}
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-medium text-green-800">
+                  Commission d'affiliation
+                </span>
+                <span className="text-2xl font-bold text-green-600">
+                  {product.commission_rate || 15}%
+                </span>
+              </div>
+              <p className="text-xs text-green-700">
+                💰 Gagnez des commissions en promouvant ce produit auprès de votre audience
+              </p>
+            </div>
 
             {/* Merchant Info */}
             {product.merchant && (
@@ -591,6 +651,165 @@ const ProductDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Affiliate Request Modal */}
+      {showAffiliateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            {/* Header */}
+            <div className="sticky top-0 bg-gradient-to-r from-green-500 to-emerald-600 text-white p-6 rounded-t-2xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold flex items-center">
+                    <Sparkles className="w-6 h-6 mr-2" />
+                    Demander un Lien d'Affiliation
+                  </h2>
+                  <p className="text-green-50 text-sm mt-1">
+                    Rejoignez notre programme d'affiliation et commencez à gagner des commissions
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAffiliateModal(false)}
+                  className="text-white hover:bg-white/20 rounded-full p-2 transition"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6">
+              {/* How it works */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+                <h3 className="font-semibold text-blue-900 mb-3 flex items-center">
+                  <AlertCircle className="w-5 h-5 mr-2" />
+                  Comment ça fonctionne ?
+                </h3>
+                <p className="text-blue-800 text-sm leading-relaxed">
+                  Sélectionnez un produit et présentez-vous au marchand. Si votre demande est approuvée, 
+                  un lien de tracking sera automatiquement créé pour vous.
+                </p>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSubmitAffiliateRequest} className="space-y-6">
+                {/* Product Selection */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Sélectionnez un produit <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={affiliateData.selectedProduct}
+                      readOnly
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg bg-gray-50 text-gray-700 font-medium cursor-not-allowed"
+                      placeholder="Choisir un produit..."
+                    />
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <Check className="w-5 h-5 text-green-600" />
+                    </div>
+                  </div>
+                  {!product && (
+                    <p className="text-sm text-gray-500 mt-2">
+                      Aucun produit disponible. Visitez le Marketplace pour découvrir les produits.
+                    </p>
+                  )}
+                </div>
+
+                {/* Message to Merchant */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-900 mb-2">
+                    Message au marchand <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={affiliateData.message}
+                    onChange={(e) => setAffiliateData({ ...affiliateData, message: e.target.value })}
+                    rows="6"
+                    className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 transition resize-none"
+                    placeholder="Présentez-vous et expliquez pourquoi vous souhaitez promouvoir ce produit...&#10;Incluez vos réseaux sociaux, nombre de followers, niche, etc."
+                    required
+                  />
+                  <div className="flex items-start mt-2 text-xs text-gray-500">
+                    <AlertCircle className="w-4 h-4 mr-1 mt-0.5 flex-shrink-0" />
+                    <p>
+                      Incluez vos réseaux sociaux, nombre de followers, niche, etc.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Product Info Card */}
+                {product && (
+                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4">
+                    <div className="flex items-start space-x-4">
+                      <img
+                        src={product.image_url || '/logo.jpg'}
+                        alt={product.name}
+                        className="w-20 h-20 object-cover rounded-lg"
+                        onError={(e) => {
+                          e.target.src = '/logo.png';
+                        }}
+                      />
+                      <div className="flex-1">
+                        <h4 className="font-bold text-gray-900 mb-1">{product.name}</h4>
+                        <p className="text-sm text-gray-600 mb-2">{product.description?.substring(0, 100)}...</p>
+                        <div className="flex items-center space-x-4">
+                          <div className="flex items-center">
+                            <Award className="w-4 h-4 text-green-600 mr-1" />
+                            <span className="text-sm font-semibold text-green-700">
+                              {product.commission_rate || 15}% commission
+                            </span>
+                          </div>
+                          {product.price && (
+                            <span className="text-sm font-bold text-gray-900">
+                              {product.price.toFixed(2)} MAD
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Commission Info */}
+                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0">
+                      <Award className="w-6 h-6 text-yellow-600" />
+                    </div>
+                    <div className="ml-3">
+                      <h4 className="font-semibold text-yellow-900 mb-1">
+                        Gagnez {product?.commission_rate || 15}% de commission
+                      </h4>
+                      <p className="text-sm text-yellow-800">
+                        Pour chaque vente générée via votre lien d'affiliation, vous recevez une commission de {product?.commission_rate || 15}%.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowAffiliateModal(false)}
+                    className="flex-1 px-6 py-3 border-2 border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 transition"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-bold hover:from-green-600 hover:to-emerald-700 transition flex items-center justify-center shadow-lg"
+                  >
+                    <Sparkles className="w-5 h-5 mr-2" />
+                    Envoyer la Demande
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

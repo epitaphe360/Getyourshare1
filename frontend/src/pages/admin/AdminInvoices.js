@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../context/ToastContext';
 import { api } from '../../utils/api';
 import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
@@ -6,6 +7,7 @@ import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 
 const AdminInvoices = () => {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState([]);
   const [generating, setGenerating] = useState(false);
@@ -46,11 +48,11 @@ const AdminInvoices = () => {
         month: month === 0 ? 12 : month
       });
 
-      alert(`✅ ${response.invoices_created} facture(s) générée(s) avec succès !`);
+      toast.success(`${response.invoices_created} facture(s) générée(s) avec succès !`);
       loadInvoices();
     } catch (error) {
       console.error('Erreur génération:', error);
-      alert('❌ Erreur lors de la génération: ' + error.message);
+      toast.error('Erreur lors de la génération: ' + error.message);
     } finally {
       setGenerating(false);
     }
@@ -63,10 +65,10 @@ const AdminInvoices = () => {
     setSendingReminders(true);
     try {
       const response = await api.post('/api/admin/invoices/send-reminders');
-      alert(`✅ ${response.reminders_sent} rappel(s) envoyé(s) !`);
+      toast.success(`${response.reminders_sent} rappel(s) envoyé(s) !`);
     } catch (error) {
       console.error('Erreur envoi rappels:', error);
-      alert('❌ Erreur: ' + error.message);
+      toast.error('Erreur: ' + error.message);
     } finally {
       setSendingReminders(false);
     }
@@ -83,11 +85,11 @@ const AdminInvoices = () => {
         payment_reference: reference || undefined
       });
 
-      alert('✅ Facture marquée comme payée');
+      toast.success('Facture marquée comme payée');
       loadInvoices();
     } catch (error) {
       console.error('Erreur:', error);
-      alert('❌ Erreur: ' + error.message);
+      toast.error('Erreur: ' + error.message);
     }
   };
 

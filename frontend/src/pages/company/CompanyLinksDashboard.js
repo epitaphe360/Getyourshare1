@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../context/ToastContext';
 import {
   Box,
   Container,
@@ -57,6 +58,7 @@ import api from '../../services/api';
  */
 
 const CompanyLinksDashboard = () => {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [links, setLinks] = useState([]);
   const [products, setProducts] = useState([]);
@@ -109,7 +111,7 @@ const CompanyLinksDashboard = () => {
   const handleGenerateLink = async () => {
     try {
       await api.post('/api/company/links/generate', generateForm);
-      alert('Lien généré avec succès');
+      toast.success('Lien généré avec succès');
       setGenerateDialogOpen(false);
       setGenerateForm({
         product_id: '',
@@ -120,14 +122,14 @@ const CompanyLinksDashboard = () => {
       fetchData();
     } catch (err) {
       console.error('Error generating link:', err);
-      alert(err.response?.data?.detail || 'Erreur lors de la génération');
+      toast.error(err.response?.data?.detail || 'Erreur lors de la génération');
     }
   };
 
   const handleAssignLink = async () => {
     try {
       await api.post('/api/company/links/assign', assignForm);
-      alert('Lien attribué avec succès');
+      toast.success('Lien attribué avec succès');
       setAssignDialogOpen(false);
       setAssignForm({
         link_id: '',
@@ -137,13 +139,13 @@ const CompanyLinksDashboard = () => {
       fetchData();
     } catch (err) {
       console.error('Error assigning link:', err);
-      alert(err.response?.data?.detail || 'Erreur lors de l\'attribution');
+      toast.error(err.response?.data?.detail || 'Erreur lors de l\'attribution');
     }
   };
 
   const handleCopyLink = (url) => {
     navigator.clipboard.writeText(url);
-    alert('Lien copié dans le presse-papier');
+    toast.success('Lien copié dans le presse-papier');
   };
 
   const handleDeactivateLink = async (linkId) => {
@@ -153,11 +155,11 @@ const CompanyLinksDashboard = () => {
 
     try {
       await api.delete(`/api/company/links/${linkId}`);
-      alert('Lien désactivé');
+      toast.success('Lien désactivé');
       fetchData();
     } catch (err) {
       console.error('Error deactivating link:', err);
-      alert('Erreur lors de la désactivation');
+      toast.error('Erreur lors de la désactivation');
     }
   };
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../context/ToastContext';
 import {
   Box,
   Container,
@@ -43,6 +44,7 @@ import api from '../../services/api';
 
 const SubscriptionDashboard = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState(null);
   const [usage, setUsage] = useState(null);
@@ -80,12 +82,12 @@ const SubscriptionDashboard = () => {
         immediate: false
       });
 
-      alert('Abonnement annulé. Votre accès restera actif jusqu\'à la fin de la période en cours.');
+      toast.success('Abonnement annulé. Votre accès restera actif jusqu\'à la fin de la période en cours.');
       setCancelDialogOpen(false);
       fetchSubscriptionData();
     } catch (err) {
       console.error('Error canceling subscription:', err);
-      alert('Erreur lors de l\'annulation');
+      toast.error('Erreur lors de l\'annulation');
     }
   };
 

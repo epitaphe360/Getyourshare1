@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
 import Badge from '../../components/common/Badge';
@@ -7,6 +7,7 @@ import { formatDate } from '../../utils/helpers';
 import { Check, X } from 'lucide-react';
 
 const AffiliateApplications = () => {
+  const [loading, setLoading] = useState(false);
   const [applications] = useState([
     {
       id: 'app_1',
@@ -40,7 +41,7 @@ const AffiliateApplications = () => {
     console.log('Reject:', id);
   };
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       header: 'Affilié',
       accessor: 'name',
@@ -92,7 +93,7 @@ const AffiliateApplications = () => {
         </div>
       ),
     },
-  ];
+  ], [loading]);
 
   return (
     <div className="space-y-6" data-testid="affiliate-applications">

@@ -1,0 +1,51 @@
+/**
+ * Masquer les widgets flottants indésirables
+ * (Chatbots, WhatsApp, etc.)
+ */
+
+/* Masquer tous les éléments en position fixe en bas à droite */
+*[style*="position: fixed"][style*="bottom"][style*="right"],
+*[style*="position:fixed"][style*="bottom"][style*="right"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+}
+
+/* Masquer les widgets de chat courants */
+#tawk-bubble-container,
+#crisp-chatbox,
+#intercom-container,
+#drift-widget,
+#hubspot-messages-iframe-container,
+.whatsapp-widget,
+.chat-widget,
+.chatbot-widget,
+[class*="ChatWidget"],
+[class*="chatWidget"],
+[id*="chat-widget"],
+[id*="whatsapp-widget"] {
+  display: none !important;
+}
+
+/* Masquer les iframes de widgets */
+iframe[src*="tawk"],
+iframe[src*="crisp"],
+iframe[src*="intercom"],
+iframe[src*="drift"],
+iframe[src*="whatsapp"] {
+  display: none !important;
+}
+
+/* Masquer les boutons flottants avec z-index élevé */
+button[style*="z-index: 999"],
+button[style*="z-index: 9999"],
+div[style*="z-index: 999"][style*="position: fixed"],
+div[style*="z-index: 9999"][style*="position: fixed"] {
+  display: none !important;
+}
+
+/* Masquer spécifiquement les boutons avec emoji robot */
+button:contains("🤖"),
+div:contains("🤖")[style*="position: fixed"] {
+  display: none !important;
+}

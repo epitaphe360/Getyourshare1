@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, Phone, Building, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
+const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 
 const Register = () => {
   const navigate = useNavigate();

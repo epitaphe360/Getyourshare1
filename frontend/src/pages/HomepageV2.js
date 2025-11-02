@@ -261,8 +261,65 @@ const HomepageV2 = () => {
 
   return (
     <div className="w-full">
+      {/* Header Sticky avec Navigation Complète */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center space-x-8">
+              <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
+                <img 
+                  src="/logo.jpg" 
+                  alt="Logo" 
+                  className="h-16 w-auto object-contain"
+                  onError={(e) => {
+                    e.target.src = '/logo.png';
+                  }}
+                />
+              </div>
+            </div>
+            
+            {/* Navigation Menu */}
+            <nav className="hidden lg:flex items-center space-x-6">
+              <a href="/#fonctionnalites" className="text-gray-700 hover:text-blue-600 font-medium transition">
+                Fonctionnalités
+              </a>
+              <a href="/about" className="text-gray-700 hover:text-blue-600 font-medium transition">
+                À Propos
+              </a>
+              <a href="/marketplace" className="text-gray-700 hover:text-blue-600 font-medium transition">
+                Marketplace
+              </a>
+              <a href="/pricing-v3" className="text-gray-700 hover:text-blue-600 font-medium transition">
+                Tarifs
+              </a>
+              <a href="/contact" className="text-gray-700 hover:text-blue-600 font-medium transition">
+                Contact
+              </a>
+            </nav>
+            
+            {/* Boutons Connexion/Inscription */}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => navigate('/login')}
+                className="px-6 py-2 text-gray-700 hover:text-blue-600 font-semibold transition flex items-center space-x-2"
+              >
+                <Lock className="w-4 h-4" />
+                <span>Se Connecter</span>
+              </button>
+              <button
+                onClick={() => navigate('/register')}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition shadow-md"
+              >
+                S'inscrire
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
       {/* Hero Section - Proposition de Valeur */}
-      <section className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white overflow-hidden min-h-[600px]">
+      <section className="relative bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 text-white overflow-hidden min-h-[600px] pt-16">
         <div className="absolute inset-0 bg-black opacity-5"></div>
         <div className="absolute inset-0">
           <div className="absolute top-20 left-20 w-96 h-96 bg-white opacity-10 rounded-full blur-3xl animate-pulse"></div>
@@ -294,6 +351,13 @@ const HomepageV2 = () => {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full sm:w-auto px-10 py-5 bg-white/10 backdrop-blur-sm border-2 border-white text-white rounded-xl font-bold text-lg hover:bg-white/20 transition transform hover:scale-105 flex items-center justify-center space-x-2"
+              >
+                <Lock className="w-5 h-5" />
+                <span>Se Connecter</span>
+              </button>
               <button
                 onClick={() => navigate('/register?role=company')}
                 className="w-full sm:w-auto px-10 py-5 bg-white text-purple-600 rounded-xl font-bold text-lg hover:bg-purple-50 transition shadow-2xl transform hover:scale-105"
@@ -394,7 +458,7 @@ const HomepageV2 = () => {
       </section>
 
       {/* Fonctionnalités Principales */}
-      <section className="py-20 bg-white">
+      <section id="fonctionnalites" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4">
           <div className="text-center mb-16">
             <div className="inline-flex items-center space-x-2 bg-purple-100 text-purple-600 px-4 py-2 rounded-full mb-4">
@@ -465,7 +529,7 @@ const HomepageV2 = () => {
 
           <div className="text-center mt-12">
             <button
-              onClick={() => navigate('/marketplace-4tabs')}
+              onClick={() => navigate('/marketplace')}
               className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-bold text-lg hover:from-blue-700 hover:to-purple-700 transition shadow-xl transform hover:scale-105"
             >
               Explorer la Marketplace
@@ -699,7 +763,14 @@ const HomepageV2 = () => {
           <div className="grid md:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
-                <TrendingUp className="w-8 h-8 text-blue-500" />
+                <img 
+                  src="/logo.jpg" 
+                  alt="ShareYourSales Logo" 
+                  className="h-8 w-auto object-contain"
+                  onError={(e) => {
+                    e.target.src = '/logo.png';
+                  }}
+                />
                 <span className="text-xl font-bold text-white">ShareYourSales</span>
               </div>
               <p className="text-sm mb-4">
@@ -713,7 +784,7 @@ const HomepageV2 = () => {
               <h4 className="font-semibold text-white mb-4">Produit</h4>
               <ul className="space-y-2 text-sm">
                 <li><a href="/pricing-v3" className="hover:text-white transition">Tarifs</a></li>
-                <li><a href="/marketplace-4tabs" className="hover:text-white transition">Marketplace</a></li>
+                <li><a href="/marketplace" className="hover:text-white transition">Marketplace</a></li>
                 <li><a href="#" className="hover:text-white transition">Fonctionnalités</a></li>
               </ul>
             </div>

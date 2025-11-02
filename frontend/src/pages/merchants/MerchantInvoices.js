@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../context/ToastContext';
 import { api } from '../../utils/api';
 import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
@@ -6,6 +7,7 @@ import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
 
 const MerchantInvoices = () => {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState([]);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
@@ -32,15 +34,16 @@ const MerchantInvoices = () => {
       const response = await api.post(`/api/merchant/invoices/${invoiceId}/pay`);
       
       if (response.payment_url) {
+        toast.info('Redirection vers la page de paiement...');
         // Rediriger vers page de paiement
         window.location.href = response.payment_url;
       } else {
-        alert('✅ Paiement initié avec succès');
+        toast.success('Paiement initié avec succès');
         loadInvoices();
       }
     } catch (error) {
       console.error('Erreur paiement:', error);
-      alert('❌ Erreur lors du paiement: ' + error.message);
+      toast.error('Erreur lors du paiement: ' + error.message);
     } finally {
       setPaying(false);
     }

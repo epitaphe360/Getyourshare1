@@ -45,6 +45,36 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
         )
 
 
+async def require_role(required_role: str):
+    """
+    Dependency to require specific role
+    """
+    async def role_checker(current_user: dict = Depends(get_current_user)):
+        user_role = current_user.get("role", "user")
+        if user_role != required_role:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"Required role: {required_role}"
+            )
+        return current_user
+    return role_checker
+
+
+async def optional_auth(credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False))):
+    """
+    Optional authentication - returns user payload if token provided, None otherwise
+    """
+    if not credentials:
+        return None
+    
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        return payload
+    except Exception:
+        return None
+
+
 async def get_current_user(payload: dict = Depends(verify_token)):
     """
     Get current authenticated user

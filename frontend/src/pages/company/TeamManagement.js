@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useToast } from '../../context/ToastContext';
 import {
   Box,
   Container,
@@ -52,6 +53,7 @@ import api from '../../services/api';
  */
 
 const TeamManagement = () => {
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [members, setMembers] = useState([]);
   const [stats, setStats] = useState(null);
@@ -94,7 +96,7 @@ const TeamManagement = () => {
   const handleInviteMember = async () => {
     try {
       await api.post('/api/team/invite', inviteForm);
-      alert('Invitation envoyée avec succès');
+      toast.success('Invitation envoyée avec succès');
       setInviteDialogOpen(false);
       setInviteForm({
         email: '',
@@ -107,7 +109,7 @@ const TeamManagement = () => {
       fetchTeamData();
     } catch (err) {
       console.error('Error inviting member:', err);
-      alert(err.response?.data?.detail || 'Erreur lors de l\'invitation');
+      toast.error(err.response?.data?.detail || 'Erreur lors de l\'invitation');
     }
   };
 
@@ -120,13 +122,13 @@ const TeamManagement = () => {
         custom_commission_rate: selectedMember.custom_commission_rate
       });
 
-      alert('Membre mis à jour');
+      toast.success('Membre mis à jour');
       setEditDialogOpen(false);
       setSelectedMember(null);
       fetchTeamData();
     } catch (err) {
       console.error('Error updating member:', err);
-      alert('Erreur lors de la mise à jour');
+      toast.error('Erreur lors de la mise à jour');
     }
   };
 
@@ -137,21 +139,21 @@ const TeamManagement = () => {
 
     try {
       await api.delete(`/api/team/members/${memberId}`);
-      alert('Membre retiré');
+      toast.success('Membre retiré');
       fetchTeamData();
     } catch (err) {
       console.error('Error removing member:', err);
-      alert('Erreur lors de la suppression');
+      toast.error('Erreur lors de la suppression');
     }
   };
 
   const handleResendInvitation = async (memberId) => {
     try {
       await api.post(`/api/team/members/${memberId}/resend-invitation`);
-      alert('Invitation renvoyée');
+      toast.success('Invitation renvoyée');
     } catch (err) {
       console.error('Error resending invitation:', err);
-      alert('Erreur lors du renvoi');
+      toast.error('Erreur lors du renvoi');
     }
   };
 

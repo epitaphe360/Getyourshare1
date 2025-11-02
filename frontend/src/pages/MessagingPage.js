@@ -101,7 +101,7 @@ const MessagingPage = () => {
   };
 
   const getOtherUserInfo = (conversation) => {
-    if (!conversation) return { name: '', role: '', badge: '' };
+    if (!conversation) return { name: 'Utilisateur', role: '', badge: '' };
     const isUser1 = conversation.user1_id === user?.id;
     const otherType = isUser1 ? conversation.user2_type : conversation.user1_type;
     const otherId = isUser1 ? conversation.user2_id : conversation.user1_id;
@@ -113,10 +113,17 @@ const MessagingPage = () => {
       admin: { name: 'Admin', badge: 'bg-purple-100 text-purple-800' }
     };
     
-    const roleInfo = roleLabels[otherType] || { name: otherType, badge: 'bg-gray-100 text-gray-800' };
+    const roleInfo = roleLabels[otherType] || { name: otherType || 'Utilisateur', badge: 'bg-gray-100 text-gray-800' };
+    
+    // Créer un nom par défaut sécurisé
+    let defaultName = roleInfo.name;
+    if (otherId) {
+      const idStr = String(otherId);
+      defaultName = `${roleInfo.name} #${idStr.substring(0, 8)}`;
+    }
     
     return {
-      name: conversation.other_user_name || `${roleInfo.name} #${otherId.substring(0, 8)}`,
+      name: conversation.other_user_name || defaultName,
       role: roleInfo.name,
       badge: roleInfo.badge
     };
@@ -329,7 +336,7 @@ const MessagingPage = () => {
                     <p>• Posez vos questions sur les campagnes</p>
                     <p>• Négociez vos conditions de collaboration</p>
                     <div className="mt-4">
-                      <Button disabled={loading} onClick={() => navigate('/marketplace')}>
+                      <Button disabled={loading} onClick={() => navigate('/marketplace', { state: { fromDashboard: true } })}>
                         Découvrir les Campagnes
                       </Button>
                     </div>
