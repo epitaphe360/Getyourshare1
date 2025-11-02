@@ -53,6 +53,15 @@ except ImportError as e:
     print(f"⚠️ Moderation endpoints not available: {e}")
     MODERATION_ENDPOINTS_AVAILABLE = False
 
+# Platform settings endpoints
+try:
+    from platform_settings_endpoints import router as platform_settings_router
+    PLATFORM_SETTINGS_ENDPOINTS_AVAILABLE = True
+    print("✅ Platform settings endpoints loaded successfully")
+except ImportError as e:
+    print(f"⚠️ Platform settings endpoints not available: {e}")
+    PLATFORM_SETTINGS_ENDPOINTS_AVAILABLE = False
+
 # Charger les variables d'environnement
 load_dotenv()
 
@@ -150,6 +159,13 @@ if MODERATION_ENDPOINTS_AVAILABLE:
     print("✅ Moderation endpoints mounted at /api/admin/moderation")
 else:
     print("⚠️ Moderation endpoints not available")
+
+# Monter le router des paramètres de plateforme
+if PLATFORM_SETTINGS_ENDPOINTS_AVAILABLE:
+    app.include_router(platform_settings_router)
+    print("✅ Platform settings endpoints mounted at /api/admin/platform-settings")
+else:
+    print("⚠️ Platform settings endpoints not available")
 
 # ============================================
 # AUTHENTICATION
