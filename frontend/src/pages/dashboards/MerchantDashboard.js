@@ -23,6 +23,7 @@ const MerchantDashboard = () => {
   const [stats, setStats] = useState(null);
   const [products, setProducts] = useState([]);
   const [salesData, setSalesData] = useState([]);
+  const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -38,10 +39,11 @@ const MerchantDashboard = () => {
         api.get('/api/analytics/overview'),
         api.get('/api/products'),
         api.get('/api/analytics/merchant/sales-chart'),
-        api.get('/api/analytics/merchant/performance')
+        api.get('/api/analytics/merchant/performance'),
+        api.get('/api/subscriptions/current')
       ]);
 
-      const [statsRes, productsRes, salesChartRes, performanceRes] = results;
+      const [statsRes, productsRes, salesChartRes, performanceRes, subscriptionRes] = results;
 
       // Gérer les statistiques
       if (statsRes.status === 'fulfilled' && performanceRes.status === 'fulfilled') {
@@ -63,6 +65,22 @@ const MerchantDashboard = () => {
             satisfaction_rate: 0,
             monthly_goal_progress: 0
           }
+        });
+      }
+
+      // Gérer l'abonnement
+      if (subscriptionRes.status === 'fulfilled') {
+        setSubscription(subscriptionRes.value.data);
+      } else {
+        console.error('Error loading subscription:', subscriptionRes.reason);
+        // Abonnement par défaut gratuit
+        setSubscription({
+          plan_name: 'Freemium',
+          max_products: 5,
+          max_campaigns: 1,
+          max_affiliates: 10,
+          commission_fee: 0,
+          status: 'active'
         });
       }
 
@@ -185,6 +203,96 @@ const MerchantDashboard = () => {
           trend={stats?.roi_growth || 0}
         />
       </div>
+
+      {/* Subscription Card */}
+      {subscription && (
+        <Card 
+          title="Mon Abonnement" 
+          icon={<Settings size={20} />}
+          className="border-l-4 border-indigo-600"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+                  subscription.plan_name === 'Enterprise' ? 'bg-purple-100 text-purple-800' :
+                  subscription.plan_name === 'Premium' ? 'bg-indigo-100 text-indigo-800' :
+                  subscription.plan_name === 'Standard' ? 'bg-blue-100 text-blue-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {subscription.plan_name}
+                </span>
+                <p className="text-sm text-gray-500 mt-1">
+                  Statut: <span className={`font-medium ${subscription.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>
+                    {subscription.status === 'active' ? 'Actif' : 'Inactif'}
+                  </span>
+                </p>
+              </div>
+              <button
+                onClick={() => navigate('/pricing')}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-medium"
+              >
+                Améliorer mon Plan
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-900">
+                  {stats?.products_count || 0} / {subscription.max_products || '∞'}
+                </div>
+                <div className="text-sm text-gray-500 mt-1">Produits</div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <div 
+                    className={`h-2 rounded-full ${
+                      ((stats?.products_count || 0) / (subscription.max_products || 1)) > 0.8 ? 'bg-red-500' : 'bg-indigo-600'
+                    }`}
+                    style={{ width: `${Math.min(((stats?.products_count || 0) / (subscription.max_products || 1)) * 100, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-900">
+                  {stats?.campaigns_count || 0} / {subscription.max_campaigns || '∞'}
+                </div>
+                <div className="text-sm text-gray-500 mt-1">Campagnes</div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <div 
+                    className={`h-2 rounded-full ${
+                      ((stats?.campaigns_count || 0) / (subscription.max_campaigns || 1)) > 0.8 ? 'bg-red-500' : 'bg-indigo-600'
+                    }`}
+                    style={{ width: `${Math.min(((stats?.campaigns_count || 0) / (subscription.max_campaigns || 1)) * 100, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="text-center">
+                <div className="text-2xl font-bold text-gray-900">
+                  {stats?.affiliates_count || 0} / {subscription.max_affiliates || '∞'}
+                </div>
+                <div className="text-sm text-gray-500 mt-1">Affiliés</div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <div 
+                    className={`h-2 rounded-full ${
+                      ((stats?.affiliates_count || 0) / (subscription.max_affiliates || 1)) > 0.8 ? 'bg-red-500' : 'bg-indigo-600'
+                    }`}
+                    style={{ width: `${Math.min(((stats?.affiliates_count || 0) / (subscription.max_affiliates || 1)) * 100, 100)}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+
+            {subscription.commission_fee > 0 && (
+              <div className="pt-4 border-t">
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Frais de commission:</span> {subscription.commission_fee}%
+                </p>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

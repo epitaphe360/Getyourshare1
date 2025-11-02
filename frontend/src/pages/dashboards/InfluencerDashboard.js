@@ -28,6 +28,7 @@ const InfluencerDashboard = () => {
   const [earningsData, setEarningsData] = useState([]);
   const [performanceData, setPerformanceData] = useState([]);
   const [productEarnings, setProductEarnings] = useState([]);
+  const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showPayoutModal, setShowPayoutModal] = useState(false);
@@ -47,10 +48,11 @@ const InfluencerDashboard = () => {
       const results = await Promise.allSettled([
         api.get('/api/analytics/overview'),
         api.get('/api/affiliate-links'),
-        api.get('/api/analytics/influencer/earnings-chart')
+        api.get('/api/analytics/influencer/earnings-chart'),
+        api.get('/api/subscriptions/current')
       ]);
 
-      const [statsRes, linksRes, earningsRes] = results;
+      const [statsRes, linksRes, earningsRes, subscriptionRes] = results;
 
       // Gérer les statistiques
       if (statsRes.status === 'fulfilled') {
@@ -63,6 +65,22 @@ const InfluencerDashboard = () => {
           total_clicks: 0,
           total_sales: 0,
           balance: 0
+        });
+      }
+
+      // Gérer l'abonnement
+      if (subscriptionRes.status === 'fulfilled') {
+        setSubscription(subscriptionRes.value.data);
+      } else {
+        console.error('Error loading subscription:', subscriptionRes.reason);
+        // Abonnement par défaut gratuit
+        setSubscription({
+          plan_name: 'Free',
+          commission_rate: 5,
+          max_campaigns: 5,
+          instant_payout: false,
+          analytics_level: 'basic',
+          status: 'active'
         });
       }
 
@@ -278,6 +296,77 @@ const InfluencerDashboard = () => {
           icon={<Target className="text-orange-600" size={24} />}
         />
       </div>
+
+      {/* Subscription Card */}
+      {subscription && (
+        <Card 
+          title="Mon Abonnement Influenceur" 
+          icon={<Sparkles size={20} />}
+          className="border-l-4 border-purple-600"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
+                  subscription.plan_name === 'Elite' ? 'bg-purple-100 text-purple-800' :
+                  subscription.plan_name === 'Pro' ? 'bg-indigo-100 text-indigo-800' :
+                  'bg-gray-100 text-gray-800'
+                }`}>
+                  {subscription.plan_name}
+                </span>
+                <p className="text-sm text-gray-500 mt-1">
+                  Statut: <span className={`font-medium ${subscription.status === 'active' ? 'text-green-600' : 'text-red-600'}`}>
+                    {subscription.status === 'active' ? 'Actif' : 'Inactif'}
+                  </span>
+                </p>
+              </div>
+              <button
+                onClick={() => navigate('/pricing')}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors text-sm font-medium"
+              >
+                {subscription.plan_name === 'Free' ? 'Passer à Pro' : 'Améliorer mon Plan'}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t">
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Taux de commission</span>
+                  <span className="text-lg font-bold text-green-600">{subscription.commission_rate || 5}%</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Campagnes par mois</span>
+                  <span className="text-lg font-bold text-indigo-600">{subscription.max_campaigns || '∞'}</span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Paiement instantané</span>
+                  <span className={`text-sm font-medium ${subscription.instant_payout ? 'text-green-600' : 'text-gray-400'}`}>
+                    {subscription.instant_payout ? '✓ Activé' : '✗ Non disponible'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Analytics</span>
+                  <span className="text-sm font-medium text-indigo-600 capitalize">
+                    {subscription.analytics_level || 'Basic'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {subscription.plan_name === 'Free' && (
+              <div className="pt-4 border-t bg-purple-50 -m-6 mt-4 p-4 rounded-b-lg">
+                <p className="text-sm text-purple-900">
+                  <strong>Passez à Pro</strong> pour débloquer un taux de commission réduit (3%), 
+                  des paiements instantanés et des analytics avancés ! 🚀
+                </p>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Balance Card */}
       <div className="bg-gradient-to-br from-purple-600 to-indigo-600 rounded-2xl p-8 text-white">
