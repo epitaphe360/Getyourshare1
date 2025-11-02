@@ -36,6 +36,23 @@ except ImportError:
     EMAIL_ENABLED = False
     print("Warning: Email service not available")
 
+# Database queries helpers (real data, not mocked)
+try:
+    from db_queries_real import (
+        get_influencer_overview_stats,
+        get_influencer_earnings_chart,
+        get_merchant_sales_chart,
+        get_user_affiliate_links,
+        get_payment_history,
+        get_merchant_products,
+        get_user_payouts
+    )
+    DB_QUERIES_AVAILABLE = True
+    print("✅ DB Queries helpers loaded successfully")
+except ImportError as e:
+    DB_QUERIES_AVAILABLE = False
+    print(f"⚠️ DB Queries helpers not available: {e}")
+
 # Subscription endpoints
 try:
     from subscription_endpoints_simple import router as subscription_router
@@ -2105,42 +2122,29 @@ async def get_merchant_performance(payload: dict = Depends(verify_token)):
 
 @app.get("/api/affiliate-links")
 async def get_affiliate_links(payload: dict = Depends(verify_token)):
-    """Liste des liens d'affiliation de l'influenceur"""
-    user_id = payload.get("user_id")
+    """
+    Liste des liens d'affiliation de l'influenceur (DONNÉES RÉELLES depuis DB)
+    """
+    user_id = payload.get("id")
     
-    # Trouver l'influenceur
-    influencer = next((u for u in MOCK_USERS.values() if u["id"] == str(user_id) and u["role"] == "influencer"), None)
+    try:
+        if not DB_QUERIES_AVAILABLE:
+            return {"links": [], "message": "DB queries not available"}
+        
+        # Récupérer les vrais liens depuis la DB
+        links = await get_user_affiliate_links(user_id)
+        
+        return {
+            "links": links,
+            "total": len(links)
+        }
     
-    links = [
-        {
-            "id": "link_1",
-            "product_name": "Huile d'Argan Bio",
-            "product_id": "1",
-            "affiliate_url": "https://shareyoursales.ma/aff/ABC123",
-            "short_code": "ABC123",
-            "clicks": 145,
-            "conversions": 8,
-            "commission_earned": 240.0,
-            "commission_rate": 15,
-            "created_at": "2024-10-15T10:00:00Z"
-        },
-        {
-            "id": "link_2",
-            "product_name": "Caftan Moderne",
-            "product_id": "2",
-            "affiliate_url": "https://shareyoursales.ma/aff/DEF456",
-            "short_code": "DEF456",
-            "clicks": 89,
-            "conversions": 3,
-            "commission_earned": 900.0,
-            "commission_rate": 20,
-            "created_at": "2024-10-20T14:30:00Z"
-        },
-        {
-            "id": "link_3",
-            "product_name": "Tajine en Céramique",
-            "product_id": "3",
-            "affiliate_url": "https://shareyoursales.ma/aff/GHI789",
+    except Exception as e:
+        print(f"❌ Erreur get_affiliate_links: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la récupération des liens: {str(e)}"
+        )
             "short_code": "GHI789",
             "clicks": 67,
             "conversions": 5,
@@ -3302,16 +3306,57 @@ async def download_report(
 
 @app.get("/api/analytics/overview")
 async def get_analytics_overview(payload: dict = Depends(verify_token)):
-    """Aperçu général des analytics"""
+    """
+    Aperçu général des analytics (DONNÉES RÉELLES depuis DB)
+    Retourne des stats différentes selon le rôle
+    """
     user_role = payload.get("role")
+    user_id = payload.get("id")
     
-    if user_role == "influencer":
-        return {"total_earnings": 2450.75, "pending_earnings": 320.50, "total_clicks": 1247, "total_conversions": 89, "conversion_rate": 7.1, "active_links": 12}
-    elif user_role == "merchant":
-        return {"total_sales": 15280.00, "total_orders": 245, "active_affiliates": 18, "pending_commissions": 1580.50, "conversion_rate": 4.2, "avg_order_value": 62.37}
-    elif user_role == "admin":
-        return {"total_revenue": 125000.00, "total_users": 1250, "active_merchants": 45, "active_influencers": 320, "total_transactions": 5680, "platform_commission": 8500.00}
-    return {"stats": {}}
+    try:
+        if user_role == "influencer" and DB_QUERIES_AVAILABLE:
+            # Récupérer les vraies stats depuis la DB
+            stats = await get_influencer_overview_stats(user_id)
+            return {
+                "total_earnings": stats.get("total_earnings", 0.00),
+                "balance": stats.get("balance", 0.00),
+                "total_clicks": stats.get("total_clicks", 0),
+                "total_conversions": stats.get("total_sales", 0),
+                "conversion_rate": stats.get("conversion_rate", 0.00),
+                "active_links": stats.get("active_links", 0)
+            }
+        
+        elif user_role == "merchant":
+            # TODO: Implémenter les stats merchant réelles
+            return {
+                "total_sales": 0.00,
+                "total_orders": 0,
+                "active_affiliates": 0,
+                "pending_commissions": 0.00,
+                "conversion_rate": 0.00,
+                "avg_order_value": 0.00
+            }
+        
+        elif user_role == "admin":
+            # TODO: Implémenter les stats admin réelles
+            return {
+                "total_revenue": 0.00,
+                "total_users": 0,
+                "active_merchants": 0,
+                "active_influencers": 0,
+                "total_transactions": 0,
+                "platform_commission": 0.00
+            }
+        
+        # Fallback si DB queries non disponibles
+        return {"stats": {}, "message": "DB queries not available"}
+    
+    except Exception as e:
+        print(f"❌ Erreur get_analytics_overview: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Erreur lors de la récupération des statistiques: {str(e)}"
+        )
 
 @app.get("/api/merchants")
 async def get_merchants(payload: dict = Depends(verify_token)):
