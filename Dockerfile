@@ -12,7 +12,7 @@ COPY . .
 
 # Déplacer le contenu du backend vers le répertoire de travail final
 # Nous supposons que le Dockerfile est à la racine et que le dossier backend existe
-RUN mv backend/* . && rm -rf backend
+RUN mv backend/. . && rm -rf backend
 
 # Installer les dépendances (le fichier est maintenant à /tmp/app/requirements.txt)
 RUN pip install --no-cache-dir -r requirements.txt
