@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy backend directory
-COPY backend /app/backend
+COPY ./backend /app/backend
 
 # Move to backend directory
 WORKDIR /app/backend
