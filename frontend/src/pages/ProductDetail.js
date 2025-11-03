@@ -44,6 +44,22 @@ const ProductDetail = () => {
     }
   }, [productId]);
 
+  // Vérifier si l'utilisateur revient après connexion pour ouvrir la modale d'affiliation
+  useEffect(() => {
+    if (user && product) {
+      const shouldOpenAffiliate = localStorage.getItem('openAffiliateModal');
+      if (shouldOpenAffiliate === 'true') {
+        localStorage.removeItem('openAffiliateModal');
+        // Ouvrir la modale automatiquement
+        setShowAffiliateModal(true);
+        setAffiliateData({
+          selectedProduct: product.name,
+          message: ''
+        });
+      }
+    }
+  }, [user, product]);
+
   const fetchProductDetails = async () => {
     try {
       setLoading(true);
@@ -76,6 +92,8 @@ const ProductDetail = () => {
       toast.info('Veuillez vous connecter pour demander une affiliation');
       // Sauvegarder l'URL actuelle pour rediriger après connexion
       localStorage.setItem('redirectAfterLogin', window.location.pathname);
+      // Sauvegarder l'intention d'ouvrir la modale d'affiliation
+      localStorage.setItem('openAffiliateModal', 'true');
       navigate('/login');
       return;
     }
