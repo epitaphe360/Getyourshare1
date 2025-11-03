@@ -16,7 +16,7 @@ from mobile_payment_service import (
     PaymentStatus
 )
 from auth import get_current_user
-from db_helpers import log_user_activity, get_user_balance
+# from db_helpers import log_user_activity, get_user_balance  # TODO: Implémenter dans db_helpers
 from supabase_client import supabase
 
 router = APIRouter(prefix="/api/mobile-payments", tags=["Mobile Payments"])

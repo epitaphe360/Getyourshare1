@@ -17,7 +17,7 @@ from smart_match_service import (
     AudienceGender
 )
 from auth import get_current_user
-from db_helpers import log_user_activity
+# from db_helpers import log_user_activity  # TODO: Implémenter log_user_activity dans db_helpers
 
 router = APIRouter(prefix="/api/smart-match", tags=["Smart Match"])
 
@@ -53,15 +53,15 @@ async def find_matching_influencers(
             top_n=top_n
         )
 
-        # Logger l'activité
-        await log_user_activity(
-            user_id=current_user["id"],
-            action="smart_match_search",
-            details={
-                "product_category": brand_profile.product_category,
-                "matches_found": len(matches)
-            }
-        )
+        # Logger l'activité (commenté car log_user_activity non implémenté)
+        # await log_user_activity(
+        #     user_id=current_user["id"],
+        #     action="smart_match_search",
+        #     details={
+        #         "product_category": brand_profile.product_category,
+        #         "matches_found": len(matches)
+        #     }
+        # )
 
         return matches
 
@@ -94,14 +94,14 @@ async def find_matching_brands(
             top_n=top_n
         )
 
-        await log_user_activity(
-            user_id=current_user["id"],
-            action="smart_match_opportunities",
-            details={
-                "niches": influencer_profile.niches,
-                "matches_found": len(matches)
-            }
-        )
+        # await log_user_activity(
+        #     user_id=current_user["id"],
+        #     action="smart_match_opportunities",
+        #     details={
+        #         "niches": influencer_profile.niches,
+        #         "matches_found": len(matches)
+        #     }
+        # )
 
         return matches
 

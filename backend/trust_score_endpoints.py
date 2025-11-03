@@ -8,7 +8,7 @@ from typing import List, Optional
 
 from trust_score_service import TrustScoreService, TrustReport
 from auth import get_current_user
-from db_helpers import log_user_activity
+# from db_helpers import log_user_activity  # TODO: Implémenter log_user_activity dans db_helpers
 from supabase_client import supabase
 
 router = APIRouter(prefix="/api/trust-score", tags=["Trust Score"])
