@@ -48,6 +48,15 @@ except ImportError as e:
     SUBSCRIPTION_LIMITS_ENABLED = False
     print(f"⚠️ Subscription limits not available: {e}")
 
+# Translation service with OpenAI and DB cache
+try:
+    from translation_service import init_translation_service, translation_service
+    TRANSLATION_SERVICE_AVAILABLE = True
+    print("✅ Translation service with OpenAI loaded")
+except ImportError as e:
+    TRANSLATION_SERVICE_AVAILABLE = False
+    print(f"⚠️ Translation service not available: {e}")
+
 # Database queries helpers (real data, not mocked)
 try:
     from db_queries_real import (
@@ -204,6 +213,13 @@ app.add_middleware(
 # Rate Limiter
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Initialize Translation Service with Supabase
+if TRANSLATION_SERVICE_AVAILABLE and SUPABASE_ENABLED:
+    init_translation_service(supabase)
+    print("✅ Translation service initialized with Supabase")
+else:
+    print("⚠️ Translation service initialization skipped")
 
 # ============================================
 # ROUTERS
@@ -6232,6 +6248,184 @@ async def check_feature_access(feature_name: str, payload: dict = Depends(verify
     except Exception as e:
         print(f"❌ Error checking feature: {e}")
         return {"has_access": False, "error": str(e)}
+
+
+# ============================================
+# 🌍 TRANSLATION ENDPOINTS (OpenAI + DB Cache)
+# ============================================
+
+@app.get("/api/translations/{language}")
+async def get_all_translations(language: str):
+    """
+    Récupère toutes les traductions pour une langue
+    Utilisé au chargement initial de l'application
+    """
+    if not TRANSLATION_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Translation service not available")
+    
+    try:
+        translations = await translation_service.get_all_translations(language)
+        
+        return {
+            "success": True,
+            "language": language,
+            "translations": translations,
+            "count": len(translations)
+        }
+    except Exception as e:
+        print(f"❌ Error loading translations: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/translations/translate")
+async def translate_text(
+    request: dict,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Traduit un texte avec OpenAI et le stocke en cache
+    
+    Body:
+    {
+        "key": "nav_dashboard",
+        "target_language": "en",
+        "context": "Navigation menu item",
+        "auto_translate": true
+    }
+    """
+    if not TRANSLATION_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Translation service not available")
+    
+    try:
+        key = request.get("key")
+        target_language = request.get("target_language")
+        context = request.get("context")
+        auto_translate = request.get("auto_translate", True)
+        
+        if not key or not target_language:
+            raise HTTPException(status_code=400, detail="key and target_language required")
+        
+        translation = await translation_service.get_translation(
+            key=key,
+            language=target_language,
+            context=context,
+            auto_translate=auto_translate
+        )
+        
+        if translation:
+            return {
+                "success": True,
+                "key": key,
+                "language": target_language,
+                "translation": translation,
+                "source": "cache" if not auto_translate else "openai"
+            }
+        else:
+            raise HTTPException(status_code=404, detail="Translation not found and auto_translate disabled")
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Translation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/translations/batch")
+async def batch_translate(
+    request: dict,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Traduit plusieurs clés en une seule fois
+    
+    Body:
+    {
+        "keys": ["nav_dashboard", "nav_marketplace", "nav_settings"],
+        "target_language": "ar",
+        "context": "Navigation menu"
+    }
+    """
+    if not TRANSLATION_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Translation service not available")
+    
+    try:
+        keys = request.get("keys", [])
+        target_language = request.get("target_language")
+        context = request.get("context")
+        
+        if not keys or not target_language:
+            raise HTTPException(status_code=400, detail="keys and target_language required")
+        
+        translations = await translation_service.batch_translate(
+            keys=keys,
+            target_language=target_language,
+            context=context
+        )
+        
+        return {
+            "success": True,
+            "language": target_language,
+            "translations": translations,
+            "count": len(translations),
+            "requested": len(keys),
+            "missing": [k for k in keys if k not in translations]
+        }
+    
+    except Exception as e:
+        print(f"❌ Batch translation error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/translations/import")
+async def import_translations(
+    request: dict,
+    payload: dict = Depends(verify_token)
+):
+    """
+    Importe des traductions statiques en masse
+    Nécessite le rôle ADMIN
+    
+    Body:
+    {
+        "language": "fr",
+        "translations": {
+            "nav_dashboard": "Tableau de Bord",
+            "nav_marketplace": "Marketplace",
+            ...
+        }
+    }
+    """
+    # Vérifier le rôle admin
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    
+    if not TRANSLATION_SERVICE_AVAILABLE:
+        raise HTTPException(status_code=503, detail="Translation service not available")
+    
+    try:
+        language = request.get("language")
+        translations_dict = request.get("translations", {})
+        
+        if not language or not translations_dict:
+            raise HTTPException(status_code=400, detail="language and translations required")
+        
+        imported = await translation_service.import_static_translations(
+            translations_dict=translations_dict,
+            language=language
+        )
+        
+        return {
+            "success": True,
+            "language": language,
+            "imported": imported,
+            "total": len(translations_dict)
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Import error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
