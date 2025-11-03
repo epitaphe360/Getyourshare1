@@ -1,12 +1,10 @@
 # ============================================
 # GetYourShare - Production Dockerfile
 # Optimized for Railway deployment
+# Solution: Copy ALL, then work from backend subfolder
 # ============================================
 
 FROM python:3.11-slim
-
-# Set working directory
-WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -17,12 +15,14 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy ONLY the backend directory contents (not the folder itself)
-COPY backend/ /app/
+# Copy EVERYTHING from repo to /app
+COPY . /app
 
-# Install Python dependencies from /app (where requirements.txt now is)
-RUN ls -la && \
-    pip install --no-cache-dir --upgrade pip && \
+# Set working directory to backend subfolder
+WORKDIR /app/backend
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Create necessary directories
@@ -40,6 +40,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 # Expose port (Railway will override with $PORT)
 EXPOSE 8000
 
-# Start command with shell form to properly expand PORT variable
+# Start command from /app/backend directory
 CMD ["sh", "-c", "uvicorn server_complete:app --host 0.0.0.0 --port ${PORT:-8000}"]
+
 
