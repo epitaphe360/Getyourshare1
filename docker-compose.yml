@@ -56,7 +56,7 @@ services:
   # ============================================
   backend:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: shareyoursales_backend
     restart: unless-stopped
@@ -118,14 +118,14 @@ services:
       MAX_UPLOAD_SIZE: 10485760  # 10MB
 
     volumes:
-      - ./backend:/app
-      - uploads_data:/app/uploads
-      - logs_data:/app/logs
+      - ./backend:/app/backend
+      - uploads_data:/app/backend/uploads
+      - logs_data:/app/backend/logs
     ports:
       - "8000:8000"
     networks:
       - shareyoursales_network
-    command: uvicorn server:app --host 0.0.0.0 --port 8000 --reload
+    command: sh -c "cd /app/backend && uvicorn server_complete:app --host 0.0.0.0 --port 8000 --reload"
 
   # ============================================
   # Frontend React (Development)
@@ -154,7 +154,7 @@ services:
   # ============================================
   celery_worker:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: shareyoursales_celery
     restart: unless-stopped
@@ -168,17 +168,17 @@ services:
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis_password}@redis:6379/1
       DATABASE_URL: postgresql://${DATABASE_USER:-postgres}:${DATABASE_PASSWORD:-postgres}@postgres:5432/${DATABASE_NAME:-shareyoursales}
     volumes:
-      - ./backend:/app
+      - ./backend:/app/backend
     networks:
       - shareyoursales_network
-    command: celery -A tasks worker --loglevel=info
+    command: sh -c "cd /app/backend && celery -A tasks worker --loglevel=info"
 
   # ============================================
   # Celery Beat (Scheduler)
   # ============================================
   celery_beat:
     build:
-      context: ./backend
+      context: .
       dockerfile: Dockerfile
     container_name: shareyoursales_celery_beat
     restart: unless-stopped
@@ -192,10 +192,10 @@ services:
       CELERY_RESULT_BACKEND: redis://:${REDIS_PASSWORD:-redis_password}@redis:6379/1
       DATABASE_URL: postgresql://${DATABASE_USER:-postgres}:${DATABASE_PASSWORD:-postgres}@postgres:5432/${DATABASE_NAME:-shareyoursales}
     volumes:
-      - ./backend:/app
+      - ./backend:/app/backend
     networks:
       - shareyoursales_network
-    command: celery -A tasks beat --loglevel=info
+    command: sh -c "cd /app/backend && celery -A tasks beat --loglevel=info"
 
   # ============================================
   # pgAdmin (Optional - Database Management)
