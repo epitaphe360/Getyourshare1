@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import api from '../utils/api';
+import './MarketplaceAnimations.css';
 import {
   Star, MapPin, Clock, Tag, Share2, Heart,
   Sparkles, ChevronLeft, ChevronRight,
@@ -194,23 +195,43 @@ const ProductDetail = () => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-xl">Chargement...</div>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="relative mb-6">
+            <div className="animate-spin rounded-full h-20 w-20 border-t-4 border-b-4 border-cyan-600 mx-auto"></div>
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <Sparkles className="text-cyan-600 animate-pulse" size={32} />
+            </div>
+          </div>
+          <p className="text-xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+            Chargement du produit...
+          </p>
+        </div>
       </div>
     );
   }
 
   if (!product) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen">
-        <AlertCircle className="w-16 h-16 text-gray-300 mb-4" />
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Produit non trouvé</h2>
-        <button
-          onClick={() => navigate('/marketplace')}
-          className="mt-4 px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-        >
-          Retour au Marketplace
-        </button>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50 flex flex-col items-center justify-center p-8">
+        <div className="bg-white rounded-2xl shadow-2xl p-12 text-center max-w-lg hover-lift">
+          <div className="mb-6">
+            <AlertCircle className="w-24 h-24 text-gray-300 mx-auto mb-4 animate-pulse" />
+          </div>
+          <h2 className="text-3xl font-black bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-4">
+            Produit non trouvé
+          </h2>
+          <p className="text-gray-600 mb-8 text-lg">
+            Ce produit n'existe pas ou a été supprimé
+          </p>
+          <button
+            onClick={() => navigate('/marketplace')}
+            className="px-8 py-4 bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 text-white rounded-xl font-bold hover:shadow-2xl transform hover:scale-105 transition-all duration-300 flex items-center gap-2 mx-auto"
+          >
+            <ChevronLeft size={20} />
+            Retour au Marketplace
+          </button>
+        </div>
       </div>
     );
   }
@@ -221,100 +242,113 @@ const ProductDetail = () => {
   const hasDiscount = product.discount_percentage && product.discount_percentage > 0;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Back Button */}
-      <button
-        onClick={() => navigate('/marketplace')}
-        className="flex items-center text-purple-600 hover:text-purple-700 mb-6"
-      >
-        <ChevronLeft className="w-5 h-5 mr-1" />
-        Retour au Marketplace
-      </button>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50">
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        {/* Back Button - Ultra-moderne */}
+        <button
+          onClick={() => navigate('/marketplace')}
+          className="group flex items-center gap-2 px-6 py-3 bg-white rounded-xl font-bold text-gray-700 hover:text-cyan-600 transition-all duration-300 shadow-md hover:shadow-xl transform hover:scale-105 mb-8"
+        >
+          <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+          Retour au Marketplace
+        </button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Left Column - Images & Details */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Image Gallery */}
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            {images.length > 0 ? (
-              <div className="relative">
-                <img
-                  src={images[currentImageIndex]}
-                  alt={product.name}
-                  className="w-full h-96 object-cover"
-                  onError={(e) => {
-                    // Fallback selon le type (product ou service)
-                    e.target.onerror = null;
-                    if (product?.type === 'service') {
-                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect fill="%233b82f6" width="800" height="600"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="32" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EService%3C/text%3E%3C/svg%3E';
-                    } else {
-                      e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect fill="%2310b981" width="800" height="600"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="32" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EProduit%3C/text%3E%3C/svg%3E';
-                    }
-                  }}
-                />
-                {images.length > 1 && (
-                  <>
-                    <button
-                      onClick={() => setCurrentImageIndex((currentImageIndex - 1 + images.length) % images.length)}
-                      className="absolute left-4 top-1/2 transform -translate-y-1/2 bg-white/80 p-2 rounded-full hover:bg-white"
-                    >
-                      <ChevronLeft className="w-6 h-6" />
-                    </button>
-                    <button
-                      onClick={() => setCurrentImageIndex((currentImageIndex + 1) % images.length)}
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 bg-white/80 p-2 rounded-full hover:bg-white"
-                    >
-                      <ChevronRight className="w-6 h-6" />
-                    </button>
-                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                      {images.map((_, index) => (
-                        <button
-                          key={index}
-                          onClick={() => setCurrentImageIndex(index)}
-                          className={`w-2 h-2 rounded-full ${
-                            index === currentImageIndex ? 'bg-white' : 'bg-white/50'
-                          }`}
-                        />
-                      ))}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - Images & Details */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Image Gallery - Ultra-moderne */}
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden hover-lift">
+              {images.length > 0 ? (
+                <div className="relative group">
+                  <img
+                    src={images[currentImageIndex]}
+                    alt={product.name}
+                    className="w-full h-[500px] object-cover"
+                    onError={(e) => {
+                      // Fallback selon le type (product ou service)
+                      e.target.onerror = null;
+                      if (product?.type === 'service') {
+                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect fill="%233b82f6" width="800" height="600"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="32" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EService%3C/text%3E%3C/svg%3E';
+                      } else {
+                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect fill="%230891b2" width="800" height="600"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="32" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EProduit%3C/text%3E%3C/svg%3E';
+                      }
+                    }}
+                  />
+                  {hasDiscount && (
+                    <div className="absolute top-6 right-6 bg-gradient-to-r from-red-500 to-pink-500 text-white px-6 py-3 rounded-2xl font-black text-xl shadow-2xl animate-pulse z-10">
+                      -{product.discount_percentage}%
                     </div>
-                  </>
-                )}
-              </div>
-            ) : (
-              <div className="w-full h-96 bg-gradient-to-br from-green-100 to-blue-100 flex items-center justify-center">
-                <div className="text-center">
-                  <Sparkles className="w-24 h-24 text-green-400 mx-auto mb-4" />
-                  <p className="text-gray-600 font-medium">Image du produit</p>
+                  )}
+                  {images.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setCurrentImageIndex((currentImageIndex - 1 + images.length) % images.length)}
+                        className="absolute left-6 top-1/2 transform -translate-y-1/2 bg-white/95 backdrop-blur-sm p-4 rounded-xl hover:bg-white shadow-xl opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110"
+                      >
+                        <ChevronLeft className="w-7 h-7 text-gray-800" />
+                      </button>
+                      <button
+                        onClick={() => setCurrentImageIndex((currentImageIndex + 1) % images.length)}
+                        className="absolute right-6 top-1/2 transform -translate-y-1/2 bg-white/95 backdrop-blur-sm p-4 rounded-xl hover:bg-white shadow-xl opacity-0 group-hover:opacity-100 transition-all duration-300 hover:scale-110"
+                      >
+                        <ChevronRight className="w-7 h-7 text-gray-800" />
+                      </button>
+                      <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex space-x-3 bg-black/30 backdrop-blur-md px-4 py-3 rounded-full">
+                        {images.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentImageIndex(index)}
+                            className={`transition-all duration-300 rounded-full ${
+                              index === currentImageIndex 
+                                ? 'w-10 h-3 bg-white' 
+                                : 'w-3 h-3 bg-white/50 hover:bg-white/75'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
                 </div>
-              </div>
-            )}
-          </div>
+              ) : (
+                <div className="w-full h-[500px] bg-gradient-to-br from-blue-100 via-cyan-100 to-teal-100 flex items-center justify-center">
+                  <div className="text-center">
+                    <Sparkles className="w-32 h-32 text-cyan-400 mx-auto mb-6 animate-pulse" />
+                    <p className="text-gray-600 font-bold text-xl">Image du produit</p>
+                  </div>
+                </div>
+              )}
+            </div>
 
-          {/* Product Title & Description */}
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
-                <p className="text-gray-600">{product.merchant?.name || 'Marchand'}</p>
+          {/* Product Title & Description - Ultra-moderne */}
+          <div className="bg-white rounded-2xl shadow-xl p-8 hover-lift">
+            <div className="flex items-start justify-between mb-6">
+              <div className="flex-1">
+                <h1 className="text-4xl font-black bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 bg-clip-text text-transparent mb-3 leading-tight">
+                  {product.name}
+                </h1>
+                <p className="text-gray-600 text-lg font-semibold flex items-center gap-2">
+                  <Award className="w-5 h-5 text-cyan-600" />
+                  {product.merchant?.name || 'Marchand Certifié'}
+                </p>
               </div>
-              <div className="flex space-x-2">
-                <button className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200">
-                  <Heart className="w-6 h-6 text-gray-600" />
+              <div className="flex space-x-3">
+                <button className="p-4 bg-gradient-to-br from-pink-50 to-pink-100 rounded-xl hover:shadow-xl transition-all duration-300 group hover:scale-110">
+                  <Heart className="w-6 h-6 text-pink-500 group-hover:fill-pink-500 transition-all" />
                 </button>
-                <button className="p-2 bg-gray-100 rounded-lg hover:bg-gray-200">
-                  <Share2 className="w-6 h-6 text-gray-600" />
+                <button className="p-4 bg-gradient-to-br from-blue-50 to-cyan-100 rounded-xl hover:shadow-xl transition-all duration-300 group hover:scale-110">
+                  <Share2 className="w-6 h-6 text-cyan-600 group-hover:rotate-12 transition-all" />
                 </button>
               </div>
             </div>
 
             {/* Rating */}
             {product.rating_average > 0 && (
-              <div className="flex items-center mb-4">
+              <div className="flex items-center mb-6 bg-gradient-to-r from-yellow-50 to-orange-50 px-4 py-3 rounded-xl">
                 <div className="flex items-center">
                   {[...Array(5)].map((_, i) => (
                     <Star
                       key={i}
-                      className={`w-5 h-5 ${
+                      className={`w-6 h-6 ${
                         i < Math.floor(product.rating_average)
                           ? 'text-yellow-400 fill-yellow-400'
                           : 'text-gray-300'
@@ -322,17 +356,20 @@ const ProductDetail = () => {
                     />
                   ))}
                 </div>
-                <span className="ml-2 text-gray-600">
-                  {product.rating_average.toFixed(1)} ({product.rating_count} avis)
+                <span className="ml-3 text-gray-800 font-bold text-lg">
+                  {product.rating_average.toFixed(1)}
+                </span>
+                <span className="ml-2 text-gray-600 font-medium">
+                  ({product.rating_count} avis)
                 </span>
               </div>
             )}
 
             {/* Location for services */}
             {product.is_service && product.location && (
-              <div className="flex items-center text-gray-600 mb-4">
-                <MapPin className="w-5 h-5 mr-2" />
-                <span>
+              <div className="flex items-center gap-3 text-gray-700 mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 px-4 py-3 rounded-xl">
+                <MapPin className="w-6 h-6 text-cyan-600" />
+                <span className="font-semibold">
                   {product.location.address}, {product.location.city}
                 </span>
               </div>
@@ -340,19 +377,26 @@ const ProductDetail = () => {
 
             {/* Description */}
             <div className="prose max-w-none">
-              <p className="text-gray-700 leading-relaxed">{product.description}</p>
+              <p className="text-gray-700 leading-relaxed text-lg">{product.description}</p>
             </div>
           </div>
 
-          {/* Highlights */}
+          {/* Highlights - Ultra-moderne */}
           {highlights.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">✨ Points Forts</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="bg-white rounded-2xl shadow-xl p-8 hover-lift">
+              <h2 className="text-3xl font-black bg-gradient-to-r from-green-500 to-emerald-600 bg-clip-text text-transparent mb-6 flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-green-100 to-emerald-100 rounded-xl flex items-center justify-center">
+                  ✨
+                </div>
+                Points Forts
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {highlights.map((highlight, index) => (
-                  <div key={index} className="flex items-start">
-                    <Check className="w-5 h-5 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
-                    <span className="text-gray-700">{highlight}</span>
+                  <div key={index} className="flex items-start gap-3 bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-xl hover:shadow-lg transition-all duration-300">
+                    <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Check className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-gray-800 font-medium leading-relaxed">{highlight}</span>
                   </div>
                 ))}
               </div>
@@ -361,13 +405,18 @@ const ProductDetail = () => {
 
           {/* What's Included */}
           {product.included && product.included.length > 0 && (
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">📦 Ce qui est inclus</h2>
-              <ul className="space-y-2">
+            <div className="bg-white rounded-2xl shadow-xl p-8 hover-lift">
+              <h2 className="text-3xl font-black bg-gradient-to-r from-purple-500 to-pink-600 bg-clip-text text-transparent mb-6 flex items-center gap-3">
+                <div className="w-12 h-12 bg-gradient-to-br from-purple-100 to-pink-100 rounded-xl flex items-center justify-center">
+                  📦
+                </div>
+                Ce qui est inclus
+              </h2>
+              <ul className="space-y-3">
                 {product.included.map((item, index) => (
-                  <li key={index} className="flex items-start">
-                    <Award className="w-5 h-5 text-purple-500 mr-2 mt-0.5" />
-                    <span className="text-gray-700">{item}</span>
+                  <li key={index} className="flex items-start gap-3 bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-xl hover:shadow-lg transition-all duration-300">
+                    <Award className="w-6 h-6 text-purple-500 mt-0.5 flex-shrink-0" />
+                    <span className="text-gray-800 font-medium leading-relaxed">{item}</span>
                   </li>
                 ))}
               </ul>
@@ -540,94 +589,115 @@ const ProductDetail = () => {
           </div>
         </div>
 
-        {/* Right Column - Purchase Card */}
+        {/* Right Column - Purchase Card Ultra-moderne */}
         <div className="lg:col-span-1">
-          <div className="bg-white rounded-xl shadow-lg p-6 sticky top-6">
-            {/* Price */}
-            <div className="mb-6">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 sticky top-6 hover-lift border-2 border-blue-100">
+            {/* Price - Ultra-moderne */}
+            <div className="mb-8">
               {hasDiscount ? (
                 <>
-                  <div className="flex items-baseline space-x-2 mb-2">
-                    <span className="text-4xl font-bold text-red-600">
-                      {product.discounted_price?.toLocaleString()} DH
+                  <div className="flex items-baseline space-x-3 mb-3">
+                    <span className="text-5xl font-black bg-gradient-to-r from-red-500 to-pink-600 bg-clip-text text-transparent">
+                      {product.discounted_price?.toLocaleString()}
                     </span>
+                    <span className="text-2xl font-bold text-gray-900">DH</span>
+                  </div>
+                  <div className="flex items-baseline space-x-2 mb-4">
                     <span className="text-xl text-gray-400 line-through">
                       {product.original_price?.toLocaleString()} DH
                     </span>
                   </div>
-                  <div className="inline-block bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-bold">
-                    -{product.discount_percentage}% de réduction
+                  <div className="inline-block bg-gradient-to-r from-red-500 to-pink-500 text-white px-4 py-2 rounded-xl text-sm font-black shadow-lg animate-pulse mb-3">
+                    🔥 -{product.discount_percentage}% DE RÉDUCTION
                   </div>
-                  <div className="text-sm text-green-600 mt-2">
-                    Économisez{' '}
+                  <div className="text-base font-bold bg-gradient-to-r from-green-500 to-emerald-600 bg-clip-text text-transparent">
+                    💰 Économisez{' '}
                     {(product.original_price - product.discounted_price).toLocaleString()} DH
                   </div>
                 </>
               ) : (
-                <div className="text-4xl font-bold text-gray-900">
-                  {product.discounted_price?.toLocaleString() ||
-                    product.original_price?.toLocaleString()}{' '}
-                  DH
+                <div className="flex items-baseline space-x-3">
+                  <span className="text-5xl font-black bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                    {product.discounted_price?.toLocaleString() ||
+                      product.original_price?.toLocaleString()}
+                  </span>
+                  <span className="text-2xl font-bold text-gray-900">DH</span>
                 </div>
               )}
             </div>
 
             {/* Expiry */}
             {product.expiry_date && (
-              <div className="flex items-center text-orange-600 mb-4 p-3 bg-orange-50 rounded-lg">
-                <Clock className="w-5 h-5 mr-2" />
-                <span className="text-sm">
-                  Expire le {new Date(product.expiry_date).toLocaleDateString('fr-FR')}
-                </span>
+              <div className="flex items-center gap-3 text-orange-700 mb-6 p-4 bg-gradient-to-r from-orange-50 to-red-50 rounded-xl border-2 border-orange-200">
+                <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-orange-600 uppercase">Expire le</div>
+                  <div className="text-sm font-bold">
+                    {new Date(product.expiry_date).toLocaleDateString('fr-FR')}
+                  </div>
+                </div>
               </div>
             )}
 
             {/* Stock */}
             {product.stock_quantity !== null && (
-              <div className="mb-4">
+              <div className="mb-6">
                 {product.stock_quantity > 0 ? (
-                  <span className="text-green-600 text-sm">
-                    ✓ En stock ({product.stock_quantity} disponibles)
-                  </span>
+                  <div className="flex items-center gap-2 bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-3 rounded-xl border-2 border-green-200">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-green-700 font-bold text-sm">
+                      ✓ En stock ({product.stock_quantity} disponibles)
+                    </span>
+                  </div>
                 ) : (
-                  <span className="text-red-600 text-sm">✗ Rupture de stock</span>
+                  <div className="flex items-center gap-2 bg-gradient-to-r from-red-50 to-pink-50 px-4 py-3 rounded-xl border-2 border-red-200">
+                    <X className="w-5 h-5 text-red-500" />
+                    <span className="text-red-700 font-bold text-sm">Rupture de stock</span>
+                  </div>
                 )}
               </div>
             )}
 
             {/* Sold Count */}
             {product.sold_count > 0 && (
-              <div className="flex items-center text-gray-600 mb-4">
-                <Users className="w-5 h-5 mr-2" />
-                <span className="text-sm">{product.sold_count} personnes ont acheté</span>
+              <div className="flex items-center gap-3 text-gray-700 mb-6 bg-gradient-to-r from-blue-50 to-cyan-50 px-4 py-3 rounded-xl">
+                <div className="w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center">
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-blue-600 uppercase">Popularité</div>
+                  <div className="text-sm font-bold">{product.sold_count} personnes ont acheté</div>
+                </div>
               </div>
             )}
 
-            {/* Request Affiliation Button - Principal et toujours visible */}
+            {/* Request Affiliation Button - Principal */}
             <button
               onClick={handleRequestAffiliation}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 rounded-lg font-bold text-lg hover:from-green-600 hover:to-emerald-700 transition flex items-center justify-center shadow-lg mb-3"
+              className="w-full bg-gradient-to-r from-green-500 via-emerald-500 to-teal-500 text-white py-5 rounded-xl font-black text-lg hover:from-green-600 hover:via-emerald-600 hover:to-teal-600 transition-all duration-300 flex items-center justify-center shadow-2xl mb-6 transform hover:scale-105 animate-gradient"
             >
-              <Sparkles className="inline-block w-6 h-6 mr-2" />
-              {user ? 'Demander un Lien d\'Affiliation' : 'Se connecter pour devenir Affilié'}
+              <Sparkles className="inline-block w-7 h-7 mr-2 animate-pulse" />
+              {user ? 'Devenir Affilié' : 'Connexion Affilié'}
             </button>
 
-            {/* Commission Info */}
-            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-green-800">
-                  Commission d'affiliation
+            {/* Commission Info - Ultra-moderne */}
+            <div className="p-6 bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 rounded-2xl border-2 border-green-200 shadow-inner mb-6">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-bold text-green-800 uppercase tracking-wide">
+                  💰 Commission
                 </span>
-                <span className="text-2xl font-bold text-green-600">
+                <span className="text-4xl font-black bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
                   {product.commission_rate || 15}%
                 </span>
               </div>
-              <p className="text-xs text-green-700">
-                💰 Gagnez des commissions en promouvant ce produit auprès de votre audience
+              <p className="text-xs text-green-700 font-semibold leading-relaxed">
+                Gagnez des revenus passifs en partageant ce produit avec votre audience
               </p>
             </div>
 
-            {/* Merchant Info */}
+            {/* Merchant Info - Ultra-moderne */}
             {product.merchant && (
               <div className="mt-6 pt-6 border-t border-gray-200">
                 <h3 className="font-semibold text-gray-900 mb-3">Vendu par</h3>
@@ -810,6 +880,7 @@ const ProductDetail = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
