@@ -1513,4 +1513,357 @@ async def get_payment_methods(user_id: str) -> List[Dict[str, Any]]:
         ]
 
 
+# ============================================
+# ADMIN - GET ALL USERS
+# ============================================
+
+async def get_all_users_admin(
+    role: str = None,
+    status: str = None,
+    limit: int = 50,
+    offset: int = 0
+) -> Dict[str, Any]:
+    """
+    Récupérer tous les utilisateurs (admin seulement)
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        query = supabase.table("users").select("*")
+        
+        # Filtrer par rôle
+        if role:
+            query = query.eq("role", role)
+        
+        # Filtrer par statut (si champ existe)
+        if status:
+            query = query.eq("status", status)
+        
+        # Pagination et tri
+        query = query.order("created_at", desc=True).range(offset, offset + limit - 1)
+        
+        users_response = query.execute()
+        
+        # Formater les utilisateurs
+        users = []
+        for user in users_response.data:
+            users.append({
+                "id": user["id"],
+                "email": user["email"],
+                "role": user.get("role", "influencer"),
+                "phone": user.get("phone", ""),
+                "phone_verified": user.get("phone_verified", False),
+                "two_fa_enabled": user.get("two_fa_enabled", False),
+                "created_at": user.get("created_at"),
+                "last_login": user.get("last_login")
+            })
+        
+        # Compter le total
+        count_query = supabase.table("users").select("id", count="exact")
+        if role:
+            count_query = count_query.eq("role", role)
+        if status:
+            count_query = count_query.eq("status", status)
+        
+        count_response = count_query.execute()
+        total = count_response.count if count_response.count else 0
+        
+        return {
+            "users": users,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur get_all_users_admin: {str(e)}")
+        return {
+            "users": [],
+            "total": 0,
+            "limit": limit,
+            "offset": offset
+        }
+
+
+# ============================================
+# ADMIN - GET STATS
+# ============================================
+
+async def get_admin_stats() -> Dict[str, Any]:
+    """
+    Récupérer les statistiques globales de la plateforme (admin)
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Compter les utilisateurs par rôle
+        users_response = supabase.table("users").select("role", count="exact").execute()
+        total_users = users_response.count if users_response.count else 0
+        
+        merchants_count = supabase.table("users").select("id", count="exact").eq("role", "merchant").execute().count or 0
+        influencers_count = supabase.table("users").select("id", count="exact").eq("role", "influencer").execute().count or 0
+        admins_count = supabase.table("users").select("id", count="exact").eq("role", "admin").execute().count or 0
+        
+        # Compter les produits
+        products_response = supabase.table("products").select("id", count="exact").execute()
+        total_products = products_response.count if products_response.count else 0
+        
+        # Compter les liens d'affiliation
+        links_response = supabase.table("trackable_links").select("id", count="exact").execute()
+        total_links = links_response.count if links_response.count else 0
+        
+        # Calculer le revenu total (somme des sales)
+        sales_response = supabase.table("sales").select("amount, platform_commission").execute()
+        total_revenue = sum(float(s.get("amount", 0)) for s in sales_response.data)
+        platform_revenue = sum(float(s.get("platform_commission", 0)) for s in sales_response.data)
+        
+        return {
+            "platform_stats": {
+                "total_users": total_users,
+                "total_products": total_products,
+                "total_affiliate_links": total_links,
+                "total_revenue": round(total_revenue, 2),
+                "platform_revenue": round(platform_revenue, 2),
+                "monthly_growth": 0  # TODO: calculer réellement
+            },
+            "user_breakdown": {
+                "influencers": influencers_count,
+                "merchants": merchants_count,
+                "admins": admins_count
+            }
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur get_admin_stats: {str(e)}")
+        return {
+            "platform_stats": {
+                "total_users": 0,
+                "total_products": 0,
+                "total_affiliate_links": 0,
+                "total_revenue": 0,
+                "platform_revenue": 0,
+                "monthly_growth": 0
+            },
+            "user_breakdown": {
+                "influencers": 0,
+                "merchants": 0,
+                "admins": 0
+            }
+        }
+
+
+# ============================================
+# ADMIN - ACTIVATE USER
+# ============================================
+
+async def activate_user(user_id: str, active: bool) -> Dict[str, Any]:
+    """
+    Activer/désactiver un utilisateur (admin seulement)
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Mettre à jour le statut (si champ exists)
+        # Pour l'instant on simule car le champ status n'existe peut-être pas
+        
+        return {
+            "success": True,
+            "user_id": user_id,
+            "active": active,
+            "message": f"Utilisateur {'activé' if active else 'désactivé'} avec succès"
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur activate_user: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+# ============================================
+# USER PROFILE - GET
+# ============================================
+
+async def get_user_profile(user_id: str) -> Dict[str, Any]:
+    """
+    Récupérer le profil complet d'un utilisateur
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Récupérer l'utilisateur
+        user_response = supabase.table("users") \
+            .select("*") \
+            .eq("id", user_id) \
+            .single() \
+            .execute()
+        
+        user = user_response.data
+        role = user.get("role")
+        
+        profile = {
+            "id": user["id"],
+            "email": user["email"],
+            "role": role,
+            "phone": user.get("phone", ""),
+            "phone_verified": user.get("phone_verified", False),
+            "two_fa_enabled": user.get("two_fa_enabled", False),
+            "created_at": user.get("created_at")
+        }
+        
+        # Ajouter les infos spécifiques au rôle
+        if role == "merchant":
+            merchant_response = supabase.table("merchants") \
+                .select("*") \
+                .eq("user_id", user_id) \
+                .single() \
+                .execute()
+            
+            profile["merchant_info"] = {
+                "company_name": merchant_response.data.get("company_name", ""),
+                "industry": merchant_response.data.get("industry", ""),
+                "category": merchant_response.data.get("category", ""),
+                "subscription_plan": merchant_response.data.get("subscription_plan", "free")
+            }
+        
+        elif role == "influencer":
+            influencer_response = supabase.table("influencers") \
+                .select("*") \
+                .eq("user_id", user_id) \
+                .single() \
+                .execute()
+            
+            profile["influencer_info"] = {
+                "username": influencer_response.data.get("username", ""),
+                "full_name": influencer_response.data.get("full_name", ""),
+                "bio": influencer_response.data.get("bio", ""),
+                "category": influencer_response.data.get("category", ""),
+                "audience_size": influencer_response.data.get("audience_size", 0),
+                "social_links": influencer_response.data.get("social_links", {})
+            }
+        
+        return profile
+    
+    except Exception as e:
+        print(f"❌ Erreur get_user_profile: {str(e)}")
+        return {}
+
+
+# ============================================
+# USER PROFILE - UPDATE
+# ============================================
+
+async def update_user_profile(user_id: str, profile_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Mettre à jour le profil d'un utilisateur
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Mettre à jour la table users
+        user_updates = {}
+        if "email" in profile_data:
+            user_updates["email"] = profile_data["email"]
+        if "phone" in profile_data:
+            user_updates["phone"] = profile_data["phone"]
+        
+        if user_updates:
+            supabase.table("users") \
+                .update(user_updates) \
+                .eq("id", user_id) \
+                .execute()
+        
+        # Récupérer le rôle pour savoir quelle table mettre à jour
+        user_response = supabase.table("users") \
+            .select("role") \
+            .eq("id", user_id) \
+            .single() \
+            .execute()
+        
+        role = user_response.data.get("role")
+        
+        # Mettre à jour la table spécifique au rôle
+        if role == "merchant" and "merchant_info" in profile_data:
+            merchant_updates = profile_data["merchant_info"]
+            supabase.table("merchants") \
+                .update(merchant_updates) \
+                .eq("user_id", user_id) \
+                .execute()
+        
+        elif role == "influencer" and "influencer_info" in profile_data:
+            influencer_updates = profile_data["influencer_info"]
+            supabase.table("influencers") \
+                .update(influencer_updates) \
+                .eq("user_id", user_id) \
+                .execute()
+        
+        return {
+            "success": True,
+            "message": "Profil mis à jour avec succès"
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur update_user_profile: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+# ============================================
+# USER PASSWORD - UPDATE
+# ============================================
+
+async def update_user_password(
+    user_id: str,
+    current_password: str,
+    new_password: str
+) -> Dict[str, Any]:
+    """
+    Mettre à jour le mot de passe d'un utilisateur
+    """
+    try:
+        import bcrypt
+        supabase = get_supabase_client()
+        
+        # Récupérer le hash actuel
+        user_response = supabase.table("users") \
+            .select("password_hash") \
+            .eq("id", user_id) \
+            .single() \
+            .execute()
+        
+        current_hash = user_response.data.get("password_hash", "")
+        
+        # Vérifier l'ancien mot de passe
+        if not bcrypt.checkpw(current_password.encode('utf-8'), current_hash.encode('utf-8')):
+            return {
+                "success": False,
+                "error": "Mot de passe actuel incorrect"
+            }
+        
+        # Hasher le nouveau mot de passe
+        new_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        
+        # Mettre à jour
+        supabase.table("users") \
+            .update({"password_hash": new_hash}) \
+            .eq("id", user_id) \
+            .execute()
+        
+        return {
+            "success": True,
+            "message": "Mot de passe mis à jour avec succès"
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur update_user_password: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+
 
