@@ -8,7 +8,8 @@ import {
   Star, MapPin, Clock, Tag, Share2, Heart,
   Sparkles, ChevronLeft, ChevronRight,
   Check, X, Calendar, Users, Award, Phone,
-  Mail, Globe, AlertCircle, ThumbsUp, ThumbsDown, Briefcase
+  Mail, Globe, AlertCircle, ThumbsUp, ThumbsDown, Briefcase,
+  Shield, ShieldCheck, CheckCircle
 } from 'lucide-react';
 
 /**
@@ -28,6 +29,8 @@ const ProductDetail = () => {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [showAffiliateModal, setShowAffiliateModal] = useState(false);
   const [userProfile, setUserProfile] = useState(null);
+  const [validationStatus, setValidationStatus] = useState(null); // État de validation IA
+  const [isValidating, setIsValidating] = useState(false);
   const [affiliateData, setAffiliateData] = useState({
     selectedProduct: '',
     message: ''
@@ -100,12 +103,50 @@ const ProductDetail = () => {
       
       if (endpoint) {
         const response = await api.get(endpoint);
-        if (response.data.success) {
-          setUserProfile(response.data.profile || response.data.commercial);
+        if (response.data) {
+          const profileData = response.data.profile || response.data.commercial || response.data;
+          setUserProfile(profileData);
+          
+          // Vérifier si le profil a été validé par l'IA
+          if (profileData.verified) {
+            setValidationStatus({
+              verified: true,
+              verified_at: profileData.verified_at,
+              confidence_score: profileData.confidence_score,
+              bonus_rating: profileData.bonus_rating || 0,
+              validation_badges: profileData.validation_badges || []
+            });
+          }
         }
       }
     } catch (error) {
       console.error('Error fetching user profile:', error);
+    }
+  };
+
+  const validateStatsWithAI = async () => {
+    if (!user || user.role !== 'influencer') return;
+    
+    setIsValidating(true);
+    try {
+      const response = await api.post('/api/influencers/validate-stats');
+      if (response.data.success) {
+        setValidationStatus(response.data);
+        
+        // Mettre à jour le profil utilisateur avec le nouveau statut
+        await fetchUserProfile();
+        
+        if (response.data.is_verified) {
+          toast.success(`✅ Profil vérifié ! Score: ${response.data.confidence_score}% - Bonus de note: +${response.data.bonus_rating}⭐`);
+        } else {
+          toast.info('🔍 Validation en cours. Améliorez vos statistiques pour être vérifié.');
+        }
+      }
+    } catch (error) {
+      console.error('Error validating stats:', error);
+      toast.error('Erreur lors de la validation IA');
+    } finally {
+      setIsValidating(false);
     }
   };
 
@@ -798,10 +839,40 @@ const ProductDetail = () => {
               {/* Profil automatiquement détecté */}
               {userProfile && (
                 <div className={`mb-6 p-6 rounded-2xl border-2 ${user?.role === 'influencer' ? 'bg-gradient-to-br from-pink-50 to-purple-50 border-pink-200' : 'bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200'}`}>
-                  <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                    <Users className="w-5 h-5" />
-                    Votre Profil
-                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-gray-900 flex items-center gap-2">
+                      <Users className="w-5 h-5" />
+                      Votre Profil
+                      {/* Badge Vérifié */}
+                      {validationStatus?.verified && (
+                        <span className="ml-2 inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white text-xs font-bold rounded-full animate-pulse-glow">
+                          <ShieldCheck className="w-4 h-4" />
+                          Vérifié IA
+                        </span>
+                      )}
+                    </h3>
+                    
+                    {/* Bouton de validation IA (uniquement pour influenceurs non vérifiés) */}
+                    {user?.role === 'influencer' && !validationStatus?.verified && (
+                      <button
+                        onClick={validateStatsWithAI}
+                        disabled={isValidating}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-sm font-bold rounded-xl hover:shadow-lg transition-all disabled:opacity-50"
+                      >
+                        {isValidating ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Validation...
+                          </>
+                        ) : (
+                          <>
+                            <Shield className="w-4 h-4" />
+                            Valider mes Stats
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
                   
                   {user?.role === 'influencer' ? (
                     // Profil Influenceur
@@ -810,7 +881,12 @@ const ProductDetail = () => {
                         <div className="text-2xl font-black bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
                           {userProfile.followers_count ? (userProfile.followers_count / 1000).toFixed(1) : 0}K
                         </div>
-                        <div className="text-xs text-gray-600 font-semibold mt-1">Followers</div>
+                        <div className="text-xs text-gray-600 font-semibold mt-1 flex items-center justify-center gap-1">
+                          Followers
+                          {validationStatus?.verified && (
+                            <CheckCircle className="w-3 h-3 text-green-500" />
+                          )}
+                        </div>
                       </div>
                       <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl text-center">
                         <div className="text-2xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
@@ -824,11 +900,16 @@ const ProductDetail = () => {
                         </div>
                         <div className="text-xs text-gray-600 font-semibold mt-1">Campagnes</div>
                       </div>
-                      <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl text-center">
+                      <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl text-center relative">
                         <div className="text-2xl font-black bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
-                          {userProfile.rating || 4.5}⭐
+                          {(userProfile.rating || 4.5) + (validationStatus?.bonus_rating || 0)}⭐
                         </div>
-                        <div className="text-xs text-gray-600 font-semibold mt-1">Note</div>
+                        <div className="text-xs text-gray-600 font-semibold mt-1">
+                          Note
+                          {validationStatus?.bonus_rating > 0 && (
+                            <span className="text-green-600 ml-1">(+{validationStatus.bonus_rating})</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -881,6 +962,33 @@ const ProductDetail = () => {
                         </div>
                       )}
                     </div>
+                    
+                    {/* Badges de validation IA */}
+                    {validationStatus?.validation_badges && validationStatus.validation_badges.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <h4 className="text-xs font-bold text-gray-600 mb-2">Certifications IA</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {validationStatus.validation_badges.map((badge, idx) => (
+                            <div 
+                              key={idx}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-800 text-xs font-semibold rounded-full border border-purple-300"
+                              title={badge.description}
+                            >
+                              {badge.icon === 'shield-check' && <ShieldCheck className="w-3 h-3" />}
+                              {badge.icon === 'shield' && <Shield className="w-3 h-3" />}
+                              {badge.icon === 'check-circle' && <CheckCircle className="w-3 h-3" />}
+                              {badge.icon === 'users-check' && <Users className="w-3 h-3" />}
+                              {badge.name}
+                            </div>
+                          ))}
+                        </div>
+                        {validationStatus.confidence_score && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            Score de confiance IA: <span className="font-bold text-green-600">{validationStatus.confidence_score}%</span>
+                          </p>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -892,8 +1000,10 @@ const ProductDetail = () => {
                   Comment ça fonctionne ?
                 </h3>
                 <p className="text-blue-800 text-sm leading-relaxed">
-                  Votre profil a été automatiquement récupéré. Le marchand verra vos statistiques et pourra approuver votre demande. 
-                  Un lien de tracking unique sera créé pour vous.
+                  {validationStatus?.verified 
+                    ? "✅ Votre profil vérifié par IA augmente vos chances d'approbation ! Le marchand verra votre badge et votre note bonifiée." 
+                    : "Votre profil a été automatiquement récupéré. Faites valider vos stats par l'IA pour obtenir un badge 'Vérifié' et un bonus de note !"}
+                  {" "}Un lien de tracking unique sera créé pour vous après approbation.
                 </p>
               </div>
 

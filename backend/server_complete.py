@@ -2093,6 +2093,106 @@ async def get_influencers_list(
     influencers = [u for u in MOCK_USERS.values() if u.get("role") == "influencer"]
     return {"influencers": influencers, "total": len(influencers)}
 
+# ============================================================================
+# 🤖 IA VALIDATION - Vérification automatique des statistiques
+# ============================================================================
+
+@app.get("/api/influencers/profile")
+async def get_influencer_profile(payload: dict = Depends(verify_token)):
+    """Récupère le profil complet d'un influenceur"""
+    user_id = payload.get("user_id")
+    
+    # Mock data avec champs de vérification
+    return {
+        "id": user_id,
+        "followers_count": 125000,
+        "engagement_rate": 4.8,
+        "campaigns_completed": 12,
+        "niche": "Beauty",
+        "city": "Casablanca",
+        "rating": 4.5,
+        "verified": False,  # Statut de vérification IA
+        "verified_at": None,
+        "confidence_score": None,
+        "validation_badges": []
+    }
+
+@app.get("/api/commercials/profile")
+async def get_commercial_profile(payload: dict = Depends(verify_token)):
+    """Récupère le profil complet d'un commercial"""
+    user_id = payload.get("user_id")
+    
+    return {
+        "id": user_id,
+        "total_sales": 156,
+        "commission_earned": 24500,
+        "territory": "Casablanca-Settat",
+        "department": "Mode & Beauté",
+        "city": "Casablanca",
+        "rating": 4.7,
+        "verified": False,
+        "verified_at": None
+    }
+
+@app.post("/api/influencers/validate-stats")
+async def validate_influencer_stats(payload: dict = Depends(verify_token)):
+    """
+    🤖 IA: Valide les statistiques d'un influenceur
+    - Vérifie l'authenticité des followers
+    - Analyse le taux d'engagement
+    - Attribue un badge "Vérifié" et un bonus de note
+    """
+    user_id = payload.get("user_id")
+    
+    try:
+        # Import du service d'IA
+        from services.ai_validator import ai_validator
+        
+        # Récupérer les stats actuelles de l'influenceur
+        # TODO: Remplacer par vraie query DB
+        profile_data = {
+            "followers_count": 125000,
+            "engagement_rate": 4.8,
+            "campaigns_completed": 12,
+            "niche": "Beauty",
+            "account_age_days": 730  # 2 ans
+        }
+        
+        # Validation par IA
+        validation_result = ai_validator.validate_influencer_stats(
+            user_id=user_id,
+            followers_count=profile_data["followers_count"],
+            engagement_rate=profile_data["engagement_rate"],
+            campaigns_completed=profile_data["campaigns_completed"],
+            niche=profile_data["niche"],
+            account_age_days=profile_data["account_age_days"]
+        )
+        
+        # TODO: Sauvegarder le résultat en DB
+        # UPDATE users SET 
+        #   verified = validation_result["is_verified"],
+        #   verified_at = validation_result["verified_at"],
+        #   confidence_score = validation_result["confidence_score"],
+        #   bonus_rating = validation_result["bonus_rating"]
+        # WHERE id = user_id
+        
+        return {
+            "success": True,
+            "message": "Validation IA terminée avec succès" if validation_result["is_verified"] else "Profil en attente de vérification",
+            **validation_result
+        }
+        
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail="Service d'IA de validation temporairement indisponible"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Erreur lors de la validation: {str(e)}"
+        )
+
 @app.get("/api/analytics/admin/revenue-chart")
 async def get_admin_revenue_chart(payload: dict = Depends(verify_token)):
     """Données du graphique de revenus admin"""
