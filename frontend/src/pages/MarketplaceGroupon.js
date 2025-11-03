@@ -186,75 +186,83 @@ const MarketplaceGroupon = () => {
             {/* Tab 0: Produits */}
             {currentTab === 0 && (
               <>
-                <div className="mb-8">
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">Produits en Vedette</h2>
-                  <p className="text-gray-600">Découvrez les meilleures offres du moment</p>
+                <div className="mb-10">
+                  <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent mb-3">
+                    Produits en Vedette ✨
+                  </h2>
+                  <p className="text-gray-600 text-lg">Découvrez les meilleures offres avec commission attractive</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {products.map((product) => (
                   <div
                     key={product.id}
-                    className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer group transform hover:-translate-y-2"
+                    className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer group transform hover:-translate-y-2 border border-gray-100"
                     onClick={() => handleViewDetails(product, 'product')}
                   >
-                    <div className="relative h-48 overflow-hidden">
+                    <div className="relative h-52 overflow-hidden bg-gradient-to-br from-purple-50 via-pink-50 to-red-50">
                       <img
                         src={product.image_url || `https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop&q=80`}
                         alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        className="w-full h-full object-cover group-hover:scale-125 group-hover:rotate-2 transition-all duration-700"
                         onError={(e) => {
                           e.target.onerror = null;
-                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%2310b981" width="400" height="300"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="24" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EProduit%3C/text%3E%3C/svg%3E';
+                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23a855f7" width="400" height="300"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="24" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EProduit%3C/text%3E%3C/svg%3E';
                         }}
                       />
                       {product.discount && (
-                        <div className="absolute top-3 right-3 bg-red-500 text-white px-3 py-1 rounded-full font-bold">
+                        <div className="absolute top-3 right-3 bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-1.5 rounded-xl font-bold text-sm z-10 shadow-xl animate-pulse">
                           -{product.discount}%
                         </div>
                       )}
+                      <div className="absolute top-3 left-3 bg-white/95 backdrop-blur-sm px-3 py-1.5 rounded-xl flex items-center gap-2 z-10 shadow-lg">
+                        <Star size={16} className="fill-yellow-400 text-yellow-400" />
+                        <span className="text-sm font-bold text-gray-800">
+                          {product.rating || 4.5}
+                        </span>
+                      </div>
+                      <div className="absolute bottom-3 left-3 bg-purple-600/90 backdrop-blur-sm text-white px-3 py-1 rounded-xl flex items-center gap-1.5 z-10 text-xs font-semibold">
+                        <MapPin size={12} />
+                        {product.city || 'Maroc'}
+                      </div>
                     </div>
                     <div className="p-5">
-                      <h3 className="font-bold text-lg mb-2 group-hover:text-green-600 transition">
+                      <h3 className="font-bold text-lg mb-2 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-600 group-hover:to-pink-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-2 min-h-[56px]">
                         {product.name}
                       </h3>
-                      <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                      <p className="text-gray-600 text-sm mb-4 line-clamp-2 min-h-[40px]">
                         {product.description}
                       </p>
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-1">
-                          <Star size={16} className="text-yellow-400 fill-current" />
-                          <span className="font-semibold">{product.rating || 4.5}</span>
-                          <span className="text-gray-500 text-sm">({product.reviews || 0})</span>
+                      
+                      {/* Prix et Commission */}
+                      <div className="mb-4">
+                        <div className="flex items-baseline gap-2 mb-3">
+                          <span className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                            {product.price}
+                          </span>
+                          <span className="text-gray-600 font-semibold">DH</span>
                         </div>
-                        <div className="flex items-center gap-1 text-gray-500 text-sm">
-                          <MapPin size={14} />
-                          <span>{product.city || 'Maroc'}</span>
+                        <div className="bg-gradient-to-r from-purple-50 via-pink-50 to-red-50 px-4 py-3 rounded-xl border-2 border-purple-100 shadow-inner">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 animate-pulse"></div>
+                              <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Commission</span>
+                            </div>
+                            <span className="text-2xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                              {product.commission_rate || 15}%
+                            </span>
+                          </div>
                         </div>
                       </div>
                       
-                      {/* Prix et Commission d'Affiliation */}
-                      <div className="space-y-2 mb-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-600">Prix public</span>
-                          <span className="text-lg font-bold text-gray-900">
-                            {product.price} DH
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between bg-green-50 px-3 py-2 rounded-lg">
-                          <span className="text-sm font-semibold text-green-700">Commission d'affiliation</span>
-                          <span className="text-xl font-bold text-green-600">
-                            {product.commission_rate || 15}%
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <button className="w-full py-3 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2">
-                        Voir les détails <ChevronRight size={16} />
+                      <button className="w-full py-3.5 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white rounded-xl font-bold hover:from-purple-700 hover:via-pink-700 hover:to-red-700 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-2xl transform hover:scale-105">
+                        <span>Voir détails</span>
+                        <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                       </button>
                     </div>
                   </div>
                 ))}
               </div>
+              </>
             )}
 
             {/* Tab 1: Services */}
