@@ -1,6 +1,7 @@
 [build]
 builder = "DOCKERFILE"
 dockerfilePath = "Dockerfile"
+buildCommand = "echo 'Building backend...'"
 
 [deploy]
 startCommand = "uvicorn server_complete:app --host 0.0.0.0 --port $PORT --workers 4"
