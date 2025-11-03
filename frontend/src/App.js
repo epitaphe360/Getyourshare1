@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { I18nProvider } from './i18n/i18n';
 import Layout from './components/layout/Layout';
+import PublicLayout from './components/layout/PublicLayout';
 import ChatbotWidget from './components/bot/ChatbotWidget';
 import WhatsAppFloatingButton from './components/social/WhatsAppFloatingButton';
 import HomepageV2 from './pages/HomepageV2';
@@ -188,13 +189,13 @@ function App() {
           {/* Product Detail - Public (accessible sans connexion) */}
           <Route path="/marketplace/product/:productId" element={<ProductDetail />} />
           
-          {/* Contact Page (Public avec menu) */}
-          <Route path="/contact" element={<Layout><Contact /></Layout>} />
+          {/* Contact Page (Public avec menu homepage) */}
+          <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />
 
-          {/* Legal Pages (Public avec menu) */}
-          <Route path="/privacy" element={<Layout><Privacy /></Layout>} />
-          <Route path="/terms" element={<Layout><Terms /></Layout>} />
-          <Route path="/about" element={<Layout><About /></Layout>} />
+          {/* Legal Pages (Public avec menu homepage) */}
+          <Route path="/privacy" element={<PublicLayout><Privacy /></PublicLayout>} />
+          <Route path="/terms" element={<PublicLayout><Terms /></PublicLayout>} />
+          <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
 
           {/* Protected Routes */}
           <Route
