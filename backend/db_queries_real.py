@@ -567,3 +567,337 @@ async def create_affiliate_link(
     except Exception as e:
         print(f"❌ Erreur create_affiliate_link: {str(e)}")
         return {"success": False, "error": str(e)}
+
+
+# ============================================
+# PRODUCTS - GET ALL WITH FILTERS
+# ============================================
+
+async def get_all_products(
+    category: str = None,
+    search: str = None,
+    min_price: float = None,
+    max_price: float = None,
+    sort_by: str = "created_at",
+    limit: int = 10,
+    offset: int = 0
+) -> Dict[str, Any]:
+    """
+    Récupérer la liste de tous les produits avec filtres
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Base query
+        query = supabase.table("products").select("*")
+        
+        # Filtrer par catégorie
+        if category:
+            query = query.eq("category", category)
+        
+        # Filtrer par prix
+        if min_price is not None:
+            query = query.gte("price", min_price)
+        if max_price is not None:
+            query = query.lte("price", max_price)
+        
+        # Recherche textuelle (simple)
+        if search:
+            query = query.ilike("name", f"%{search}%")
+        
+        # Tri
+        if sort_by == "price_asc":
+            query = query.order("price", desc=False)
+        elif sort_by == "price_desc":
+            query = query.order("price", desc=True)
+        elif sort_by == "popularity":
+            query = query.order("total_sales", desc=True)
+        else:
+            query = query.order("created_at", desc=True)
+        
+        # Pagination
+        query = query.range(offset, offset + limit - 1)
+        
+        products_response = query.execute()
+        
+        # Compter le total (sans pagination)
+        count_query = supabase.table("products").select("id", count="exact")
+        if category:
+            count_query = count_query.eq("category", category)
+        if min_price is not None:
+            count_query = count_query.gte("price", min_price)
+        if max_price is not None:
+            count_query = count_query.lte("price", max_price)
+        
+        count_response = count_query.execute()
+        total = count_response.count if count_response.count else 0
+        
+        # Formater les produits
+        products = []
+        for product in products_response.data:
+            products.append({
+                "id": product["id"],
+                "name": product["name"],
+                "description": product.get("description", ""),
+                "price": float(product["price"]),
+                "category": product.get("category", ""),
+                "commission_rate": float(product.get("commission_rate", 0)),
+                "commission_type": product.get("commission_type", "percentage"),
+                "images": product.get("images", []),
+                "stock": product.get("stock", 0),
+                "total_views": product.get("total_views", 0),
+                "total_clicks": product.get("total_clicks", 0),
+                "total_sales": product.get("total_sales", 0),
+                "rating": product.get("rating", 0),
+                "created_at": product.get("created_at")
+            })
+        
+        return {
+            "products": products,
+            "pagination": {
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+                "has_more": offset + limit < total
+            }
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur get_all_products: {str(e)}")
+        return {
+            "products": [],
+            "pagination": {"total": 0, "limit": limit, "offset": offset, "has_more": False}
+        }
+
+
+# ============================================
+# MERCHANTS - GET ALL
+# ============================================
+
+async def get_all_merchants() -> List[Dict[str, Any]]:
+    """
+    Récupérer la liste de tous les marchands
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Query merchants avec JOIN sur users pour avoir les infos de base
+        merchants_response = supabase.table("merchants") \
+            .select("*, users(id, email, created_at)") \
+            .order("created_at", desc=True) \
+            .execute()
+        
+        merchants = []
+        for merchant in merchants_response.data:
+            user_data = merchant.get("users", {})
+            
+            merchants.append({
+                "id": merchant["id"],
+                "user_id": merchant["user_id"],
+                "email": user_data.get("email", ""),
+                "company_name": merchant.get("company_name", ""),
+                "industry": merchant.get("industry", ""),
+                "category": merchant.get("category", ""),
+                "subscription_plan": merchant.get("subscription_plan", "free"),
+                "commission_rate": float(merchant.get("commission_rate", 0)),
+                "balance": float(merchant.get("balance", 0)),
+                "total_revenue": float(merchant.get("total_revenue", 0)),
+                "total_sales": merchant.get("total_sales", 0),
+                "created_at": user_data.get("created_at") or merchant.get("created_at")
+            })
+        
+        return merchants
+    
+    except Exception as e:
+        print(f"❌ Erreur get_all_merchants: {str(e)}")
+        return []
+
+
+# ============================================
+# INFLUENCERS - GET ALL
+# ============================================
+
+async def get_all_influencers(
+    min_followers: int = None,
+    category: str = None
+) -> List[Dict[str, Any]]:
+    """
+    Récupérer la liste de tous les influenceurs avec filtres
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Query influencers avec JOIN sur users
+        query = supabase.table("influencers") \
+            .select("*, users(id, email, created_at)")
+        
+        # Filtrer par catégorie
+        if category:
+            query = query.eq("category", category)
+        
+        # Filtrer par nombre de followers
+        if min_followers:
+            query = query.gte("audience_size", min_followers)
+        
+        query = query.order("total_earnings", desc=True)
+        
+        influencers_response = query.execute()
+        
+        influencers = []
+        for influencer in influencers_response.data:
+            user_data = influencer.get("users", {})
+            
+            influencers.append({
+                "id": influencer["id"],
+                "user_id": influencer["user_id"],
+                "email": user_data.get("email", ""),
+                "username": influencer.get("username", ""),
+                "full_name": influencer.get("full_name", ""),
+                "bio": influencer.get("bio", ""),
+                "category": influencer.get("category", ""),
+                "influencer_type": influencer.get("influencer_type", ""),
+                "audience_size": influencer.get("audience_size", 0),
+                "engagement_rate": float(influencer.get("engagement_rate", 0)),
+                "social_links": influencer.get("social_links", {}),
+                "balance": float(influencer.get("balance", 0)),
+                "total_earnings": float(influencer.get("total_earnings", 0)),
+                "total_clicks": influencer.get("total_clicks", 0),
+                "total_conversions": influencer.get("total_conversions", 0),
+                "created_at": user_data.get("created_at") or influencer.get("created_at")
+            })
+        
+        return influencers
+    
+    except Exception as e:
+        print(f"❌ Erreur get_all_influencers: {str(e)}")
+        return []
+
+
+# ============================================
+# PRODUCTS - CREATE NEW
+# ============================================
+
+async def create_product(merchant_id: str, product_data: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Créer un nouveau produit pour un merchant
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Préparer les données du produit
+        product_insert = {
+            "merchant_id": merchant_id,
+            "name": product_data.get("name"),
+            "description": product_data.get("description", ""),
+            "price": float(product_data.get("price", 0)),
+            "category": product_data.get("category", ""),
+            "commission_rate": float(product_data.get("commission_rate", 10)),
+            "commission_type": product_data.get("commission_type", "percentage"),
+            "images": product_data.get("images", []),
+            "stock": product_data.get("stock", 0),
+            "is_active": product_data.get("is_active", True)
+        }
+        
+        # Insérer le produit
+        product_response = supabase.table("products") \
+            .insert(product_insert) \
+            .execute()
+        
+        created_product = product_response.data[0]
+        
+        return {
+            "success": True,
+            "product": {
+                "id": created_product["id"],
+                "name": created_product["name"],
+                "description": created_product.get("description", ""),
+                "price": float(created_product["price"]),
+                "category": created_product.get("category", ""),
+                "commission_rate": float(created_product.get("commission_rate", 0)),
+                "images": created_product.get("images", []),
+                "stock": created_product.get("stock", 0),
+                "is_active": created_product.get("is_active", True),
+                "created_at": created_product.get("created_at")
+            }
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur create_product: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+# ============================================
+# MERCHANT PERFORMANCE
+# ============================================
+
+async def get_merchant_performance(user_id: str) -> Dict[str, Any]:
+    """
+    Récupérer les métriques de performance d'un merchant
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Récupérer le merchant_id
+        merchant_response = supabase.table("merchants") \
+            .select("id, total_revenue, total_sales") \
+            .eq("user_id", user_id) \
+            .single() \
+            .execute()
+        
+        merchant_id = merchant_response.data["id"]
+        total_revenue = float(merchant_response.data.get("total_revenue", 0))
+        total_sales = merchant_response.data.get("total_sales", 0)
+        
+        # Récupérer les stats des produits
+        products_response = supabase.table("products") \
+            .select("total_views, total_clicks, total_sales") \
+            .eq("merchant_id", merchant_id) \
+            .execute()
+        
+        total_views = sum(p.get("total_views", 0) for p in products_response.data)
+        total_clicks = sum(p.get("total_clicks", 0) for p in products_response.data)
+        product_sales = sum(p.get("total_sales", 0) for p in products_response.data)
+        
+        # Calculer le taux de conversion
+        conversion_rate = (product_sales / total_clicks * 100) if total_clicks > 0 else 0
+        
+        # Calculer le taux d'engagement (clicks / views)
+        engagement_rate = (total_clicks / total_views * 100) if total_views > 0 else 0
+        
+        # Récupérer les ventes récentes pour calculer la satisfaction
+        sales_response = supabase.table("sales") \
+            .select("status") \
+            .eq("merchant_id", merchant_id) \
+            .execute()
+        
+        completed_sales = len([s for s in sales_response.data if s.get("status") == "completed"])
+        total_sales_count = len(sales_response.data)
+        satisfaction_rate = (completed_sales / total_sales_count * 100) if total_sales_count > 0 else 0
+        
+        # Calculer la progression vers l'objectif mensuel (objectif fictif de 50000 MAD)
+        monthly_goal = 50000
+        monthly_goal_progress = (total_revenue / monthly_goal * 100) if monthly_goal > 0 else 0
+        
+        return {
+            "conversion_rate": round(conversion_rate, 2),
+            "engagement_rate": round(engagement_rate, 2),
+            "satisfaction_rate": round(satisfaction_rate, 1),
+            "monthly_goal_progress": round(monthly_goal_progress, 1),
+            "total_revenue": total_revenue,
+            "total_sales": total_sales,
+            "total_views": total_views,
+            "total_clicks": total_clicks
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur get_merchant_performance: {str(e)}")
+        return {
+            "conversion_rate": 0,
+            "engagement_rate": 0,
+            "satisfaction_rate": 0,
+            "monthly_goal_progress": 0
+        }
+

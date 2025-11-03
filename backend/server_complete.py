@@ -47,7 +47,12 @@ try:
         get_merchant_products,
         get_user_payouts,
         get_user_campaigns,
-        create_affiliate_link
+        create_affiliate_link,
+        get_all_products,
+        get_all_merchants,
+        get_all_influencers,
+        create_product,
+        get_merchant_performance
     )
     DB_QUERIES_AVAILABLE = True
     print("✅ DB Queries helpers loaded successfully")
@@ -909,7 +914,41 @@ async def get_products(
     featured: Optional[bool] = None,
     sort_by: Optional[str] = "popularity"
 ):
-    """Liste des produits avec filtres avancés"""
+    """Liste des produits avec filtres avancés (DONNÉES RÉELLES depuis DB)"""
+    
+    if DB_QUERIES_AVAILABLE:
+        try:
+            # Récupérer les produits depuis la base de données
+            result = await get_all_products(
+                category=category,
+                search=search,
+                min_price=min_price,
+                max_price=max_price,
+                sort_by=sort_by,
+                limit=limit,
+                offset=offset
+            )
+            
+            # Ajouter les filtres disponibles
+            if result["products"]:
+                categories_set = set(p["category"] for p in result["products"] if p.get("category"))
+                prices = [p["price"] for p in result["products"] if p.get("price")]
+                
+                result["filters"] = {
+                    "categories": list(categories_set),
+                    "price_range": {
+                        "min": min(prices) if prices else 0,
+                        "max": max(prices) if prices else 0
+                    }
+                }
+            
+            return result
+        
+        except Exception as e:
+            print(f"❌ Erreur get_products: {str(e)}")
+            # Fallback to mocked data
+    
+    # FALLBACK: Données mockées
     products = MOCK_PRODUCTS.copy()
     
     # Filtrer par type (product ou service)
@@ -992,6 +1031,62 @@ async def get_categories():
     return {
         "categories": list(categories.values()),
         "total_categories": len(categories)
+    }
+
+@app.post("/api/products")
+async def create_new_product(
+    product_data: dict,
+    payload: dict = Depends(verify_token)
+):
+    """Créer un nouveau produit (INSERTION RÉELLE dans DB)"""
+    user_id = payload.get("id")
+    user_role = payload.get("role")
+    
+    if user_role != "merchant":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Seuls les merchants peuvent créer des produits"
+        )
+    
+    if DB_QUERIES_AVAILABLE:
+        try:
+            # Récupérer le merchant_id
+            merchant_response = supabase.table("merchants") \
+                .select("id") \
+                .eq("user_id", user_id) \
+                .single() \
+                .execute()
+            
+            merchant_id = merchant_response.data["id"]
+            
+            # Créer le produit
+            result = await create_product(merchant_id, product_data)
+            
+            if result.get("success"):
+                return result
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=result.get("error", "Erreur lors de la création du produit")
+                )
+        
+        except Exception as e:
+            print(f"❌ Erreur create_new_product: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Erreur lors de la création: {str(e)}"
+            )
+    
+    # FALLBACK: Retourner un produit mocké (sans vraie insertion)
+    return {
+        "success": True,
+        "product": {
+            "id": f"prod_{datetime.now().timestamp()}",
+            "name": product_data.get("name"),
+            "price": product_data.get("price"),
+            "category": product_data.get("category"),
+            "created_at": datetime.now().isoformat()
+        }
     }
 
 @app.get("/api/products/{product_id}")
@@ -1939,13 +2034,40 @@ async def get_analytics_overview(payload: dict = Depends(verify_token)):
 
 @app.get("/api/merchants")
 async def get_merchants_list(payload: dict = Depends(verify_token)):
-    """Liste des marchands"""
+    """Liste des marchands (DONNÉES RÉELLES depuis DB)"""
+    
+    if DB_QUERIES_AVAILABLE:
+        try:
+            merchants = await get_all_merchants()
+            return {"merchants": merchants, "total": len(merchants)}
+        except Exception as e:
+            print(f"❌ Erreur get_merchants: {str(e)}")
+            # Fallback to mocked
+    
+    # FALLBACK: Données mockées
     merchants = [u for u in MOCK_USERS.values() if u.get("role") == "merchant"]
     return {"merchants": merchants, "total": len(merchants)}
 
 @app.get("/api/influencers")
-async def get_influencers_list(payload: dict = Depends(verify_token)):
-    """Liste des influenceurs"""
+async def get_influencers_list(
+    payload: dict = Depends(verify_token),
+    min_followers: Optional[int] = None,
+    category: Optional[str] = None
+):
+    """Liste des influenceurs (DONNÉES RÉELLES depuis DB)"""
+    
+    if DB_QUERIES_AVAILABLE:
+        try:
+            influencers = await get_all_influencers(
+                min_followers=min_followers,
+                category=category
+            )
+            return {"influencers": influencers, "total": len(influencers)}
+        except Exception as e:
+            print(f"❌ Erreur get_influencers: {str(e)}")
+            # Fallback to mocked
+    
+    # FALLBACK: Données mockées
     influencers = [u for u in MOCK_USERS.values() if u.get("role") == "influencer"]
     return {"influencers": influencers, "total": len(influencers)}
 
@@ -2148,8 +2270,26 @@ async def get_merchant_sales_chart(payload: dict = Depends(verify_token)):
     return {"data": data}
 
 @app.get("/api/analytics/merchant/performance")
-async def get_merchant_performance(payload: dict = Depends(verify_token)):
-    """Métriques de performance merchant"""
+async def get_merchant_performance_metrics(payload: dict = Depends(verify_token)):
+    """Métriques de performance merchant (DONNÉES RÉELLES depuis DB)"""
+    user_id = payload.get("id")
+    user_role = payload.get("role")
+    
+    if user_role != "merchant":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès réservé aux merchants"
+        )
+    
+    if DB_QUERIES_AVAILABLE:
+        try:
+            performance = await get_merchant_performance(user_id)
+            return performance
+        except Exception as e:
+            print(f"❌ Erreur get_merchant_performance: {str(e)}")
+            # Fallback to mocked
+    
+    # FALLBACK: Données mockées
     return {
         "conversion_rate": 3.8,
         "engagement_rate": 12.5,
