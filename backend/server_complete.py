@@ -19,15 +19,22 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
+# Load environment variables FIRST
+load_dotenv()
+
 # Supabase client
 try:
     from supabase import create_client, Client
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
+    print(f"🔍 DEBUG Supabase: URL={SUPABASE_URL[:30] if SUPABASE_URL else None}..., KEY={'***' if SUPABASE_KEY else None}")
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL and SUPABASE_KEY else None
     SUPABASE_ENABLED = supabase is not None
+    print(f"✅ Supabase client créé: {SUPABASE_ENABLED}")
 except Exception as e:
     print(f"⚠️ Supabase non disponible: {e}")
+    import traceback
+    traceback.print_exc()
     supabase = None
     SUPABASE_ENABLED = False
 
@@ -122,9 +129,6 @@ except ImportError as e:
     print(f"⚠️ Platform settings endpoints not available: {e}")
     PLATFORM_SETTINGS_ENDPOINTS_AVAILABLE = False
 
-# Charger les variables d'environnement
-load_dotenv()
-
 # ============================================
 # CONFIGURATION
 # ============================================
@@ -215,11 +219,12 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Initialize Translation Service with Supabase
+print(f"🔍 DEBUG: TRANSLATION_SERVICE_AVAILABLE={TRANSLATION_SERVICE_AVAILABLE}, SUPABASE_ENABLED={SUPABASE_ENABLED}")
 if TRANSLATION_SERVICE_AVAILABLE and SUPABASE_ENABLED:
     init_translation_service(supabase)
     print("✅ Translation service initialized with Supabase")
 else:
-    print("⚠️ Translation service initialization skipped")
+    print(f"⚠️ Translation service initialization skipped (Translation: {TRANSLATION_SERVICE_AVAILABLE}, Supabase: {SUPABASE_ENABLED})")
 
 # ============================================
 # ROUTERS
