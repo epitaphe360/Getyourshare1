@@ -7,14 +7,14 @@ FROM python:3.11-slim
 # Copy the entire project
 COPY . .
 
-# Change to backend directory for the build
-WORKDIR /backend
-
-# Debug: list contents of backend directory
-RUN ls -la /backend/
+# Copy requirements.txt to root for easier access
+RUN cp /backend/requirements.txt /requirements.txt
 
 # Install dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r /requirements.txt
+
+# Change to backend directory for the build
+WORKDIR /backend
 
 # Expose port
 EXPOSE 8000
