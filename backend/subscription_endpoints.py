@@ -275,6 +275,85 @@ async def get_plan_details(plan_id: str):
 # ENDPOINTS - SUBSCRIPTION MANAGEMENT
 # ============================================
 
+@router.get("/current")
+async def get_current_subscription(current_user: dict = Depends(get_current_user)):
+    """
+    Récupère l'abonnement actuel de l'utilisateur connecté
+    
+    Endpoint utilisé par les dashboards frontend.
+    Retourne toujours un abonnement (par défaut si aucun n'existe).
+    """
+    try:
+        user_id = current_user.get("id") or current_user.get("user_id")
+        user_role = current_user.get("role", "merchant")
+        
+        # Chercher l'abonnement dans la DB
+        subscription = await get_user_subscription(user_id)
+        
+        if subscription:
+            # Vérifier les limites
+            can_add_team_member = await check_limit(user_id, "team_members")
+            can_add_domain = await check_limit(user_id, "domains")
+            
+            return {
+                **subscription,
+                "can_add_team_member": can_add_team_member,
+                "can_add_domain": can_add_domain
+            }
+        else:
+            # Retourner un abonnement par défaut selon le rôle
+            if user_role == "merchant":
+                return {
+                    "plan_name": "Freemium",
+                    "plan_code": "freemium",
+                    "status": "active",
+                    "max_products": 5,
+                    "max_campaigns": 1,
+                    "max_affiliates": 10,
+                    "commission_fee": 0,
+                    "current_team_members": 0,
+                    "current_domains": 0,
+                    "can_add_team_member": True,
+                    "can_add_domain": True
+                }
+            else:  # influencer
+                return {
+                    "plan_name": "Free",
+                    "plan_code": "free",
+                    "status": "active",
+                    "commission_rate": 5,
+                    "campaigns_per_month": 3,
+                    "instant_payout": False,
+                    "analytics_level": "basic",
+                    "can_add_team_member": False,
+                    "can_add_domain": False
+                }
+                
+    except Exception as e:
+        # En cas d'erreur, retourner un plan gratuit par défaut
+        user_role = current_user.get("role", "merchant")
+        
+        if user_role == "merchant":
+            return {
+                "plan_name": "Freemium",
+                "plan_code": "freemium",
+                "status": "active",
+                "max_products": 5,
+                "max_campaigns": 1,
+                "max_affiliates": 10,
+                "commission_fee": 0
+            }
+        else:
+            return {
+                "plan_name": "Free",
+                "plan_code": "free",
+                "status": "active",
+                "commission_rate": 5,
+                "campaigns_per_month": 3,
+                "instant_payout": False,
+                "analytics_level": "basic"
+            }
+
 @router.get("/my-subscription", response_model=Optional[SubscriptionResponse])
 async def get_my_subscription(current_user: dict = Depends(get_current_user)):
     """
