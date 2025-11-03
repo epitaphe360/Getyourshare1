@@ -290,7 +290,7 @@ const HomepageV2 = () => {
               <a href="/marketplace" className="text-gray-700 hover:text-blue-600 font-medium transition">
                 Marketplace
               </a>
-              <a href="/pricing-v3" className="text-gray-700 hover:text-blue-600 font-medium transition">
+              <a href="/pricing" className="text-gray-700 hover:text-blue-600 font-medium transition">
                 Tarifs
               </a>
               <a href="/contact" className="text-gray-700 hover:text-blue-600 font-medium transition">
@@ -783,7 +783,7 @@ const HomepageV2 = () => {
             <div>
               <h4 className="font-semibold text-white mb-4">Produit</h4>
               <ul className="space-y-2 text-sm">
-                <li><a href="/pricing-v3" className="hover:text-white transition">Tarifs</a></li>
+                <li><a href="/pricing" className="hover:text-white transition">Tarifs</a></li>
                 <li><a href="/marketplace" className="hover:text-white transition">Marketplace</a></li>
                 <li><a href="#" className="hover:text-white transition">Fonctionnalités</a></li>
               </ul>
