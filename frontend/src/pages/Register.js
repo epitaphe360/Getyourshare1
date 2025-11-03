@@ -174,7 +174,14 @@ const Register = () => {
                   </button>
                 </div>
 
-                <div className="mt-8 text-center">
+                <div className="mt-8 text-center space-y-4">
+                  <Link 
+                    to="/" 
+                    className="inline-flex items-center justify-center px-6 py-3 border-2 border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition font-medium"
+                  >
+                    ← Retour à l'accueil
+                  </Link>
+                  
                   <p className="text-gray-600">
                     Vous avez déjà un compte ?{' '}
                     <Link to="/login" className="text-indigo-600 hover:text-indigo-700 font-semibold">
@@ -391,7 +398,14 @@ const Register = () => {
                   </button>
                 </form>
 
-                <div className="mt-6 text-center">
+                <div className="mt-6 text-center space-y-3">
+                  <Link 
+                    to="/" 
+                    className="inline-flex items-center justify-center px-4 py-2 text-sm text-gray-600 hover:text-gray-900 hover:underline"
+                  >
+                    ← Retour à l'accueil
+                  </Link>
+                  
                   <p className="text-gray-600">
                     Vous avez déjà un compte ?{' '}
                     <Link to="/login" className="text-indigo-600 hover:text-indigo-700 font-semibold">
