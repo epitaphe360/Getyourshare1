@@ -13,7 +13,7 @@ COPY . .
 
 # Installer les dépendances du backend
 # Le fichier est maintenant à /app/backend/requirements.txt
-RUN pip install --no-cache-dir -r backend/requirements.txt
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 
 # Définir le répertoire de travail final pour l'exécution
 WORKDIR /app/backend
