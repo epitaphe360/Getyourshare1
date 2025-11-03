@@ -285,7 +285,7 @@ const Pricing = () => {
                   </div>
 
                   <Link
-                    to="/register"
+                    to={`/register?role=merchant&plan=${plan.name.toLowerCase()}`}
                     className={`block w-full text-center py-4 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-2xl transform hover:scale-105 ${
                       index === 2
                         ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white hover:from-cyan-700 hover:to-blue-700 animate-gradient'
@@ -379,7 +379,7 @@ const Pricing = () => {
                   </div>
 
                   <Link
-                    to="/register"
+                    to={`/register?role=influencer&plan=${plan.name.toLowerCase().replace(/\s+/g, '-')}`}
                     className={`block w-full text-center py-4 rounded-xl font-bold transition-all duration-300 shadow-lg hover:shadow-2xl transform hover:scale-105 ${
                       index === 1
                         ? 'bg-gradient-to-r from-cyan-600 to-teal-600 text-white hover:from-cyan-700 hover:to-teal-700 animate-gradient'

@@ -23,6 +23,16 @@ const Login = () => {
     const result = await login(email, password);
     
     if (result.success) {
+      // Check if there's a pending plan selection (from pricing page)
+      const pendingPlan = localStorage.getItem('pendingPlanSelection');
+      if (pendingPlan) {
+        localStorage.removeItem('pendingPlanSelection');
+        // Redirect to subscription page
+        navigate('/subscription/plans');
+        setLoading(false);
+        return;
+      }
+      
       // Vérifier s'il y a une redirection en attente
       const redirectPath = localStorage.getItem('redirectAfterLogin');
       if (redirectPath) {
@@ -52,6 +62,16 @@ const Login = () => {
     const result = await login(testEmail, testPassword);
     
     if (result.success) {
+      // Check if there's a pending plan selection (from pricing page)
+      const pendingPlan = localStorage.getItem('pendingPlanSelection');
+      if (pendingPlan) {
+        localStorage.removeItem('pendingPlanSelection');
+        // Redirect to subscription page
+        navigate('/subscription/plans');
+        setLoading(false);
+        return;
+      }
+      
       // Vérifier s'il y a une redirection en attente
       const redirectPath = localStorage.getItem('redirectAfterLogin');
       if (redirectPath) {
@@ -93,6 +113,15 @@ const Login = () => {
         // Stocker le token et l'utilisateur
         localStorage.setItem('token', data.access_token);
         localStorage.setItem('user', JSON.stringify(data.user));
+        
+        // Check if there's a pending plan selection (from pricing page)
+        const pendingPlan = localStorage.getItem('pendingPlanSelection');
+        if (pendingPlan) {
+          localStorage.removeItem('pendingPlanSelection');
+          // Redirect to subscription page
+          navigate('/subscription/plans');
+          return;
+        }
         
         // Vérifier s'il y a une redirection en attente
         const redirectPath = localStorage.getItem('redirectAfterLogin');

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Mail, Lock, User, Phone, Building, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 import axios from 'axios';
 
@@ -7,8 +7,10 @@ const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
 
 const Register = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [step, setStep] = useState(1);
   const [role, setRole] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
@@ -25,6 +27,21 @@ const Register = () => {
     // Influencer specific
     username: ''
   });
+
+  // Check URL parameters for pre-selected role and plan
+  useEffect(() => {
+    const urlRole = searchParams.get('role');
+    const urlPlan = searchParams.get('plan');
+    
+    if (urlRole && (urlRole === 'merchant' || urlRole === 'influencer')) {
+      setRole(urlRole);
+      setStep(2); // Skip role selection, go directly to form
+    }
+    
+    if (urlPlan) {
+      setSelectedPlan(urlPlan);
+    }
+  }, [searchParams]);
 
   const handleChange = (e) => {
     setFormData({
@@ -65,6 +82,7 @@ const Register = () => {
         first_name: formData.first_name,
         last_name: formData.last_name,
         phone: formData.phone,
+        subscription_plan: selectedPlan || 'starter', // Save selected plan
         ...(role === 'merchant' && { company_name: formData.company_name }),
         ...(role === 'influencer' && { username: formData.username })
       };
@@ -73,6 +91,8 @@ const Register = () => {
       
       if (response.data.success) {
         setSuccess(true);
+        // Store user data for redirect after login
+        localStorage.setItem('pendingPlanSelection', selectedPlan);
         setTimeout(() => {
           navigate('/login');
         }, 3000);
