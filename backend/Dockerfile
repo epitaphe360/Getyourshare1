@@ -1,5 +1,5 @@
 # ============================================
-# Dockerfile - Backend Only
+# Dockerfile - Backend Only (Updated for Railway)
 # ============================================
 FROM python:3.11-slim
 
