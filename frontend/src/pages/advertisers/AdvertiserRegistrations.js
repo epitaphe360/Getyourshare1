@@ -25,6 +25,8 @@ const AdvertiserRegistrations = () => {
       created_at: '2024-03-12T09:30:00Z',
     },
   ]);
+  
+  const [loading, setLoading] = useState(false);
 
   const handleApprove = (id) => {
     console.log('Approve:', id);
