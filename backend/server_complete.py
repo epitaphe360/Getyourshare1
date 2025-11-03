@@ -7,7 +7,7 @@ from fastapi import FastAPI, HTTPException, Depends, status, Request, Response, 
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, constr, confloat, conint
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 import jwt
@@ -15,6 +15,9 @@ import os
 import json
 import bcrypt
 from dotenv import load_dotenv
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # Supabase client
 try:
@@ -110,7 +113,11 @@ load_dotenv()
 
 JWT_SECRET = os.getenv("JWT_SECRET", "bFeUjfAZnOEKWdeOfxSRTEM/67DJMrttpW55WpBOIiK65vMNQMtBRatDy4PSoC3w9bJj7WmbArp5g/KVDaIrnw==")
 JWT_ALGORITHM = "HS256"
+JWT_EXPIRATION = int(os.getenv("JWT_EXPIRATION", "86400"))  # 24 heures par défaut
 security = HTTPBearer()
+
+# Rate Limiter Configuration
+limiter = Limiter(key_func=get_remote_address, default_limits=["100/minute"])
 
 # ============================================
 # APPLICATION SETUP
@@ -185,6 +192,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Rate Limiter
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # ============================================
 # ROUTERS
 # ============================================
@@ -210,6 +221,15 @@ if PLATFORM_SETTINGS_ENDPOINTS_AVAILABLE:
 else:
     print("⚠️ Platform settings endpoints not available")
 
+# Monter le router d'authentification avancée
+try:
+    from auth_advanced_endpoints import router as auth_advanced_router
+    app.include_router(auth_advanced_router)
+    print("✅ Advanced auth endpoints mounted at /api/auth")
+except ImportError as e:
+    print(f"⚠️ Advanced auth endpoints not available: {e}")
+    print("💡 Install missing dependencies: pip install pyotp qrcode Pillow")
+
 # ============================================
 # AUTHENTICATION
 # ============================================
@@ -219,14 +239,47 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
         token = credentials.credentials
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        
+        # Vérification manuelle de l'expiration (doublon de sécurité)
+        if "exp" in payload:
+            exp_timestamp = payload["exp"]
+            if datetime.utcnow().timestamp() > exp_timestamp:
+                raise HTTPException(status_code=401, detail="Token expiré")
+        
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expiré")
-    except Exception:
+    except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Token invalide")
+    except Exception as e:
+        raise HTTPException(status_code=401, detail=f"Erreur d'authentification: {str(e)}")
 
-def hash_password(password: str) -> str:
+def create_token(user_id: str, email: str, role: str) -> str:
+    """Créer un token JWT avec expiration"""
+    payload = {
+        "user_id": user_id,
+        "email": email,
+        "role": role,
+        "exp": datetime.utcnow() + timedelta(seconds=JWT_EXPIRATION),
+        "iat": datetime.utcnow()
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+def validate_password_strength(password: str) -> None:
+    """Valider la force du mot de passe"""
+    if len(password) < 8:
+        raise ValueError("Le mot de passe doit contenir au moins 8 caractères")
+    if not any(c.isupper() for c in password):
+        raise ValueError("Le mot de passe doit contenir au moins une majuscule")
+    if not any(c.islower() for c in password):
+        raise ValueError("Le mot de passe doit contenir au moins une minuscule")
+    if not any(c.isdigit() for c in password):
+        raise ValueError("Le mot de passe doit contenir au moins un chiffre")
+
+def hash_password(password: str, skip_validation: bool = False) -> str:
     """Hasher un mot de passe"""
+    if not skip_validation:
+        validate_password_strength(password)
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 def verify_password(password: str, hashed: str) -> bool:
@@ -240,16 +293,16 @@ def verify_password(password: str, hashed: str) -> bool:
 class User(BaseModel):
     id: Optional[str] = None
     email: EmailStr
-    username: str
-    role: str = "user"
-    subscription_plan: str = "free"
+    username: constr(min_length=3, max_length=50)
+    role: str = Field(default="user", pattern="^(user|influencer|merchant|admin)$")
+    subscription_plan: str = Field(default="free", pattern="^(free|starter|pro|enterprise)$")
     created_at: Optional[datetime] = None
 
 class UserCreate(BaseModel):
     email: EmailStr
-    username: str
-    password: str
-    role: str = "user"
+    username: constr(min_length=3, max_length=50)
+    password: constr(min_length=8, max_length=128)
+    role: str = Field(default="user", pattern="^(user|influencer|merchant|admin)$")
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -258,39 +311,39 @@ class UserLogin(BaseModel):
 class AffiliateLink(BaseModel):
     id: Optional[str] = None
     user_id: str
-    product_url: str
-    custom_slug: Optional[str] = None
-    commission_rate: float = 10.0
-    status: str = "active"
+    product_url: str = Field(..., min_length=10, max_length=2048)
+    custom_slug: Optional[constr(min_length=3, max_length=100)] = None
+    commission_rate: confloat(ge=0.0, le=100.0) = 10.0
+    status: str = Field(default="active", pattern="^(active|inactive|suspended)$")
     created_at: Optional[datetime] = None
 
 class Product(BaseModel):
     id: Optional[str] = None
-    name: str
-    description: str
-    price: float
-    category: str
-    image_url: Optional[str] = None
+    name: constr(min_length=3, max_length=200)
+    description: constr(min_length=10, max_length=5000)
+    price: confloat(ge=0.01)
+    category: constr(min_length=2, max_length=100)
+    image_url: Optional[str] = Field(None, max_length=2048)
     merchant_id: str
-    commission_rate: float = 10.0
+    commission_rate: confloat(ge=0.0, le=100.0) = 10.0
 
 class Campaign(BaseModel):
     id: Optional[str] = None
-    name: str
-    description: str
+    name: constr(min_length=3, max_length=200)
+    description: constr(min_length=10, max_length=5000)
     start_date: datetime
     end_date: datetime
-    budget: float
+    budget: confloat(ge=0.0)
     target_audience: Dict[str, Any]
-    status: str = "draft"
+    status: str = Field(default="draft", pattern="^(draft|active|paused|completed|cancelled)$")
 
 class ProductReview(BaseModel):
-    rating: int = Field(..., ge=1, le=5)
-    title: Optional[str] = None
-    comment: str = Field(..., min_length=10)
+    rating: conint(ge=1, le=5)
+    title: Optional[constr(max_length=200)] = None
+    comment: constr(min_length=10, max_length=2000)
 
 class AffiliationRequest(BaseModel):
-    message: Optional[str] = None
+    message: Optional[constr(max_length=1000)] = None
 
 # ============================================
 # MOCK DATA
@@ -303,7 +356,7 @@ MOCK_USERS = {
         "username": "admin",
         "role": "admin",
         "subscription_plan": "enterprise",
-        "password_hash": hash_password("admin123"),
+        "password_hash": hash_password("Admin123", skip_validation=True),
         "created_at": datetime.now().isoformat(),
         "profile": {
             "first_name": "Mohammed",
@@ -318,7 +371,7 @@ MOCK_USERS = {
         "username": "sarah_influencer",
         "role": "influencer",
         "subscription_plan": "pro",
-        "password_hash": hash_password("password123"),
+        "password_hash": hash_password("Password123", skip_validation=True),
         "created_at": datetime.now().isoformat(),
         "profile": {
             "first_name": "Sarah",
@@ -344,7 +397,7 @@ MOCK_USERS = {
         "username": "boutique_maroc",
         "role": "merchant",
         "subscription_plan": "starter",
-        "password_hash": hash_password("merchant123"),
+        "password_hash": hash_password("Merchant123", skip_validation=True),
         "created_at": datetime.now().isoformat(),
         "profile": {
             "first_name": "Youssef",
@@ -361,7 +414,7 @@ MOCK_USERS = {
         "username": "amina_beauty",
         "role": "influencer", 
         "subscription_plan": "pro",
-        "password_hash": hash_password("amina123"),
+        "password_hash": hash_password("Amina123", skip_validation=True),
         "created_at": datetime.now().isoformat(),
         "profile": {
             "first_name": "Amina",
@@ -388,7 +441,7 @@ MOCK_USERS = {
         "username": "sofia_commercial",
         "role": "commercial",
         "subscription_plan": "enterprise",
-        "password_hash": hash_password("sofia123"),
+        "password_hash": hash_password("Sofia123", skip_validation=True),
         "created_at": datetime.now().isoformat(),
         "profile": {
             "first_name": "Sofia",
@@ -410,7 +463,7 @@ MOCK_USERS = {
         "username": "luxury_crafts",
         "role": "merchant",
         "subscription_plan": "pro", 
-        "password_hash": hash_password("luxury123"),
+        "password_hash": hash_password("Luxury123", skip_validation=True),
         "created_at": datetime.now().isoformat(),
         "profile": {
             "first_name": "Rachid",
@@ -427,7 +480,7 @@ MOCK_USERS = {
         "username": "chef_hassan",
         "role": "influencer",
         "subscription_plan": "starter",
-        "password_hash": hash_password("hassan123"),
+        "password_hash": hash_password("Hassan123", skip_validation=True),
         "created_at": datetime.now().isoformat(),
         "profile": {
             "first_name": "Hassan",
@@ -454,7 +507,7 @@ MOCK_USERS = {
         "username": "omar_commercial",
         "role": "commercial",
         "subscription_plan": "enterprise",
-        "password_hash": hash_password("omar123"),
+        "password_hash": hash_password("Omar123", skip_validation=True),
         "created_at": datetime.now().isoformat(),
         "profile": {
             "first_name": "Omar",
@@ -794,7 +847,8 @@ async def health_check():
 # ============================================
 
 @app.post("/api/auth/register")
-async def register(user_data: UserCreate):
+@limiter.limit("5/minute")
+async def register(request: Request, user_data: UserCreate):
     """Inscription d'un nouvel utilisateur"""
     # Vérifier si l'email existe déjà
     for user in MOCK_USERS.values():
@@ -826,15 +880,8 @@ async def register(user_data: UserCreate):
         except Exception as e:
             print(f"Email sending failed: {e}")
     
-    # Générer token JWT
-    token_data = {
-        "sub": user_id,
-        "email": user_data.email,
-        "role": user_data.role,
-        "exp": datetime.utcnow() + timedelta(hours=24)
-    }
-    
-    access_token = jwt.encode(token_data, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    # Générer token JWT avec fonction dédiée
+    access_token = create_token(user_id, user_data.email, user_data.role)
     
     return {
         "message": "Inscription réussie",
@@ -850,7 +897,8 @@ async def register(user_data: UserCreate):
     }
 
 @app.post("/api/auth/login")
-async def login(credentials: UserLogin):
+@limiter.limit("10/minute")
+async def login(request: Request, credentials: UserLogin):
     """Connexion utilisateur"""
     # Trouver l'utilisateur par email
     user = None
@@ -866,15 +914,8 @@ async def login(credentials: UserLogin):
     if not verify_password(credentials.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect")
     
-    # Générer token JWT
-    token_data = {
-        "sub": user["id"],
-        "email": user["email"],
-        "role": user["role"],
-        "exp": datetime.utcnow() + timedelta(hours=24)
-    }
-    
-    access_token = jwt.encode(token_data, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    # Générer token JWT avec fonction dédiée
+    access_token = create_token(user["id"], user["email"], user["role"])
     
     return {
         "message": "Connexion réussie",
@@ -4271,7 +4312,7 @@ async def init_subscription_payment(payment_data: dict, payload: dict = Depends(
         return {
             "payment_id": f"PAY_{int(time.time())}",
             "session_id": f"cs_test_{int(time.time())}",
-            "stripe_public_key": "pk_test_XXXXXXXXXX",
+            "stripe_public_key": os.getenv("STRIPE_PUBLISHABLE_KEY", ""),
             "provider": "stripe",
             "amount": payment_data.get("amount", 499),
             "currency": "MAD",
