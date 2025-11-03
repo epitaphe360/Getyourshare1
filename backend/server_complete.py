@@ -39,6 +39,15 @@ except ImportError:
     EMAIL_ENABLED = False
     print("Warning: Email service not available")
 
+# Subscription limits middleware
+try:
+    from subscription_limits_middleware import SubscriptionLimits
+    SUBSCRIPTION_LIMITS_ENABLED = True
+    print("✅ Subscription limits middleware loaded")
+except ImportError as e:
+    SUBSCRIPTION_LIMITS_ENABLED = False
+    print(f"⚠️ Subscription limits not available: {e}")
+
 # Database queries helpers (real data, not mocked)
 try:
     from db_queries_real import (
@@ -521,6 +530,55 @@ MOCK_USERS = {
             "rating": 4.9,
             "reviews": 56,
             "specialties": ["Grands Comptes", "Partenariats", "Support Client"]
+        }
+    },
+    "9": {
+        "id": "9",
+        "email": "karim.influencer@gmail.com",
+        "username": "karim_tech",
+        "role": "influencer",
+        "subscription_plan": "enterprise",
+        "password_hash": hash_password("Karim123", skip_validation=True),
+        "created_at": datetime.now().isoformat(),
+        "profile": {
+            "first_name": "Karim",
+            "last_name": "Benjelloun",
+            "phone": "+212688999000",
+            "city": "Casablanca",
+            "instagram": "@karim_tech_maroc",
+            "youtube": "Karim Tech Reviews",
+            "tiktok": "@karimtech",
+            "followers_count": 285000,
+            "engagement_rate": 7.5,
+            "niche": "Tech & Gaming",
+            "rating": 4.9,
+            "reviews": 128,
+            "campaigns_completed": 96,
+            "min_rate": 1500,
+            "categories": ["Technologie", "Gaming", "Innovation", "Gadgets"],
+            "trending": True,
+            "tiktok_followers": 320000,
+            "verified": True
+        }
+    },
+    "10": {
+        "id": "10",
+        "email": "premium.shop@electromaroc.ma",
+        "username": "electro_maroc",
+        "role": "merchant",
+        "subscription_plan": "enterprise",
+        "password_hash": hash_password("Electro123", skip_validation=True),
+        "created_at": datetime.now().isoformat(),
+        "profile": {
+            "first_name": "Mehdi",
+            "last_name": "Tounsi",
+            "phone": "+212699111222",
+            "city": "Casablanca",
+            "company": "ElectroMaroc Premium",
+            "business_type": "Électronique & High-Tech",
+            "annual_revenue": 2500000,
+            "employee_count": 45,
+            "verified_seller": True
         }
     }
 }
@@ -1096,9 +1154,10 @@ async def get_categories():
 @app.post("/api/products")
 async def create_new_product(
     product_data: dict,
-    payload: dict = Depends(verify_token)
+    payload: dict = Depends(verify_token),
+    _: bool = Depends(SubscriptionLimits.check_product_limit()) if SUBSCRIPTION_LIMITS_ENABLED else None
 ):
-    """Créer un nouveau produit (INSERTION RÉELLE dans DB)"""
+    """Créer un nouveau produit (INSERTION RÉELLE dans DB) - VÉRIFIE LES LIMITES D'ABONNEMENT"""
     user_id = payload.get("id")
     user_role = payload.get("role")
     
@@ -1852,9 +1911,10 @@ async def get_affiliate_links(payload: dict = Depends(verify_token)):
 async def create_affiliate_link(
     product_id: str,
     custom_slug: Optional[str] = None,
-    payload: dict = Depends(verify_token)
+    payload: dict = Depends(verify_token),
+    _: bool = Depends(SubscriptionLimits.check_link_limit()) if SUBSCRIPTION_LIMITS_ENABLED else None
 ):
-    """Créer un nouveau lien d'affiliation"""
+    """Créer un nouveau lien d'affiliation - VÉRIFIE LES LIMITES D'ABONNEMENT"""
     user_id = payload.get("sub")
     
     # Vérifier que le produit existe
@@ -5792,8 +5852,12 @@ async def submit_contact_form(form_data: dict):
     return {"message": "Message envoyé avec succès", "ticket_id": f"ticket_{datetime.now().timestamp()}"}
 
 @app.post("/api/campaigns")
-async def create_campaign_post(campaign_data: dict, payload: dict = Depends(verify_token)):
-    """Créer campagne (POST)"""
+async def create_campaign_post(
+    campaign_data: dict,
+    payload: dict = Depends(verify_token),
+    _: bool = Depends(SubscriptionLimits.check_campaign_limit()) if SUBSCRIPTION_LIMITS_ENABLED else None
+):
+    """Créer campagne (POST) - VÉRIFIE LES LIMITES D'ABONNEMENT"""
     return {"message": "Campagne créée", "campaign_id": f"camp_{datetime.now().timestamp()}", "title": campaign_data.get("title")}
 
 # ============================================================================
@@ -6078,6 +6142,96 @@ async def update_user_password_endpoint(
         "success": True,
         "message": "Mot de passe mis à jour avec succès"
     }
+
+
+# ============================================================================
+# SUBSCRIPTION LIMITS & USAGE ENDPOINTS
+# ============================================================================
+
+@app.get("/api/subscription/limits")
+async def get_subscription_limits(payload: dict = Depends(verify_token)):
+    """Obtenir les limites et l'usage actuel de l'abonnement"""
+    if not SUBSCRIPTION_LIMITS_ENABLED:
+        return {
+            "error": "Subscription limits not enabled",
+            "limits": {},
+            "usage": {},
+            "plan": payload.get("subscription_plan", "unknown")
+        }
+    
+    try:
+        from subscription_helpers_simple import get_user_subscription_data
+        
+        user_id = payload.get("id")
+        user_role = payload.get("role")
+        
+        subscription_data = await get_user_subscription_data(user_id, user_role)
+        
+        if not subscription_data:
+            return {
+                "error": "No subscription data found",
+                "limits": {},
+                "usage": {},
+                "plan": payload.get("subscription_plan", "unknown")
+            }
+        
+        return {
+            "success": True,
+            "plan_name": subscription_data.get("plan_name"),
+            "plan_code": subscription_data.get("plan_code"),
+            "limits": subscription_data.get("limits", {}),
+            "usage": subscription_data.get("usage", {}),
+            "features": subscription_data.get("features", []),
+            "percentage_used": {
+                "products": round((subscription_data.get("usage", {}).get("products", 0) / subscription_data.get("limits", {}).get("products", 1)) * 100) if subscription_data.get("limits", {}).get("products") else 0,
+                "campaigns": round((subscription_data.get("usage", {}).get("campaigns", 0) / subscription_data.get("limits", {}).get("campaigns", 1)) * 100) if subscription_data.get("limits", {}).get("campaigns") else 0,
+            }
+        }
+    except Exception as e:
+        print(f"❌ Error getting subscription limits: {e}")
+        return {
+            "error": str(e),
+            "limits": {},
+            "usage": {},
+            "plan": payload.get("subscription_plan", "unknown")
+        }
+
+
+@app.get("/api/subscription/features")
+async def get_subscription_features(payload: dict = Depends(verify_token)):
+    """Obtenir les fonctionnalités disponibles pour l'abonnement actuel"""
+    if not SUBSCRIPTION_LIMITS_ENABLED:
+        return {"features": [], "error": "Subscription limits not enabled"}
+    
+    try:
+        features = await SubscriptionLimits.get_plan_features(payload)
+        return {
+            "success": True,
+            "features": features,
+            "plan": payload.get("subscription_plan", "unknown")
+        }
+    except Exception as e:
+        print(f"❌ Error getting features: {e}")
+        return {"features": [], "error": str(e)}
+
+
+@app.get("/api/subscription/check-feature/{feature_name}")
+async def check_feature_access(feature_name: str, payload: dict = Depends(verify_token)):
+    """Vérifier si l'utilisateur a accès à une fonctionnalité spécifique"""
+    if not SUBSCRIPTION_LIMITS_ENABLED:
+        return {"has_access": True, "error": "Subscription limits not enabled"}
+    
+    try:
+        has_access = await SubscriptionLimits.has_feature(feature_name, payload)
+        return {
+            "success": True,
+            "feature": feature_name,
+            "has_access": has_access,
+            "plan": payload.get("subscription_plan", "unknown")
+        }
+    except Exception as e:
+        print(f"❌ Error checking feature: {e}")
+        return {"has_access": False, "error": str(e)}
 
 
 if __name__ == "__main__":

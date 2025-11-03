@@ -12,7 +12,7 @@ import MobilePaymentWidget from '../../components/payments/MobilePaymentWidget';
 import {
   DollarSign, MousePointer, ShoppingCart, TrendingUp,
   Eye, Target, Award, Link as LinkIcon, Sparkles, RefreshCw, X, Send, BarChart3, Wallet,
-  MessageSquare, Handshake, CheckCircle
+  MessageSquare, Users, CheckCircle
 } from 'lucide-react';
 import CollaborationResponseModal from '../../components/modals/CollaborationResponseModal';
 import {
@@ -353,7 +353,7 @@ const InfluencerDashboard = () => {
         {collaborationRequests && collaborationRequests.length > 0 && (
           <Card 
             title={`Demandes de Collaboration (${collaborationRequests.filter(r => r.status === 'pending').length})`} 
-            icon={<Handshake size={20} className="text-purple-600" />}
+            icon={<Users size={20} className="text-purple-600" />}
           >
             <div className="space-y-3">
               {collaborationRequests.map(request => (

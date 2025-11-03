@@ -205,69 +205,190 @@ const Login = () => {
                       <div className="w-full border-t border-gray-300"></div>
                     </div>
                     <div className="relative flex justify-center text-sm">
-                      <span className="px-2 bg-white text-gray-500">Connexion rapide (démo)</span>
+                      <span className="px-2 bg-white text-gray-500">🚀 Comptes de Test par Abonnement</span>
                     </div>
                   </div>
 
-                    <div className="mt-6 space-y-3">
+                  {/* Admin */}
+                  <div className="mt-6">
+                    <button
+                      onClick={() => quickLogin('admin@shareyoursales.ma', 'Admin123')}
+                      disabled={loading}
+                      className="w-full flex items-center justify-between px-4 py-3 border-2 border-purple-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition disabled:opacity-50"
+                    >
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                          <Shield className="w-5 h-5 text-purple-600" />
+                        </div>
+                        <div className="ml-3 text-left">
+                          <p className="text-sm font-semibold text-gray-900">Admin</p>
+                          <p className="text-xs text-purple-600">Enterprise - Accès Total</p>
+                        </div>
+                      </div>
+                      <span className="text-xs text-purple-600 font-medium">→</span>
+                    </button>
+                  </div>
+
+                  {/* Influenceurs par abonnement */}
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold text-gray-700 mb-2 flex items-center">
+                      <Sparkles className="w-4 h-4 mr-1 text-pink-600" />
+                      Influenceurs (3 types d'abonnement)
+                    </p>
+                    <div className="space-y-2">
+                      {/* Influenceur STARTER */}
                       <button
-                        onClick={() => quickLogin('admin@shareyoursales.ma', 'admin123')}
+                        onClick={() => quickLogin('foodinfluencer@gmail.com', 'Hassan123')}
+                        disabled={loading}
+                        className="w-full flex items-center justify-between px-4 py-3 border-2 border-green-200 rounded-lg hover:border-green-400 hover:bg-green-50 transition disabled:opacity-50"
+                      >
+                        <div className="flex items-center flex-1">
+                          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                            <Sparkles className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div className="ml-3 text-left">
+                            <p className="text-sm font-semibold text-gray-900">Hassan Oudrhiri</p>
+                            <p className="text-xs text-gray-500">67K followers • Food & Cuisine</p>
+                          </div>
+                        </div>
+                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">STARTER</span>
+                      </button>
+
+                      {/* Influenceur PRO */}
+                      <button
+                        onClick={() => quickLogin('influencer@example.com', 'Password123')}
+                        disabled={loading}
+                        className="w-full flex items-center justify-between px-4 py-3 border-2 border-yellow-200 rounded-lg hover:border-yellow-400 hover:bg-yellow-50 transition disabled:opacity-50"
+                      >
+                        <div className="flex items-center flex-1">
+                          <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                            <Sparkles className="w-5 h-5 text-yellow-600" />
+                          </div>
+                          <div className="ml-3 text-left">
+                            <p className="text-sm font-semibold text-gray-900">Sarah Benali</p>
+                            <p className="text-xs text-gray-500">125K followers • Lifestyle</p>
+                          </div>
+                        </div>
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded">PRO</span>
+                      </button>
+
+                      {/* Influenceur ENTERPRISE */}
+                      <button
+                        onClick={() => quickLogin('karim.influencer@gmail.com', 'Karim123')}
                         disabled={loading}
                         className="w-full flex items-center justify-between px-4 py-3 border-2 border-purple-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition disabled:opacity-50"
                       >
-                        <div className="flex items-center">
+                        <div className="flex items-center flex-1">
                           <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                            <Shield className="w-5 h-5 text-purple-600" />
+                            <Sparkles className="w-5 h-5 text-purple-600" />
                           </div>
                           <div className="ml-3 text-left">
-                            <p className="text-sm font-semibold text-gray-900">Admin</p>
-                            <p className="text-xs text-gray-500">admin@shareyoursales.ma</p>
+                            <p className="text-sm font-semibold text-gray-900">Karim Benjelloun ⭐</p>
+                            <p className="text-xs text-gray-500">285K followers • Tech & Gaming</p>
                           </div>
                         </div>
-                        <span className="text-xs text-purple-600 font-medium">Connexion →</span>
-                      </button>
-
-                      <button
-                        onClick={() => quickLogin('merchant@example.com', 'merchant123')}
-                        disabled={loading}
-                        className="w-full flex items-center justify-between px-4 py-3 border-2 border-blue-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition disabled:opacity-50"
-                      >
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                            <Sparkles className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div className="ml-3 text-left">
-                            <p className="text-sm font-semibold text-gray-900">Merchant</p>
-                            <p className="text-xs text-gray-500">merchant@example.com</p>
-                          </div>
-                        </div>
-                        <span className="text-xs text-blue-600 font-medium">Connexion →</span>
-                      </button>
-
-                      <button
-                        onClick={() => quickLogin('influencer@example.com', 'password123')}
-                        disabled={loading}
-                        className="w-full flex items-center justify-between px-4 py-3 border-2 border-pink-200 rounded-lg hover:border-pink-400 hover:bg-pink-50 transition disabled:opacity-50"
-                      >
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center">
-                            <Sparkles className="w-5 h-5 text-pink-600" />
-                          </div>
-                          <div className="ml-3 text-left">
-                            <p className="text-sm font-semibold text-gray-900">Influenceur</p>
-                            <p className="text-xs text-gray-500">influencer@example.com</p>
-                          </div>
-                        </div>
-                        <span className="text-xs text-pink-600 font-medium">Connexion →</span>
+                        <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded">ENTERPRISE</span>
                       </button>
                     </div>
                   </div>
 
-                  <div className="mt-6 p-4 bg-indigo-50 rounded-lg">
-                    <p className="text-xs text-gray-700 font-semibold mb-2">💡 Autres comptes de test :</p>
+                  {/* Marchands par abonnement */}
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold text-gray-700 mb-2 flex items-center">
+                      <Sparkles className="w-4 h-4 mr-1 text-blue-600" />
+                      Marchands (3 types d'abonnement)
+                    </p>
+                    <div className="space-y-2">
+                      {/* Marchand STARTER */}
+                      <button
+                        onClick={() => quickLogin('merchant@example.com', 'Merchant123')}
+                        disabled={loading}
+                        className="w-full flex items-center justify-between px-4 py-3 border-2 border-green-200 rounded-lg hover:border-green-400 hover:bg-green-50 transition disabled:opacity-50"
+                      >
+                        <div className="flex items-center flex-1">
+                          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                            <Sparkles className="w-5 h-5 text-green-600" />
+                          </div>
+                          <div className="ml-3 text-left">
+                            <p className="text-sm font-semibold text-gray-900">Boutique Maroc</p>
+                            <p className="text-xs text-gray-500">Artisanat traditionnel</p>
+                          </div>
+                        </div>
+                        <span className="px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded">STARTER</span>
+                      </button>
+
+                      {/* Marchand PRO */}
+                      <button
+                        onClick={() => quickLogin('merchant2@artisanmaroc.ma', 'Luxury123')}
+                        disabled={loading}
+                        className="w-full flex items-center justify-between px-4 py-3 border-2 border-yellow-200 rounded-lg hover:border-yellow-400 hover:bg-yellow-50 transition disabled:opacity-50"
+                      >
+                        <div className="flex items-center flex-1">
+                          <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                            <Sparkles className="w-5 h-5 text-yellow-600" />
+                          </div>
+                          <div className="ml-3 text-left">
+                            <p className="text-sm font-semibold text-gray-900">Luxury Crafts</p>
+                            <p className="text-xs text-gray-500">Artisanat Premium</p>
+                          </div>
+                        </div>
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded">PRO</span>
+                      </button>
+
+                      {/* Marchand ENTERPRISE */}
+                      <button
+                        onClick={() => quickLogin('premium.shop@electromaroc.ma', 'Electro123')}
+                        disabled={loading}
+                        className="w-full flex items-center justify-between px-4 py-3 border-2 border-purple-200 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition disabled:opacity-50"
+                      >
+                        <div className="flex items-center flex-1">
+                          <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                            <Sparkles className="w-5 h-5 text-purple-600" />
+                          </div>
+                          <div className="ml-3 text-left">
+                            <p className="text-sm font-semibold text-gray-900">ElectroMaroc ⭐</p>
+                            <p className="text-xs text-gray-500">Électronique & High-Tech</p>
+                          </div>
+                        </div>
+                        <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded">ENTERPRISE</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Commercial */}
+                  <div className="mt-4">
+                    <p className="text-xs font-semibold text-gray-700 mb-2 flex items-center">
+                      <Sparkles className="w-4 h-4 mr-1 text-indigo-600" />
+                      Commercial
+                    </p>
+                    <button
+                      onClick={() => quickLogin('commerciale@shareyoursales.ma', 'Sofia123')}
+                      disabled={loading}
+                      className="w-full flex items-center justify-between px-4 py-3 border-2 border-indigo-200 rounded-lg hover:border-indigo-400 hover:bg-indigo-50 transition disabled:opacity-50"
+                    >
+                      <div className="flex items-center flex-1">
+                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                          <Sparkles className="w-5 h-5 text-indigo-600" />
+                        </div>
+                        <div className="ml-3 text-left">
+                          <p className="text-sm font-semibold text-gray-900">Sofia Chakir</p>
+                          <p className="text-xs text-gray-500">Business Development</p>
+                        </div>
+                      </div>
+                      <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs font-medium rounded">ENTERPRISE</span>
+                    </button>
+                  </div>
+                  </div>
+
+                  <div className="mt-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border border-indigo-200">
+                    <p className="text-xs text-gray-700 font-semibold mb-2 flex items-center">
+                      <Shield className="w-4 h-4 mr-1 text-indigo-600" />
+                      Légende des Abonnements
+                    </p>
                     <div className="space-y-1 text-xs text-gray-600">
-                      <p><strong>Merchant 2:</strong> hello@beautypro.com / merchant123</p>
-                      <p><strong>Influenceur 2:</strong> lucas.tech@youtube.com / influencer123</p>
+                      <p><span className="px-2 py-0.5 bg-green-100 text-green-800 rounded font-medium">STARTER</span> - Fonctionnalités de base</p>
+                      <p><span className="px-2 py-0.5 bg-yellow-100 text-yellow-800 rounded font-medium">PRO</span> - Accès complet + Analytics</p>
+                      <p><span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded font-medium">ENTERPRISE</span> - Tout illimité + Support prioritaire</p>
                       <p><strong>Influenceur 3:</strong> julie.beauty@tiktok.com / influencer123</p>
                       <p className="text-indigo-600 mt-2"><strong>Code 2FA:</strong> 123456</p>
                     </div>
