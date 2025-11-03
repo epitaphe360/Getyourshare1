@@ -299,6 +299,311 @@ const HomePage = () => {
         </Container>
       </Box>
 
+      {/* Quick Login Demo Section */}
+      <Container maxWidth="lg" sx={{ mt: 6, mb: 8 }}>
+        <Paper 
+          elevation={8}
+          sx={{ 
+            p: 4,
+            borderRadius: 4,
+            background: `linear-gradient(135deg, ${alpha('#f093fb', 0.05)} 0%, ${alpha('#f5576c', 0.05)} 100%)`,
+            border: `2px solid ${alpha('#f093fb', 0.2)}`
+          }}
+        >
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Typography 
+              variant="h4" 
+              fontWeight="800" 
+              gutterBottom
+              sx={{ 
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent'
+              }}
+            >
+              🚀 Connexion Rapide (Démo)
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Testez la plateforme avec des comptes de démonstration
+            </Typography>
+          </Box>
+
+          <Grid container spacing={3}>
+            {/* Admin Account */}
+            <Grid item xs={12} md={4}>
+              <Paper
+                elevation={3}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  height: '100%',
+                  background: `linear-gradient(135deg, ${alpha('#667eea', 0.1)} 0%, ${alpha('#764ba2', 0.1)} 100%)`,
+                  border: `2px solid ${alpha('#667eea', 0.3)}`,
+                  transition: 'all 0.3s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 6
+                  }
+                }}
+              >
+                <Box sx={{ textAlign: 'center', mb: 2 }}>
+                  <Avatar 
+                    sx={{ 
+                      width: 60, 
+                      height: 60, 
+                      mx: 'auto', 
+                      mb: 2,
+                      bgcolor: '#667eea',
+                      fontSize: '1.5rem'
+                    }}
+                  >
+                    <Security />
+                  </Avatar>
+                  <Typography variant="h6" fontWeight="700" color="#667eea">
+                    Admin
+                  </Typography>
+                  <Chip 
+                    label="Accès Complet" 
+                    size="small" 
+                    sx={{ 
+                      mt: 1,
+                      bgcolor: alpha('#667eea', 0.2),
+                      color: '#667eea',
+                      fontWeight: 600
+                    }}
+                  />
+                </Box>
+                <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, p: 2, mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Email
+                  </Typography>
+                  <Typography variant="body1" fontWeight="600" sx={{ fontSize: '0.9rem' }}>
+                    admin@shareyoursales.ma
+                  </Typography>
+                </Box>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  endIcon={<ArrowForward />}
+                  onClick={() => navigate('/login')}
+                  sx={{
+                    bgcolor: '#667eea',
+                    py: 1.5,
+                    fontWeight: 600,
+                    '&:hover': {
+                      bgcolor: '#5568d3'
+                    }
+                  }}
+                >
+                  Connexion
+                </Button>
+              </Paper>
+            </Grid>
+
+            {/* Merchant Account */}
+            <Grid item xs={12} md={4}>
+              <Paper
+                elevation={3}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  height: '100%',
+                  background: `linear-gradient(135deg, ${alpha('#4facfe', 0.1)} 0%, ${alpha('#00f2fe', 0.1)} 100%)`,
+                  border: `2px solid ${alpha('#4facfe', 0.3)}`,
+                  transition: 'all 0.3s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 6
+                  }
+                }}
+              >
+                <Box sx={{ textAlign: 'center', mb: 2 }}>
+                  <Avatar 
+                    sx={{ 
+                      width: 60, 
+                      height: 60, 
+                      mx: 'auto', 
+                      mb: 2,
+                      bgcolor: '#4facfe',
+                      fontSize: '1.5rem'
+                    }}
+                  >
+                    <ShoppingBag />
+                  </Avatar>
+                  <Typography variant="h6" fontWeight="700" color="#4facfe">
+                    Merchant
+                  </Typography>
+                  <Chip 
+                    label="Vendeur Pro" 
+                    size="small" 
+                    sx={{ 
+                      mt: 1,
+                      bgcolor: alpha('#4facfe', 0.2),
+                      color: '#4facfe',
+                      fontWeight: 600
+                    }}
+                  />
+                </Box>
+                <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, p: 2, mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Email
+                  </Typography>
+                  <Typography variant="body1" fontWeight="600" sx={{ fontSize: '0.9rem' }}>
+                    merchant@example.com
+                  </Typography>
+                </Box>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  endIcon={<ArrowForward />}
+                  onClick={() => navigate('/login')}
+                  sx={{
+                    bgcolor: '#4facfe',
+                    py: 1.5,
+                    fontWeight: 600,
+                    '&:hover': {
+                      bgcolor: '#3a9be5'
+                    }
+                  }}
+                >
+                  Connexion
+                </Button>
+              </Paper>
+            </Grid>
+
+            {/* Influencer Account */}
+            <Grid item xs={12} md={4}>
+              <Paper
+                elevation={3}
+                sx={{
+                  p: 3,
+                  borderRadius: 3,
+                  height: '100%',
+                  background: `linear-gradient(135deg, ${alpha('#f093fb', 0.1)} 0%, ${alpha('#f5576c', 0.1)} 100%)`,
+                  border: `2px solid ${alpha('#f093fb', 0.3)}`,
+                  transition: 'all 0.3s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 6
+                  }
+                }}
+              >
+                <Box sx={{ textAlign: 'center', mb: 2 }}>
+                  <Avatar 
+                    sx={{ 
+                      width: 60, 
+                      height: 60, 
+                      mx: 'auto', 
+                      mb: 2,
+                      bgcolor: '#f093fb',
+                      fontSize: '1.5rem'
+                    }}
+                  >
+                    <Campaign />
+                  </Avatar>
+                  <Typography variant="h6" fontWeight="700" color="#f093fb">
+                    Influenceur
+                  </Typography>
+                  <Chip 
+                    label="Créateur" 
+                    size="small" 
+                    sx={{ 
+                      mt: 1,
+                      bgcolor: alpha('#f093fb', 0.2),
+                      color: '#f093fb',
+                      fontWeight: 600
+                    }}
+                  />
+                </Box>
+                <Box sx={{ bgcolor: 'background.paper', borderRadius: 2, p: 2, mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" gutterBottom>
+                    Email
+                  </Typography>
+                  <Typography variant="body1" fontWeight="600" sx={{ fontSize: '0.9rem' }}>
+                    influencer@example.com
+                  </Typography>
+                </Box>
+                <Button
+                  fullWidth
+                  variant="contained"
+                  endIcon={<ArrowForward />}
+                  onClick={() => navigate('/login')}
+                  sx={{
+                    bgcolor: '#f093fb',
+                    py: 1.5,
+                    fontWeight: 600,
+                    '&:hover': {
+                      bgcolor: '#e082ea'
+                    }
+                  }}
+                >
+                  Connexion
+                </Button>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          {/* Additional Test Accounts */}
+          <Divider sx={{ my: 4 }} />
+          
+          <Box sx={{ bgcolor: alpha('#667eea', 0.05), borderRadius: 3, p: 3 }}>
+            <Typography variant="h6" fontWeight="700" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              💡 Autres comptes de test
+            </Typography>
+            
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12} md={4}>
+                <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2 }}>
+                  <Typography variant="subtitle2" color="primary" fontWeight="700" gutterBottom>
+                    Merchant 2
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    hello@beautypro.com
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Mot de passe: <strong>merchant123</strong>
+                  </Typography>
+                </Paper>
+              </Grid>
+              
+              <Grid item xs={12} md={4}>
+                <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2 }}>
+                  <Typography variant="subtitle2" color="primary" fontWeight="700" gutterBottom>
+                    Influenceur 2
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    lucas.tech@youtube.com
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Mot de passe: <strong>influencer123</strong>
+                  </Typography>
+                </Paper>
+              </Grid>
+              
+              <Grid item xs={12} md={4}>
+                <Paper sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2 }}>
+                  <Typography variant="subtitle2" color="primary" fontWeight="700" gutterBottom>
+                    Influenceur 3
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    julie.beauty@tiktok.com
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Mot de passe: <strong>influencer123</strong>
+                  </Typography>
+                </Paper>
+              </Grid>
+            </Grid>
+
+            <Box sx={{ mt: 3, p: 2, bgcolor: alpha('#43e97b', 0.1), borderRadius: 2, border: `1px solid ${alpha('#43e97b', 0.3)}` }}>
+              <Typography variant="body2" fontWeight="600" color="#2c9a5f" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Verified /> Code 2FA pour tous les comptes: <strong>123456</strong>
+              </Typography>
+            </Box>
+          </Box>
+        </Paper>
+      </Container>
+
       {/* Stats Section - Floating Cards */}
       <Container maxWidth="lg" sx={{ mt: { xs: 4, md: -8 }, position: 'relative', zIndex: 2 }}>
         <Grid container spacing={3}>
