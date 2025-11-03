@@ -188,13 +188,13 @@ function App() {
           {/* Product Detail - Public (accessible sans connexion) */}
           <Route path="/marketplace/product/:productId" element={<ProductDetail />} />
           
-          {/* Contact Page (Public) */}
-          <Route path="/contact" element={<Contact />} />
+          {/* Contact Page (Public avec menu) */}
+          <Route path="/contact" element={<Layout><Contact /></Layout>} />
 
-          {/* Legal Pages (Public) */}
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/about" element={<About />} />
+          {/* Legal Pages (Public avec menu) */}
+          <Route path="/privacy" element={<Layout><Privacy /></Layout>} />
+          <Route path="/terms" element={<Layout><Terms /></Layout>} />
+          <Route path="/about" element={<Layout><About /></Layout>} />
 
           {/* Protected Routes */}
           <Route
