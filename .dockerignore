@@ -3,65 +3,36 @@
 .gitignore
 .github
 
-# Python
+# Environnements virtuels Python
 __pycache__
-*.py[cod]
-*$py.class
-*.so
-.Python
+*.pyc
 env/
 venv/
-ENV/
 .venv
 
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-*.cover
-
-# IDE
+# IDE & Fichiers système
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
 .DS_Store
+Thumbs.db
 
-# Documentation
-*.md
-!README.md
-docs/
-
-# Development
+# Fichiers de développement local
 .env
-.env.local
-.env.development
-docker-compose*.yml
-Dockerfile.dev
+.env.*
+!/.env.example
+!/.env.railway
 
 # Logs
 *.log
 logs/
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
+# Rapports de test et de couverture
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
 
-# Temporary files
-tmp/
-temp/
+# Fichiers temporaires
 *.tmp
-
-# Frontend (if separate build)
-frontend/node_modules/
-frontend/dist/
-frontend/build/
-frontend/.next/
-
-# Other
-uploads/*
-!uploads/.gitkeep
-.emergent/
+temp/
+tmp/

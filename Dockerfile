@@ -1,12 +1,14 @@
 # ============================================
 # GetYourShare - Production Dockerfile
 # Optimized for Railway deployment
-# Solution: Copy ALL, then work from backend subfolder
 # ============================================
 
 FROM python:3.11-slim
 
-# Install system dependencies
+# Set the working directory inside the container
+WORKDIR /app
+
+# Install system dependencies required for Python packages
 RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
@@ -15,35 +17,33 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy backend requirements first to leverage Docker layer caching
-COPY backend/requirements.txt /tmp/requirements.txt
+# Copy the entire repository into the /app directory
+COPY . .
 
-# Install Python dependencies early so later COPY changes don't invalidate the layer
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r /tmp/requirements.txt
-
-# Copy EVERYTHING from repo to /app
-COPY . /app
-
-# Set working directory to backend subfolder
+# Now, set the working directory to the backend subfolder
 WORKDIR /app/backend
 
-# Create necessary directories
+# Install Python dependencies from requirements.txt located in the backend folder
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Create necessary directories if they don't exist
 RUN mkdir -p uploads logs invoices
 
-# Set environment variables
+# Set environment variables for the container
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8000
 
-# Health check
+# Health check to ensure the application is running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:${PORT}/health || exit 1
 
-# Expose port (Railway will override with $PORT)
+# Expose the port. Railway will automatically map this.
 EXPOSE 8000
 
-# Start command from /app/backend directory
+# The command to run the application
+# This is executed from the /app/backend directory
 CMD ["sh", "-c", "uvicorn server_complete:app --host 0.0.0.0 --port ${PORT:-8000}"]
 
 
