@@ -1,4 +1,4 @@
-# Root Dockerfile for Railway - Monorepo setup
+# Root Dockerfile for Railway - Monorepo setup - Force rebuild
 FROM python:3.11-slim
 
 # Copy the entire project
