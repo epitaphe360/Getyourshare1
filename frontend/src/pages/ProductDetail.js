@@ -8,7 +8,7 @@ import {
   Star, MapPin, Clock, Tag, Share2, Heart,
   Sparkles, ChevronLeft, ChevronRight,
   Check, X, Calendar, Users, Award, Phone,
-  Mail, Globe, AlertCircle, ThumbsUp, ThumbsDown
+  Mail, Globe, AlertCircle, ThumbsUp, ThumbsDown, Briefcase
 } from 'lucide-react';
 
 /**
@@ -27,6 +27,7 @@ const ProductDetail = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [showAffiliateModal, setShowAffiliateModal] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
   const [affiliateData, setAffiliateData] = useState({
     selectedProduct: '',
     message: ''
@@ -86,6 +87,28 @@ const ProductDetail = () => {
     }
   };
 
+  const fetchUserProfile = async () => {
+    if (!user) return;
+    
+    try {
+      let endpoint = '';
+      if (user.role === 'influencer') {
+        endpoint = '/api/influencers/profile';
+      } else if (user.role === 'commercial') {
+        endpoint = '/api/commercials/profile';
+      }
+      
+      if (endpoint) {
+        const response = await api.get(endpoint);
+        if (response.data.success) {
+          setUserProfile(response.data.profile || response.data.commercial);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching user profile:', error);
+    }
+  };
+
   const handleRequestAffiliation = async () => {
     // Vérifier si l'utilisateur est connecté
     if (!user) {
@@ -103,6 +126,9 @@ const ProductDetail = () => {
       toast.warning('Vous devez être un influenceur ou commercial pour demander une affiliation');
       return;
     }
+
+    // Charger le profil de l'utilisateur
+    await fetchUserProfile();
 
     // Ouvrir la modale
     setShowAffiliateModal(true);
@@ -743,17 +769,19 @@ const ProductDetail = () => {
       {/* Affiliate Request Modal */}
       {showAffiliateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
-            {/* Header */}
-            <div className="sticky top-0 bg-gradient-to-r from-green-500 to-emerald-600 text-white p-6 rounded-t-2xl">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+            {/* Header - Dynamique selon le rôle */}
+            <div className={`sticky top-0 ${user?.role === 'influencer' ? 'bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-600' : 'bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600'} text-white p-6 rounded-t-2xl`}>
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold flex items-center">
                     <Sparkles className="w-6 h-6 mr-2" />
-                    Demander un Lien d'Affiliation
+                    {user?.role === 'influencer' ? 'Devenir Partenaire Influenceur' : 'Devenir Partenaire Commercial'}
                   </h2>
-                  <p className="text-green-50 text-sm mt-1">
-                    Rejoignez notre programme d'affiliation et commencez à gagner des commissions
+                  <p className="text-white/90 text-sm mt-1">
+                    {user?.role === 'influencer' 
+                      ? 'Monétisez votre audience en promouvant des produits de qualité'
+                      : 'Développez votre réseau et gagnez des commissions'}
                   </p>
                 </div>
                 <button
@@ -767,6 +795,96 @@ const ProductDetail = () => {
 
             {/* Content */}
             <div className="p-6">
+              {/* Profil automatiquement détecté */}
+              {userProfile && (
+                <div className={`mb-6 p-6 rounded-2xl border-2 ${user?.role === 'influencer' ? 'bg-gradient-to-br from-pink-50 to-purple-50 border-pink-200' : 'bg-gradient-to-br from-blue-50 to-cyan-50 border-blue-200'}`}>
+                  <h3 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Votre Profil
+                  </h3>
+                  
+                  {user?.role === 'influencer' ? (
+                    // Profil Influenceur
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl text-center">
+                        <div className="text-2xl font-black bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                          {userProfile.followers_count ? (userProfile.followers_count / 1000).toFixed(1) : 0}K
+                        </div>
+                        <div className="text-xs text-gray-600 font-semibold mt-1">Followers</div>
+                      </div>
+                      <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl text-center">
+                        <div className="text-2xl font-black bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                          {userProfile.engagement_rate || 0}%
+                        </div>
+                        <div className="text-xs text-gray-600 font-semibold mt-1">Engagement</div>
+                      </div>
+                      <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl text-center">
+                        <div className="text-2xl font-black bg-gradient-to-r from-indigo-600 to-blue-600 bg-clip-text text-transparent">
+                          {userProfile.campaigns_completed || 0}
+                        </div>
+                        <div className="text-xs text-gray-600 font-semibold mt-1">Campagnes</div>
+                      </div>
+                      <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl text-center">
+                        <div className="text-2xl font-black bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                          {userProfile.rating || 4.5}⭐
+                        </div>
+                        <div className="text-xs text-gray-600 font-semibold mt-1">Note</div>
+                      </div>
+                    </div>
+                  ) : (
+                    // Profil Commercial
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl text-center">
+                        <div className="text-2xl font-black bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
+                          {userProfile.total_sales || 0}
+                        </div>
+                        <div className="text-xs text-gray-600 font-semibold mt-1">Ventes</div>
+                      </div>
+                      <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl text-center">
+                        <div className="text-2xl font-black bg-gradient-to-r from-cyan-600 to-teal-600 bg-clip-text text-transparent">
+                          {userProfile.commission_earned || 0}
+                        </div>
+                        <div className="text-xs text-gray-600 font-semibold mt-1">DH Gagnés</div>
+                      </div>
+                      <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl text-center">
+                        <div className="text-2xl font-black bg-gradient-to-r from-teal-600 to-green-600 bg-clip-text text-transparent">
+                          {userProfile.territory || 'National'}
+                        </div>
+                        <div className="text-xs text-gray-600 font-semibold mt-1">Territoire</div>
+                      </div>
+                      <div className="bg-white/80 backdrop-blur-sm p-4 rounded-xl text-center">
+                        <div className="text-2xl font-black bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                          {userProfile.rating || 4.5}⭐
+                        </div>
+                        <div className="text-xs text-gray-600 font-semibold mt-1">Note</div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Informations supplémentaires */}
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex items-center gap-2 text-sm">
+                        <MapPin className="w-4 h-4 text-gray-500" />
+                        <span className="font-semibold">{userProfile.city || 'Maroc'}</span>
+                      </div>
+                      {user?.role === 'influencer' && userProfile.niche && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Tag className="w-4 h-4 text-gray-500" />
+                          <span className="font-semibold">{userProfile.niche}</span>
+                        </div>
+                      )}
+                      {user?.role === 'commercial' && userProfile.department && (
+                        <div className="flex items-center gap-2 text-sm">
+                          <Briefcase className="w-4 h-4 text-gray-500" />
+                          <span className="font-semibold">{userProfile.department}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* How it works */}
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
                 <h3 className="font-semibold text-blue-900 mb-3 flex items-center">
@@ -774,8 +892,8 @@ const ProductDetail = () => {
                   Comment ça fonctionne ?
                 </h3>
                 <p className="text-blue-800 text-sm leading-relaxed">
-                  Sélectionnez un produit et présentez-vous au marchand. Si votre demande est approuvée, 
-                  un lien de tracking sera automatiquement créé pour vous.
+                  Votre profil a été automatiquement récupéré. Le marchand verra vos statistiques et pourra approuver votre demande. 
+                  Un lien de tracking unique sera créé pour vous.
                 </p>
               </div>
 
@@ -784,7 +902,7 @@ const ProductDetail = () => {
                 {/* Product Selection */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">
-                    Sélectionnez un produit <span className="text-red-500">*</span>
+                    Produit sélectionné <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <input
@@ -798,30 +916,29 @@ const ProductDetail = () => {
                       <Check className="w-5 h-5 text-green-600" />
                     </div>
                   </div>
-                  {!product && (
-                    <p className="text-sm text-gray-500 mt-2">
-                      Aucun produit disponible. Visitez le Marketplace pour découvrir les produits.
-                    </p>
-                  )}
                 </div>
 
                 {/* Message to Merchant */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-900 mb-2">
-                    Message au marchand <span className="text-red-500">*</span>
+                    Message de motivation <span className="text-red-500">*</span>
                   </label>
                   <textarea
                     value={affiliateData.message}
                     onChange={(e) => setAffiliateData({ ...affiliateData, message: e.target.value })}
-                    rows="6"
+                    rows="5"
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 transition resize-none"
-                    placeholder="Présentez-vous et expliquez pourquoi vous souhaitez promouvoir ce produit...&#10;Incluez vos réseaux sociaux, nombre de followers, niche, etc."
+                    placeholder={user?.role === 'influencer' 
+                      ? "Expliquez comment vous allez promouvoir ce produit auprès de votre audience...\nExemple: Stories Instagram, vidéos TikTok, posts sponsorisés..."
+                      : "Expliquez votre stratégie commerciale pour ce produit...\nExemple: Réseau de clients, zone géographique, expérience secteur..."}
                     required
                   />
                   <div className="flex items-start mt-2 text-xs text-gray-500">
                     <AlertCircle className="w-4 h-4 mr-1 mt-0.5 flex-shrink-0" />
                     <p>
-                      Incluez vos réseaux sociaux, nombre de followers, niche, etc.
+                      {user?.role === 'influencer' 
+                        ? 'Décrivez votre stratégie de contenu et plateformes que vous utiliserez'
+                        : 'Présentez votre expérience et votre réseau commercial'}
                     </p>
                   </div>
                 </div>
@@ -833,7 +950,7 @@ const ProductDetail = () => {
                       <img
                         src={product.image_url || '/logo.jpg'}
                         alt={product.name}
-                        className="w-20 h-20 object-cover rounded-lg"
+                        className="w-20 h-20 object-cover rounded-lg shadow-md"
                         onError={(e) => {
                           e.target.src = '/logo.png';
                         }}
@@ -850,7 +967,7 @@ const ProductDetail = () => {
                           </div>
                           {product.price && (
                             <span className="text-sm font-bold text-gray-900">
-                              {product.price.toFixed(2)} MAD
+                              {product.price} DH
                             </span>
                           )}
                         </div>
@@ -867,10 +984,12 @@ const ProductDetail = () => {
                     </div>
                     <div className="ml-3">
                       <h4 className="font-semibold text-yellow-900 mb-1">
-                        Gagnez {product?.commission_rate || 15}% de commission
+                        💰 Commission de {product?.commission_rate || 15}%
                       </h4>
                       <p className="text-sm text-yellow-800">
-                        Pour chaque vente générée via votre lien d'affiliation, vous recevez une commission de {product?.commission_rate || 15}%.
+                        {user?.role === 'influencer' 
+                          ? `Pour chaque vente générée via votre lien d'affiliation, vous recevez ${product?.commission_rate || 15}% du montant.`
+                          : `Commission de ${product?.commission_rate || 15}% sur chaque vente réalisée dans votre zone.`}
                       </p>
                     </div>
                   </div>
