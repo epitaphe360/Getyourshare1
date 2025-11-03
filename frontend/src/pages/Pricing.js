@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, X, Zap, TrendingUp, Users, Shield, Sparkles, ArrowRight } from 'lucide-react';
 import axios from 'axios';
+import Layout from '../components/layout/Layout';
 import '../pages/MarketplaceAnimations.css';
 
-const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8000';
+const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 
 // Plans par défaut si l'API échoue
 const DEFAULT_PLANS = {
@@ -122,44 +123,19 @@ const Pricing = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-cyan-500 to-teal-500">
-        <div className="text-2xl font-bold text-white animate-pulse">Chargement des plans...</div>
-      </div>
+      <Layout>
+        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-cyan-500 to-teal-500">
+          <div className="text-2xl font-bold text-white animate-pulse">Chargement des plans...</div>
+        </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      {/* Navigation */}
-      <nav className="bg-white/90 backdrop-blur-lg shadow-lg sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-2">
-              <Sparkles className="h-8 w-8 text-cyan-600 animate-pulse" />
-              <span className="text-2xl font-black bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 bg-clip-text text-transparent">
-                GetYourShare
-              </span>
-            </div>
-            <div className="flex items-center space-x-4">
-              <Link to="/" className="text-gray-700 hover:text-cyan-600 transition font-semibold">
-                Accueil
-              </Link>
-              <Link to="/login" className="text-gray-700 hover:text-cyan-600 transition font-semibold">
-                Connexion
-              </Link>
-              <Link
-                to="/register"
-                className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-2.5 rounded-xl hover:from-blue-700 hover:to-cyan-700 transition font-bold shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                S'inscrire
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      {/* Hero Section - Ultra Dynamique */}
-      <div className="relative bg-gradient-to-br from-blue-600 via-cyan-500 to-teal-500 text-white overflow-hidden">
+    <Layout>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+        {/* Hero Section - Ultra Dynamique */}
+        <div className="relative bg-gradient-to-br from-blue-600 via-cyan-500 to-teal-500 text-white overflow-hidden">
         {/* Animations de fond */}
         <div className="absolute inset-0">
           {/* Particules */}
@@ -499,7 +475,8 @@ const Pricing = () => {
           </p>
         </div>
       </footer>
-    </div>
+      </div>
+    </Layout>
   );
 };
 
