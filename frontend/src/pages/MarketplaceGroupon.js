@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import Layout from '../components/layout/Layout';
+import './MarketplaceAnimations.css';
 import {
   Search, MapPin, Star, TrendingUp, Users, 
   ShoppingBag, Briefcase, Instagram, ChevronRight
@@ -77,70 +78,91 @@ const MarketplaceGroupon = () => {
   // Contenu principal du marketplace
   const marketplaceContent = (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      {/* Hero Section - Ultra Moderne */}
-      <div className="relative bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white overflow-hidden">
-        {/* Motif de fond animé */}
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-3xl animate-pulse"></div>
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl animate-pulse animation-delay-2000"></div>
+      {/* Hero Section - Ultra Moderne & Dynamique */}
+      <div className="relative bg-gradient-to-br from-blue-600 via-cyan-500 to-teal-500 text-white overflow-hidden">
+        {/* Motif de fond ultra-animé */}
+        <div className="absolute inset-0">
+          {/* Particules flottantes */}
+          <div className="absolute w-3 h-3 bg-white/60 rounded-full top-[10%] left-[15%] animate-float"></div>
+          <div className="absolute w-2 h-2 bg-white/40 rounded-full top-[70%] left-[85%] animate-float-delayed"></div>
+          <div className="absolute w-4 h-4 bg-white/50 rounded-full top-[85%] left-[20%] animate-float-slow"></div>
+          <div className="absolute w-2 h-2 bg-white/60 rounded-full top-[25%] left-[75%] animate-float"></div>
+          <div className="absolute w-3 h-3 bg-white/30 rounded-full top-[45%] left-[40%] animate-float-delayed"></div>
+          <div className="absolute w-2 h-2 bg-white/50 rounded-full top-[60%] left-[60%] animate-float-slow"></div>
+          
+          {/* Cercles de gradient animés avec blob effect */}
+          <div className="absolute w-[600px] h-[600px] bg-gradient-to-br from-cyan-400/30 to-blue-600/30 rounded-full blur-3xl -top-64 -left-64 animate-blob"></div>
+          <div className="absolute w-[500px] h-[500px] bg-gradient-to-br from-teal-400/30 to-cyan-600/30 rounded-full blur-3xl -bottom-48 -right-48 animate-blob animation-delay-2000"></div>
+          <div className="absolute w-[400px] h-[400px] bg-gradient-to-br from-blue-400/20 to-teal-600/20 rounded-full blur-2xl top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-blob animation-delay-4000"></div>
+          
+          {/* Cercles tournants */}
+          <div className="absolute top-10 right-10 w-20 h-20 border-2 border-white/20 rounded-full animate-rotate-slow"></div>
+          <div className="absolute bottom-20 left-20 w-32 h-32 border-2 border-white/10 rounded-full animate-rotate-slow"></div>
+          
+          {/* Vagues animées */}
+          <div className="absolute inset-0 opacity-10">
+            <svg className="absolute bottom-0 w-full h-56 animate-wave" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+              <path fill="white" fillOpacity="0.4" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+            </svg>
+          </div>
         </div>
         
         <div className="relative max-w-7xl mx-auto px-4 py-16 sm:py-20">
           <div className="text-center">
-            <div className="inline-block mb-4 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full">
-              <span className="text-sm font-semibold">🎉 Nouvelle Marketplace - 100% Maroc</span>
+            <div className="inline-block mb-4 px-5 py-2.5 bg-white/25 backdrop-blur-md rounded-full animate-pulse-glow border border-white/30">
+              <span className="text-sm font-bold">🚀 Nouvelle Marketplace - 100% Maroc</span>
             </div>
-            <h1 className="text-5xl sm:text-6xl font-extrabold mb-6 leading-tight">
+            <h1 className="text-5xl sm:text-7xl font-black mb-6 leading-tight">
               Gagnez de l'argent en <br />
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 to-orange-300">
+              <span className="inline-block bg-gradient-to-r from-yellow-300 via-orange-300 to-yellow-400 bg-clip-text text-transparent animate-gradient">
                 partageant ce que vous aimez
               </span>
             </h1>
-            <p className="text-xl sm:text-2xl mb-4 opacity-95 max-w-3xl mx-auto">
+            <p className="text-xl sm:text-2xl mb-4 font-semibold opacity-95 max-w-3xl mx-auto">
               Des milliers de produits et services à promouvoir
             </p>
-            <p className="text-lg mb-10 opacity-80 max-w-2xl mx-auto">
+            <p className="text-lg mb-10 opacity-90 max-w-2xl mx-auto">
               Inscrivez-vous gratuitement et commencez à générer des revenus aujourd'hui 💸
             </p>
             
-            {/* Statistiques */}
+            {/* Statistiques avec animation */}
             <div className="flex flex-wrap justify-center gap-8 mb-10">
-              <div className="text-center">
-                <div className="text-4xl font-bold">500+</div>
-                <div className="text-sm opacity-80">Produits</div>
+              <div className="text-center hover-lift bg-white/10 backdrop-blur-sm px-6 py-4 rounded-2xl border border-white/20">
+                <div className="text-5xl font-black bg-gradient-to-br from-yellow-300 to-orange-400 bg-clip-text text-transparent">500+</div>
+                <div className="text-sm font-semibold opacity-90 mt-1">Produits</div>
               </div>
-              <div className="text-center">
-                <div className="text-4xl font-bold">15%</div>
-                <div className="text-sm opacity-80">Commission Moyenne</div>
+              <div className="text-center hover-lift bg-white/10 backdrop-blur-sm px-6 py-4 rounded-2xl border border-white/20">
+                <div className="text-5xl font-black bg-gradient-to-br from-green-300 to-emerald-400 bg-clip-text text-transparent">15%</div>
+                <div className="text-sm font-semibold opacity-90 mt-1">Commission Moyenne</div>
               </div>
-              <div className="text-center">
-                <div className="text-4xl font-bold">1000+</div>
-                <div className="text-sm opacity-80">Influenceurs Actifs</div>
+              <div className="text-center hover-lift bg-white/10 backdrop-blur-sm px-6 py-4 rounded-2xl border border-white/20">
+                <div className="text-5xl font-black bg-gradient-to-br from-pink-300 to-rose-400 bg-clip-text text-transparent">1000+</div>
+                <div className="text-sm font-semibold opacity-90 mt-1">Influenceurs Actifs</div>
               </div>
             </div>
             
-            {/* Barre de recherche améliorée */}
+            {/* Barre de recherche ultra-moderne */}
             <div className="flex flex-col sm:flex-row gap-3 max-w-3xl mx-auto">
               <div className="flex-1 relative group">
-                <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-purple-600 transition" size={22} />
+                <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-cyan-600 transition-all duration-300" size={24} />
                 <input
                   type="text"
                   placeholder="Rechercher des produits, services, marques..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-14 pr-5 py-5 rounded-2xl text-gray-900 text-lg focus:outline-none focus:ring-4 focus:ring-purple-300 shadow-xl"
+                  className="w-full pl-14 pr-5 py-5 rounded-2xl text-gray-900 text-lg font-medium focus:outline-none focus:ring-4 focus:ring-cyan-300 shadow-2xl hover-lift"
                 />
               </div>
-              <button className="px-10 py-5 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-2xl font-bold hover:shadow-2xl hover:scale-105 transition-all">
-                Rechercher
+              <button className="px-10 py-5 bg-gradient-to-r from-yellow-400 via-orange-500 to-pink-500 text-white rounded-2xl font-bold hover:shadow-2xl hover:scale-105 transition-all duration-300 animate-gradient">
+                🔍 Rechercher
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs - Design Moderne */}
-      <div className="bg-white/80 backdrop-blur-lg border-b sticky top-0 z-20 shadow-md">
+      {/* Navigation Tabs - Design Moderne & Dynamique */}
+      <div className="bg-white/90 backdrop-blur-xl border-b sticky top-0 z-20 shadow-lg">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex gap-2 overflow-x-auto">
             {tabs.map((tab) => {
@@ -149,17 +171,17 @@ const MarketplaceGroupon = () => {
                 <button
                   key={tab.id}
                   onClick={() => setCurrentTab(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-4 font-semibold transition-all whitespace-nowrap ${
+                  className={`flex items-center gap-2 px-6 py-4 font-bold transition-all duration-300 whitespace-nowrap ${
                     currentTab === tab.id
-                      ? 'border-b-4 border-purple-600 text-purple-600 bg-purple-50'
+                      ? 'border-b-4 border-cyan-600 text-cyan-600 bg-gradient-to-br from-blue-50 to-cyan-50'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
-                  <Icon size={22} />
+                  <Icon size={22} className={currentTab === tab.id ? 'animate-pulse' : ''} />
                   {tab.name}
                   {currentTab === tab.id && (
-                    <span className={`ml-1 px-2 py-0.5 ${tab.color} text-white text-xs rounded-full`}>
-                      Nouveau
+                    <span className="ml-1 px-2.5 py-1 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs rounded-full font-bold shadow-md">
+                      Actif
                     </span>
                   )}
                 </button>
@@ -187,26 +209,26 @@ const MarketplaceGroupon = () => {
             {currentTab === 0 && (
               <>
                 <div className="mb-10">
-                  <h2 className="text-4xl font-bold bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 bg-clip-text text-transparent mb-3">
+                  <h2 className="text-4xl font-black bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 bg-clip-text text-transparent mb-3 animate-gradient">
                     Produits en Vedette ✨
                   </h2>
-                  <p className="text-gray-600 text-lg">Découvrez les meilleures offres avec commission attractive</p>
+                  <p className="text-gray-600 text-lg font-medium">Découvrez les meilleures offres avec commission attractive</p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {products.map((product) => (
                   <div
                     key={product.id}
-                    className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer group transform hover:-translate-y-2 border border-gray-100"
+                    className="bg-white rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 cursor-pointer group hover-lift border border-gray-100"
                     onClick={() => handleViewDetails(product, 'product')}
                   >
-                    <div className="relative h-52 overflow-hidden bg-gradient-to-br from-purple-50 via-pink-50 to-red-50">
+                    <div className="relative h-52 overflow-hidden bg-gradient-to-br from-blue-50 via-cyan-50 to-teal-50">
                       <img
                         src={product.image_url || `https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=300&fit=crop&q=80`}
                         alt={product.name}
-                        className="w-full h-full object-cover group-hover:scale-125 group-hover:rotate-2 transition-all duration-700"
+                        className="w-full h-full object-cover group-hover:scale-125 group-hover:rotate-3 transition-all duration-700"
                         onError={(e) => {
                           e.target.onerror = null;
-                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23a855f7" width="400" height="300"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="24" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EProduit%3C/text%3E%3C/svg%3E';
+                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%230891b2" width="400" height="300"/%3E%3Ctext fill="%23ffffff" font-family="Arial" font-size="24" x="50%25" y="50%25" text-anchor="middle" dominant-baseline="middle"%3EProduit%3C/text%3E%3C/svg%3E';
                         }}
                       />
                       {product.discount && (
@@ -220,13 +242,13 @@ const MarketplaceGroupon = () => {
                           {product.rating || 4.5}
                         </span>
                       </div>
-                      <div className="absolute bottom-3 left-3 bg-purple-600/90 backdrop-blur-sm text-white px-3 py-1 rounded-xl flex items-center gap-1.5 z-10 text-xs font-semibold">
+                      <div className="absolute bottom-3 left-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-3 py-1.5 rounded-xl flex items-center gap-1.5 z-10 text-xs font-semibold shadow-lg">
                         <MapPin size={12} />
                         {product.city || 'Maroc'}
                       </div>
                     </div>
                     <div className="p-5">
-                      <h3 className="font-bold text-lg mb-2 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-600 group-hover:to-pink-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-2 min-h-[56px]">
+                      <h3 className="font-bold text-lg mb-2 group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-blue-600 group-hover:to-cyan-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-2 min-h-[56px]">
                         {product.name}
                       </h3>
                       <p className="text-gray-600 text-sm mb-4 line-clamp-2 min-h-[40px]">
@@ -236,25 +258,25 @@ const MarketplaceGroupon = () => {
                       {/* Prix et Commission */}
                       <div className="mb-4">
                         <div className="flex items-baseline gap-2 mb-3">
-                          <span className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                          <span className="text-3xl font-black bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
                             {product.price}
                           </span>
-                          <span className="text-gray-600 font-semibold">DH</span>
+                          <span className="text-gray-600 font-bold">DH</span>
                         </div>
-                        <div className="bg-gradient-to-r from-purple-50 via-pink-50 to-red-50 px-4 py-3 rounded-xl border-2 border-purple-100 shadow-inner">
+                        <div className="bg-gradient-to-r from-blue-50 via-cyan-50 to-teal-50 px-4 py-3 rounded-xl border-2 border-blue-100 shadow-inner">
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 animate-pulse"></div>
-                              <span className="text-xs font-bold text-purple-700 uppercase tracking-wide">Commission</span>
+                              <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-cyan-500 animate-pulse"></div>
+                              <span className="text-xs font-bold text-blue-700 uppercase tracking-wide">Commission</span>
                             </div>
-                            <span className="text-2xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                            <span className="text-2xl font-black bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
                               {product.commission_rate || 15}%
                             </span>
                           </div>
                         </div>
                       </div>
                       
-                      <button className="w-full py-3.5 bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white rounded-xl font-bold hover:from-purple-700 hover:via-pink-700 hover:to-red-700 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-2xl transform hover:scale-105">
+                      <button className="w-full py-3.5 bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 text-white rounded-xl font-bold hover:from-blue-700 hover:via-cyan-700 hover:to-teal-700 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg hover:shadow-2xl transform hover:scale-105 animate-gradient">
                         <span>Voir détails</span>
                         <ChevronRight size={18} className="group-hover:translate-x-1 transition-transform" />
                       </button>
