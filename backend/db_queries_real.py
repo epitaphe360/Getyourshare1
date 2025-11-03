@@ -901,3 +901,287 @@ async def get_merchant_performance(user_id: str) -> Dict[str, Any]:
             "monthly_goal_progress": 0
         }
 
+
+# ============================================
+# SALES - GET ALL
+# ============================================
+
+async def get_all_sales(
+    user_id: str,
+    user_role: str,
+    status: str = None,
+    limit: int = 50,
+    offset: int = 0
+) -> Dict[str, Any]:
+    """
+    Récupérer les ventes d'un utilisateur (merchant ou influencer)
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        query = supabase.table("sales").select("*, products(name), trackable_links(unique_code)")
+        
+        # Filtrer selon le rôle
+        if user_role == "merchant":
+            # Récupérer le merchant_id
+            merchant_response = supabase.table("merchants") \
+                .select("id") \
+                .eq("user_id", user_id) \
+                .single() \
+                .execute()
+            merchant_id = merchant_response.data["id"]
+            query = query.eq("merchant_id", merchant_id)
+        
+        elif user_role == "influencer":
+            # Récupérer l'influencer_id
+            influencer_response = supabase.table("influencers") \
+                .select("id") \
+                .eq("user_id", user_id) \
+                .single() \
+                .execute()
+            influencer_id = influencer_response.data["id"]
+            query = query.eq("influencer_id", influencer_id)
+        
+        # Filtrer par statut
+        if status:
+            query = query.eq("status", status)
+        
+        # Pagination et tri
+        query = query.order("sale_timestamp", desc=True).range(offset, offset + limit - 1)
+        
+        sales_response = query.execute()
+        
+        # Formater les ventes
+        sales = []
+        for sale in sales_response.data:
+            product_data = sale.get("products", {})
+            link_data = sale.get("trackable_links", {})
+            
+            sales.append({
+                "id": sale["id"],
+                "product_name": product_data.get("name", ""),
+                "tracking_code": link_data.get("unique_code", ""),
+                "amount": float(sale.get("amount", 0)),
+                "influencer_commission": float(sale.get("influencer_commission", 0)),
+                "platform_commission": float(sale.get("platform_commission", 0)),
+                "merchant_revenue": float(sale.get("merchant_revenue", 0)),
+                "status": sale.get("status", "pending"),
+                "payment_status": sale.get("payment_status", "pending"),
+                "sale_timestamp": sale.get("sale_timestamp"),
+                "created_at": sale.get("created_at")
+            })
+        
+        # Compter le total
+        count_query = supabase.table("sales").select("id", count="exact")
+        if user_role == "merchant":
+            count_query = count_query.eq("merchant_id", merchant_id)
+        elif user_role == "influencer":
+            count_query = count_query.eq("influencer_id", influencer_id)
+        if status:
+            count_query = count_query.eq("status", status)
+        
+        count_response = count_query.execute()
+        total = count_response.count if count_response.count else 0
+        
+        return {
+            "sales": sales,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur get_all_sales: {str(e)}")
+        return {
+            "sales": [],
+            "total": 0,
+            "limit": limit,
+            "offset": offset
+        }
+
+
+# ============================================
+# NOTIFICATIONS - GET ALL
+# ============================================
+
+async def get_user_notifications(
+    user_id: str,
+    unread_only: bool = False
+) -> Dict[str, Any]:
+    """
+    Récupérer les notifications d'un utilisateur
+    Note: Table notifications peut ne pas exister, retourne données basiques
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Vérifier si la table notifications existe
+        query = supabase.table("notifications").select("*").eq("user_id", user_id)
+        
+        if unread_only:
+            query = query.eq("read", False)
+        
+        query = query.order("created_at", desc=True).limit(50)
+        
+        notifications_response = query.execute()
+        
+        notifications = []
+        for notif in notifications_response.data:
+            notifications.append({
+                "id": notif["id"],
+                "type": notif.get("type", "info"),
+                "title": notif.get("title", ""),
+                "message": notif.get("message", ""),
+                "read": notif.get("read", False),
+                "timestamp": notif.get("created_at"),
+                "action_url": notif.get("action_url", "")
+            })
+        
+        unread_count = len([n for n in notifications if not n["read"]])
+        
+        return {
+            "notifications": notifications,
+            "unread_count": unread_count
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur get_user_notifications (table peut ne pas exister): {str(e)}")
+        # Retourner notifications système par défaut
+        return {
+            "notifications": [
+                {
+                    "id": "sys_1",
+                    "type": "system",
+                    "title": "Bienvenue sur TrackNow",
+                    "message": "Votre compte a été créé avec succès!",
+                    "read": False,
+                    "timestamp": datetime.now().isoformat(),
+                    "action_url": "/dashboard"
+                }
+            ],
+            "unread_count": 1
+        }
+
+
+# ============================================
+# TOP PRODUCTS ANALYTICS
+# ============================================
+
+async def get_top_products(
+    merchant_id: str = None,
+    limit: int = 10
+) -> List[Dict[str, Any]]:
+    """
+    Récupérer les produits les plus performants
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        query = supabase.table("products").select("*")
+        
+        if merchant_id:
+            query = query.eq("merchant_id", merchant_id)
+        
+        # Trier par total_sales décroissant
+        query = query.order("total_sales", desc=True).limit(limit)
+        
+        products_response = query.execute()
+        
+        products = []
+        for product in products_response.data:
+            products.append({
+                "id": product["id"],
+                "name": product["name"],
+                "category": product.get("category", ""),
+                "price": float(product.get("price", 0)),
+                "total_sales": product.get("total_sales", 0),
+                "total_revenue": float(product.get("price", 0)) * product.get("total_sales", 0),
+                "total_clicks": product.get("total_clicks", 0),
+                "conversion_rate": (product.get("total_sales", 0) / product.get("total_clicks", 1) * 100) if product.get("total_clicks", 0) > 0 else 0
+            })
+        
+        return products
+    
+    except Exception as e:
+        print(f"❌ Erreur get_top_products: {str(e)}")
+        return []
+
+
+# ============================================
+# CONVERSION FUNNEL ANALYTICS
+# ============================================
+
+async def get_conversion_funnel(user_id: str, user_role: str) -> Dict[str, Any]:
+    """
+    Récupérer les données du tunnel de conversion
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        if user_role == "merchant":
+            # Récupérer le merchant_id
+            merchant_response = supabase.table("merchants") \
+                .select("id") \
+                .eq("user_id", user_id) \
+                .single() \
+                .execute()
+            merchant_id = merchant_response.data["id"]
+            
+            # Stats des produits
+            products_response = supabase.table("products") \
+                .select("total_views, total_clicks, total_sales") \
+                .eq("merchant_id", merchant_id) \
+                .execute()
+            
+            total_views = sum(p.get("total_views", 0) for p in products_response.data)
+            total_clicks = sum(p.get("total_clicks", 0) for p in products_response.data)
+            total_sales = sum(p.get("total_sales", 0) for p in products_response.data)
+            
+        elif user_role == "influencer":
+            # Récupérer l'influencer_id
+            influencer_response = supabase.table("influencers") \
+                .select("id, total_clicks, total_conversions") \
+                .eq("user_id", user_id) \
+                .single() \
+                .execute()
+            
+            total_clicks = influencer_response.data.get("total_clicks", 0)
+            total_sales = influencer_response.data.get("total_conversions", 0)
+            
+            # Estimer les views (3x les clicks)
+            total_views = total_clicks * 3
+        
+        else:
+            total_views = 0
+            total_clicks = 0
+            total_sales = 0
+        
+        # Calculer les taux de conversion
+        click_rate = (total_clicks / total_views * 100) if total_views > 0 else 0
+        conversion_rate = (total_sales / total_clicks * 100) if total_clicks > 0 else 0
+        
+        return {
+            "funnel": [
+                {"stage": "Impressions", "count": total_views, "percentage": 100},
+                {"stage": "Clics", "count": total_clicks, "percentage": round(click_rate, 1)},
+                {"stage": "Conversions", "count": total_sales, "percentage": round(conversion_rate, 1)}
+            ],
+            "totals": {
+                "views": total_views,
+                "clicks": total_clicks,
+                "sales": total_sales
+            }
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur get_conversion_funnel: {str(e)}")
+        return {
+            "funnel": [
+                {"stage": "Impressions", "count": 0, "percentage": 100},
+                {"stage": "Clics", "count": 0, "percentage": 0},
+                {"stage": "Conversions", "count": 0, "percentage": 0}
+            ],
+            "totals": {"views": 0, "clicks": 0, "sales": 0}
+        }
+
+
