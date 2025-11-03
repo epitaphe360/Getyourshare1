@@ -24,8 +24,10 @@ import {
   Settings,
   ExitToApp
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 
 const Navigation = ({ user, onLogout }) => {
+  const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
   const [userMenuAnchor, setUserMenuAnchor] = useState(null);
 
@@ -43,26 +45,24 @@ const Navigation = ({ user, onLogout }) => {
   };
 
   const navigationItems = [
-    { label: 'Fonctionnalités', icon: <Analytics />, path: '/features' },
+    { label: 'Accueil', icon: <Home />, path: '/' },
     { label: 'À Propos', icon: <People />, path: '/about' },
     { label: 'Marketplace', icon: <Store />, path: '/marketplace' },
     { label: 'Tarifs', icon: <Settings />, path: '/pricing' },
-    { label: 'Contact', icon: <Home />, path: '/contact' },
+    { label: 'Contact', icon: <Analytics />, path: '/contact' },
   ];
 
   return (
-    <AppBar position="static" sx={{ background: 'linear-gradient(45deg, #2E7D32, #388E3C)', boxShadow: 3 }}>
+    <AppBar position="static" sx={{ background: 'linear-gradient(45deg, #667eea, #764ba2)', boxShadow: 3 }}>
       <Toolbar>
         {/* Logo - Plus grand */}
-        <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 0 }}>
-          <img 
-            src="/logo.jpg" 
-            alt="Logo" 
-            style={{ height: 60, marginRight: 0, objectFit: 'contain' }}
-            onError={(e) => {
-              e.target.src = '/logo.png';
-            }}
-          />
+        <Box 
+          sx={{ display: 'flex', alignItems: 'center', flexGrow: 0, cursor: 'pointer' }}
+          onClick={() => navigate('/')}
+        >
+          <Typography variant="h5" component="div" sx={{ fontWeight: 'bold', color: 'white' }}>
+            ShareYourSales
+          </Typography>
         </Box>
 
         {/* Navigation Items - Desktop */}
@@ -71,6 +71,7 @@ const Navigation = ({ user, onLogout }) => {
             <Button
               key={item.label}
               startIcon={item.icon}
+              onClick={() => navigate(item.path)}
               sx={{ 
                 color: 'white', 
                 mx: 1,
@@ -101,7 +102,13 @@ const Navigation = ({ user, onLogout }) => {
             onClose={handleClose}
           >
             {navigationItems.map((item) => (
-              <MenuItem key={item.label} onClick={handleClose}>
+              <MenuItem 
+                key={item.label} 
+                onClick={() => {
+                  navigate(item.path);
+                  handleClose();
+                }}
+              >
                 {item.icon}
                 <Typography sx={{ ml: 2 }}>{item.label}</Typography>
               </MenuItem>
@@ -155,11 +162,17 @@ const Navigation = ({ user, onLogout }) => {
                   </Box>
                 </MenuItem>
                 <Divider />
-                <MenuItem onClick={handleClose}>
+                <MenuItem onClick={() => { 
+                  navigate('/settings'); 
+                  handleClose(); 
+                }}>
                   <Settings sx={{ mr: 2 }} />
                   Paramètres
                 </MenuItem>
-                <MenuItem onClick={handleClose}>
+                <MenuItem onClick={() => { 
+                  navigate('/dashboard'); 
+                  handleClose(); 
+                }}>
                   <Analytics sx={{ mr: 2 }} />
                   Tableau de bord
                 </MenuItem>
@@ -172,10 +185,20 @@ const Navigation = ({ user, onLogout }) => {
             </>
           ) : (
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button color="inherit" variant="outlined" size="small">
+              <Button 
+                color="inherit" 
+                variant="outlined" 
+                size="small"
+                onClick={() => navigate('/login')}
+              >
                 Connexion
               </Button>
-              <Button color="secondary" variant="contained" size="small">
+              <Button 
+                color="secondary" 
+                variant="contained" 
+                size="small"
+                onClick={() => navigate('/register')}
+              >
                 Inscription
               </Button>
             </Box>
