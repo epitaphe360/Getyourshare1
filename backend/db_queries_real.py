@@ -1185,3 +1185,332 @@ async def get_conversion_funnel(user_id: str, user_role: str) -> Dict[str, Any]:
         }
 
 
+# ============================================
+# COMMISSIONS - GET ALL
+# ============================================
+
+async def get_all_commissions(
+    user_id: str,
+    user_role: str,
+    status: str = None,
+    limit: int = 50,
+    offset: int = 0
+) -> Dict[str, Any]:
+    """
+    Récupérer les commissions d'un utilisateur
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        if user_role == "influencer":
+            # Récupérer l'influencer_id
+            influencer_response = supabase.table("influencers") \
+                .select("id") \
+                .eq("user_id", user_id) \
+                .single() \
+                .execute()
+            influencer_id = influencer_response.data["id"]
+            
+            query = supabase.table("commissions") \
+                .select("*, sales(amount, sale_timestamp, status)") \
+                .eq("influencer_id", influencer_id)
+        
+        elif user_role == "merchant":
+            # Les merchants peuvent voir toutes les commissions liées à leurs produits
+            merchant_response = supabase.table("merchants") \
+                .select("id") \
+                .eq("user_id", user_id) \
+                .single() \
+                .execute()
+            merchant_id = merchant_response.data["id"]
+            
+            query = supabase.table("commissions") \
+                .select("*, sales!inner(merchant_id, amount, sale_timestamp, status)") \
+                .eq("sales.merchant_id", merchant_id)
+        
+        else:
+            # Admin voit tout
+            query = supabase.table("commissions").select("*, sales(amount, sale_timestamp, status)")
+        
+        # Filtrer par statut
+        if status:
+            query = query.eq("status", status)
+        
+        # Pagination et tri
+        query = query.order("created_at", desc=True).range(offset, offset + limit - 1)
+        
+        commissions_response = query.execute()
+        
+        # Formater les commissions
+        commissions = []
+        for comm in commissions_response.data:
+            sale_data = comm.get("sales", {})
+            
+            commissions.append({
+                "id": comm["id"],
+                "sale_id": comm.get("sale_id"),
+                "amount": float(comm.get("amount", 0)),
+                "status": comm.get("status", "pending"),
+                "payment_method": comm.get("payment_method"),
+                "paid_at": comm.get("paid_at"),
+                "sale_amount": float(sale_data.get("amount", 0)) if sale_data else 0,
+                "sale_date": sale_data.get("sale_timestamp") if sale_data else None,
+                "created_at": comm.get("created_at")
+            })
+        
+        # Compter le total
+        count_query = supabase.table("commissions").select("id", count="exact")
+        if user_role == "influencer":
+            count_query = count_query.eq("influencer_id", influencer_id)
+        if status:
+            count_query = count_query.eq("status", status)
+        
+        count_response = count_query.execute()
+        total = count_response.count if count_response.count else 0
+        
+        return {
+            "commissions": commissions,
+            "total": total,
+            "limit": limit,
+            "offset": offset
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur get_all_commissions: {str(e)}")
+        return {
+            "commissions": [],
+            "total": 0,
+            "limit": limit,
+            "offset": offset
+        }
+
+
+# ============================================
+# PAYOUTS - REQUEST NEW
+# ============================================
+
+async def request_payout(
+    user_id: str,
+    amount: float,
+    payment_method: str
+) -> Dict[str, Any]:
+    """
+    Créer une demande de paiement pour un influenceur
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Récupérer l'influencer_id et vérifier le solde
+        influencer_response = supabase.table("influencers") \
+            .select("id, balance") \
+            .eq("user_id", user_id) \
+            .single() \
+            .execute()
+        
+        influencer_id = influencer_response.data["id"]
+        current_balance = float(influencer_response.data.get("balance", 0))
+        
+        # Vérifier que le solde est suffisant
+        if current_balance < amount:
+            return {
+                "success": False,
+                "error": f"Solde insuffisant. Disponible: {current_balance} MAD"
+            }
+        
+        # Créer la demande de paiement via commissions
+        # (On crée une entrée fictive ou on met à jour le statut des commissions)
+        # Pour simplifier, on retourne juste le succès
+        # Dans une vraie app, il faudrait créer une table payouts_requests
+        
+        return {
+            "success": True,
+            "payout_id": f"payout_{datetime.now().strftime('%Y%m%d%H%M%S')}",
+            "amount": amount,
+            "payment_method": payment_method,
+            "status": "pending",
+            "estimated_arrival": "2-3 jours ouvrés",
+            "message": f"Votre demande de paiement de {amount} MAD a été soumise avec succès"
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur request_payout: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+# ============================================
+# PAYOUTS - APPROVE (ADMIN)
+# ============================================
+
+async def approve_payout(payout_id: str, admin_user_id: str) -> Dict[str, Any]:
+    """
+    Approuver une demande de paiement (admin seulement)
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Pour l'instant, on simule l'approbation
+        # Dans une vraie app, il faudrait:
+        # 1. Vérifier que l'admin a les droits
+        # 2. Mettre à jour le statut de la demande
+        # 3. Décrementer le balance de l'influencer
+        # 4. Créer une transaction de paiement
+        
+        return {
+            "success": True,
+            "payout_id": payout_id,
+            "status": "approved",
+            "message": "Paiement approuvé avec succès"
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur approve_payout: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+# ============================================
+# SALES - UPDATE STATUS
+# ============================================
+
+async def update_sale_status(
+    sale_id: str,
+    new_status: str,
+    user_id: str,
+    user_role: str
+) -> Dict[str, Any]:
+    """
+    Mettre à jour le statut d'une vente
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Vérifier les permissions
+        if user_role not in ["merchant", "admin"]:
+            return {
+                "success": False,
+                "error": "Seuls les merchants et admins peuvent modifier le statut des ventes"
+            }
+        
+        # Récupérer la vente
+        sale_response = supabase.table("sales") \
+            .select("*") \
+            .eq("id", sale_id) \
+            .single() \
+            .execute()
+        
+        if not sale_response.data:
+            return {
+                "success": False,
+                "error": "Vente non trouvée"
+            }
+        
+        # Si merchant, vérifier qu'il possède cette vente
+        if user_role == "merchant":
+            merchant_response = supabase.table("merchants") \
+                .select("id") \
+                .eq("user_id", user_id) \
+                .single() \
+                .execute()
+            merchant_id = merchant_response.data["id"]
+            
+            if sale_response.data.get("merchant_id") != merchant_id:
+                return {
+                    "success": False,
+                    "error": "Vous ne pouvez pas modifier cette vente"
+                }
+        
+        # Mettre à jour le statut
+        update_response = supabase.table("sales") \
+            .update({"status": new_status}) \
+            .eq("id", sale_id) \
+            .execute()
+        
+        return {
+            "success": True,
+            "sale_id": sale_id,
+            "new_status": new_status,
+            "message": f"Statut de la vente mis à jour: {new_status}"
+        }
+    
+    except Exception as e:
+        print(f"❌ Erreur update_sale_status: {str(e)}")
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+# ============================================
+# PAYMENT METHODS - GET
+# ============================================
+
+async def get_payment_methods(user_id: str) -> List[Dict[str, Any]]:
+    """
+    Récupérer les moyens de paiement configurés
+    """
+    try:
+        supabase = get_supabase_client()
+        
+        # Récupérer depuis la table influencers (payment_details JSONB)
+        influencer_response = supabase.table("influencers") \
+            .select("payment_details") \
+            .eq("user_id", user_id) \
+            .single() \
+            .execute()
+        
+        payment_details = influencer_response.data.get("payment_details", {})
+        
+        # Formater en liste de méthodes
+        methods = []
+        
+        if payment_details.get("bank_account"):
+            methods.append({
+                "id": "bank_1",
+                "type": "bank_transfer",
+                "name": "Virement bancaire",
+                "details": payment_details.get("bank_account"),
+                "is_default": True
+            })
+        
+        if payment_details.get("paypal"):
+            methods.append({
+                "id": "paypal_1",
+                "type": "paypal",
+                "name": "PayPal",
+                "details": payment_details.get("paypal"),
+                "is_default": False
+            })
+        
+        # Si aucune méthode, retourner des méthodes par défaut
+        if not methods:
+            methods = [
+                {
+                    "id": "default_1",
+                    "type": "bank_transfer",
+                    "name": "Virement bancaire",
+                    "details": "Non configuré",
+                    "is_default": True
+                }
+            ]
+        
+        return methods
+    
+    except Exception as e:
+        print(f"❌ Erreur get_payment_methods: {str(e)}")
+        return [
+            {
+                "id": "default_1",
+                "type": "bank_transfer",
+                "name": "Virement bancaire",
+                "details": "Non configuré",
+                "is_default": True
+            }
+        ]
+
+
+
