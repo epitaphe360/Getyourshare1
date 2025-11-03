@@ -2473,16 +2473,6 @@ async def get_affiliate_links(payload: dict = Depends(verify_token)):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Erreur lors de la récupération des liens: {str(e)}"
         )
-            "short_code": "GHI789",
-            "clicks": 67,
-            "conversions": 5,
-            "commission_earned": 225.0,
-            "commission_rate": 15,
-            "created_at": "2024-10-25T09:15:00Z"
-        }
-    ]
-    
-    return {"links": links, "total": len(links)}
 
 @app.get("/api/influencer/tracking-links")
 async def get_influencer_tracking_links(payload: dict = Depends(verify_token)):

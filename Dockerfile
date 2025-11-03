@@ -17,9 +17,8 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy entire project first
+# Copy backend directory
 COPY backend /app/backend
-COPY backend/requirements.txt /app/backend/requirements.txt
 
 # Move to backend directory
 WORKDIR /app/backend
@@ -45,4 +44,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 EXPOSE 8000
 
 # Start command with shell form to properly expand PORT variable
-CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "uvicorn server_complete:app --host 0.0.0.0 --port ${PORT:-8000}"]
