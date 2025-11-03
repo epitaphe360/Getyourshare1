@@ -1,5 +1,59 @@
 # 📚 INDEX - SHAREYOURSALES PROJECT
 
+**Dernière mise à jour :** Novembre 2025 | **Version :** 3.0.0 - Subscription Edition
+
+---
+
+## 🚀 DÉMARRAGE RAPIDE (Start Here!)
+
+### Nouveaux Utilisateurs
+1. **[DEMARRAGE_RAPIDE.md](DEMARRAGE_RAPIDE.md)** ⭐ **COMMENCER ICI**
+   - Installation en 5 minutes
+   - Comptes de test avec abonnements
+   - **✨ Section système d'abonnement**
+   - Vérification complète
+
+2. **[DEMARRAGE_3_ETAPES.md](DEMARRAGE_3_ETAPES.md)**
+   - Version ultra-simplifiée
+   - 3 commandes seulement
+
+---
+
+## 💎 SYSTÈME D'ABONNEMENT (NOUVEAU - Nov 2025)
+
+### 🎯 Documentation Essentielle
+
+1. **[SYSTEME_ABONNEMENT_GUIDE.md](SYSTEME_ABONNEMENT_GUIDE.md)** ⭐ **GUIDE COMPLET**
+   - 📊 Plans Merchant (Freemium → Enterprise)
+   - 🌟 Plans Influenceur (Free → Elite)
+   - 🛠️ Endpoints API complets
+   - 🔧 Configuration backend/frontend
+   - 🧪 Tests et exemples
+
+2. **[DEBUG_ABONNEMENT_AFFICHAGE.md](DEBUG_ABONNEMENT_AFFICHAGE.md)** 🔧 **DÉPANNAGE**
+   - ❓ Pourquoi le module ne s'affiche pas
+   - 🐛 3 causes principales
+   - ✅ 3 correctifs rapides
+   - 📝 Checklist complète
+   - 📊 Logs de débogage
+
+3. **[RESUME_CORRECTIONS_ABONNEMENT.md](RESUME_CORRECTIONS_ABONNEMENT.md)** 📊 **RÉSUMÉ**
+   - 📂 Fichiers créés/modifiés
+   - ✅ État actuel du code
+   - 🚀 Actions recommandées
+   - 📈 Métriques de succès
+
+4. **[SYSTEME_ABONNEMENT_COMPLET.md](SYSTEME_ABONNEMENT_COMPLET.md)**
+   - Documentation technique avancée
+   - Cas d'usage détaillés
+
+### 📚 Guides Connexes
+- **[DEMARRAGE_RAPIDE_ABONNEMENT.md](DEMARRAGE_RAPIDE_ABONNEMENT.md)** - Test rapide
+- **[MODULE_ABONNEMENT_INTEGRATION.md](MODULE_ABONNEMENT_INTEGRATION.md)** - Intégration
+- **[MISSION_ABONNEMENTS_TERMINEE.md](MISSION_ABONNEMENTS_TERMINEE.md)** - Mission complete
+
+---
+
 ## 📖 Documentation Principale
 
 ### 🚀 Guides de Démarrage
