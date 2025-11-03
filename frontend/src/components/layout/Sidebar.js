@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useI18n } from '../../i18n/i18n';
 import {
   LayoutDashboard,
   Users,
@@ -19,14 +20,17 @@ import {
   Link as LinkIcon,
   Zap,
   MessageSquare,
-  Shield
+  Shield,
+  Languages
 } from 'lucide-react';
 
 const Sidebar = () => {
   const { logout, user } = useAuth();
+  const { changeLanguage, language, languageNames, languageFlags, languages } = useI18n();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const [expandedMenus, setExpandedMenus] = useState({
     advertisers: false,
     performance: false,
@@ -422,10 +426,59 @@ const Sidebar = () => {
             {menuItems.map(renderMenuItem)}
           </nav>
 
+          {/* Language Selector */}
+          <div className="mt-6 border-t border-gray-700 pt-4">
+            <div className="relative">
+              <button
+                onClick={() => setShowLanguageMenu(!showLanguageMenu)}
+                className="w-full flex items-center justify-between px-4 py-3 text-gray-300 hover:bg-blue-600 hover:text-white rounded-lg transition-all"
+              >
+                <div className="flex items-center space-x-3">
+                  <Languages size={20} />
+                  {!collapsed && (
+                    <span>
+                      {languageFlags[language]} {languageNames[language]}
+                    </span>
+                  )}
+                </div>
+                {!collapsed && (
+                  <ChevronDown 
+                    size={16} 
+                    className={`transition-transform ${showLanguageMenu ? 'rotate-180' : ''}`}
+                  />
+                )}
+              </button>
+
+              {/* Language dropdown */}
+              {showLanguageMenu && !collapsed && (
+                <div className="absolute bottom-full left-0 right-0 mb-2 bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-700">
+                  {Object.entries(languages).map(([key, value]) => (
+                    <button
+                      key={value}
+                      onClick={() => {
+                        changeLanguage(value);
+                        setShowLanguageMenu(false);
+                      }}
+                      className={`w-full px-4 py-2 text-left hover:bg-blue-600 transition-colors flex items-center space-x-2 ${
+                        language === value ? 'bg-blue-700 text-white' : 'text-gray-300'
+                      }`}
+                    >
+                      <span>{languageFlags[value]}</span>
+                      <span>{languageNames[value]}</span>
+                      {language === value && (
+                        <span className="ml-auto text-green-400">✓</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Logout */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center space-x-3 px-4 py-3 mt-6 text-gray-300 hover:bg-red-600 hover:text-white rounded-lg transition-all"
+            className="w-full flex items-center space-x-3 px-4 py-3 mt-4 text-gray-300 hover:bg-red-600 hover:text-white rounded-lg transition-all"
           >
             <LogOut size={20} />
             <span className={collapsed ? 'hidden' : 'block'}>Déconnexion</span>
