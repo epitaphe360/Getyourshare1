@@ -4,17 +4,20 @@
 
 FROM python:3.11-slim
 
-# Copy the entire project
-COPY . .
-
-# Copy requirements.txt to root for easier access
-RUN cp /backend/requirements.txt /requirements.txt
-
-# Install dependencies
-RUN pip install --no-cache-dir -r /requirements.txt
-
-# Change to backend directory for the build
+# Définir le répertoire de travail pour le backend
 WORKDIR /backend
+
+# Copier uniquement le fichier des dépendances pour profiter de la mise en cache de Docker
+# Le fichier est copié de ./backend/requirements.txt (dans le contexte de build)
+# vers ./requirements.txt (dans le WORKDIR /backend)
+COPY backend/requirements.txt .
+
+# Installer les dépendances
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copier le reste du code de l'application
+# Le reste du contenu de ./backend/ est copié dans /backend/
+COPY backend/ .
 
 # Expose port
 EXPOSE 8000
