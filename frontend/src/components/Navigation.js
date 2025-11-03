@@ -9,13 +9,9 @@ import {
   Box,
   Avatar,
   Divider,
-  IconButton,
-  Badge
+  IconButton
 } from '@mui/material';
 import {
-  AccountCircle,
-  ShoppingCart,
-  Notifications,
   Menu as MenuIcon,
   Home,
   Store,
@@ -53,33 +49,56 @@ const Navigation = ({ user, onLogout }) => {
   ];
 
   return (
-    <AppBar position="static" sx={{ background: 'linear-gradient(45deg, #667eea, #764ba2)', boxShadow: 3 }}>
-      <Toolbar>
-        {/* Logo - Plus grand */}
+    <AppBar 
+      position="sticky" 
+      elevation={0}
+      sx={{ 
+        background: 'rgba(255, 255, 255, 0.95)',
+        backdropFilter: 'blur(10px)',
+        borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+        py: 1
+      }}
+    >
+      <Toolbar sx={{ justifyContent: 'space-between', maxWidth: '1400px', width: '100%', mx: 'auto', px: { xs: 2, sm: 3 } }}>
+        {/* Logo */}
         <Box 
-          sx={{ display: 'flex', alignItems: 'center', flexGrow: 0, cursor: 'pointer' }}
+          sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            cursor: 'pointer',
+            transition: 'transform 0.2s',
+            '&:hover': {
+              transform: 'scale(1.05)'
+            }
+          }}
           onClick={() => navigate('/')}
         >
           <img 
             src="/logo.png" 
             alt="GetYourShare Logo" 
-            style={{ height: 50, marginRight: 10, objectFit: 'contain' }}
+            style={{ height: 45, objectFit: 'contain' }}
           />
         </Box>
 
         {/* Navigation Items - Desktop */}
-        <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' }, ml: 4 }}>
+        <Box sx={{ display: { xs: 'none', md: 'flex' }, gap: 1 }}>
           {navigationItems.map((item) => (
             <Button
               key={item.label}
-              startIcon={item.icon}
               onClick={() => navigate(item.path)}
               sx={{ 
-                color: 'white', 
-                mx: 1,
+                color: '#1a1a1a',
+                fontWeight: 500,
+                fontSize: '0.95rem',
+                px: 2.5,
+                py: 1,
+                borderRadius: 2,
+                textTransform: 'none',
+                transition: 'all 0.2s',
                 '&:hover': {
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  borderRadius: 2
+                  backgroundColor: '#f5f5f5',
+                  color: '#667eea',
+                  transform: 'translateY(-2px)'
                 }
               }}
             >
@@ -89,12 +108,11 @@ const Navigation = ({ user, onLogout }) => {
         </Box>
 
         {/* Mobile Menu */}
-        <Box sx={{ display: { xs: 'flex', md: 'none' }, flexGrow: 1, justifyContent: 'flex-end' }}>
+        <Box sx={{ display: { xs: 'flex', md: 'none' } }}>
           <IconButton
             size="large"
-            aria-label="menu"
             onClick={handleMenuOpen}
-            color="inherit"
+            sx={{ color: '#1a1a1a' }}
           >
             <MenuIcon />
           </IconButton>
@@ -102,6 +120,14 @@ const Navigation = ({ user, onLogout }) => {
             anchorEl={anchorEl}
             open={Boolean(anchorEl)}
             onClose={handleClose}
+            PaperProps={{
+              sx: { 
+                mt: 1.5,
+                minWidth: 200,
+                borderRadius: 2,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+              }
+            }}
           >
             {navigationItems.map((item) => (
               <MenuItem 
@@ -110,39 +136,45 @@ const Navigation = ({ user, onLogout }) => {
                   navigate(item.path);
                   handleClose();
                 }}
+                sx={{
+                  py: 1.5,
+                  px: 2.5,
+                  '&:hover': {
+                    backgroundColor: '#f5f5f5'
+                  }
+                }}
               >
-                {item.icon}
-                <Typography sx={{ ml: 2 }}>{item.label}</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, color: '#1a1a1a' }}>
+                  {item.icon}
+                  <Typography>{item.label}</Typography>
+                </Box>
               </MenuItem>
             ))}
           </Menu>
         </Box>
 
-        {/* Right Side Icons */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          {/* Notifications */}
-          <IconButton color="inherit">
-            <Badge badgeContent={3} color="error">
-              <Notifications />
-            </Badge>
-          </IconButton>
-
-          {/* Shopping Cart */}
-          <IconButton color="inherit">
-            <Badge badgeContent={2} color="error">
-              <ShoppingCart />
-            </Badge>
-          </IconButton>
-
-          {/* User Menu */}
+        {/* Right Side - Auth Buttons */}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
           {user ? (
             <>
               <IconButton
                 size="large"
                 onClick={handleUserMenuOpen}
-                color="inherit"
+                sx={{ 
+                  p: 0.5,
+                  '&:hover': {
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)'
+                  }
+                }}
               >
-                <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
+                <Avatar 
+                  sx={{ 
+                    width: 38, 
+                    height: 38, 
+                    bgcolor: '#667eea',
+                    fontWeight: 600
+                  }}
+                >
                   {user.username?.charAt(0).toUpperCase() || 'U'}
                 </Avatar>
               </IconButton>
@@ -151,14 +183,20 @@ const Navigation = ({ user, onLogout }) => {
                 open={Boolean(userMenuAnchor)}
                 onClose={handleClose}
                 PaperProps={{
-                  sx: { mt: 1, minWidth: 200 }
+                  sx: { 
+                    mt: 1.5, 
+                    minWidth: 220,
+                    borderRadius: 2,
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                  }
                 }}
               >
-                <MenuItem onClick={handleClose}>
-                  <Avatar sx={{ width: 24, height: 24, mr: 2 }} />
+                <MenuItem onClick={handleClose} sx={{ py: 2, px: 2.5 }}>
                   <Box>
-                    <Typography variant="subtitle2">{user.username}</Typography>
-                    <Typography variant="caption" color="text.secondary">
+                    <Typography variant="subtitle2" sx={{ fontWeight: 600, color: '#1a1a1a' }}>
+                      {user.username}
+                    </Typography>
+                    <Typography variant="caption" sx={{ color: '#666' }}>
                       {user.role} • {user.subscription_plan}
                     </Typography>
                   </Box>
@@ -167,39 +205,64 @@ const Navigation = ({ user, onLogout }) => {
                 <MenuItem onClick={() => { 
                   navigate('/settings'); 
                   handleClose(); 
-                }}>
-                  <Settings sx={{ mr: 2 }} />
-                  Paramètres
+                }} sx={{ py: 1.5, px: 2.5 }}>
+                  <Settings sx={{ mr: 2, fontSize: 20, color: '#667eea' }} />
+                  <Typography>Paramètres</Typography>
                 </MenuItem>
                 <MenuItem onClick={() => { 
                   navigate('/dashboard'); 
                   handleClose(); 
-                }}>
-                  <Analytics sx={{ mr: 2 }} />
-                  Tableau de bord
+                }} sx={{ py: 1.5, px: 2.5 }}>
+                  <Analytics sx={{ mr: 2, fontSize: 20, color: '#667eea' }} />
+                  <Typography>Tableau de bord</Typography>
                 </MenuItem>
                 <Divider />
-                <MenuItem onClick={() => { handleClose(); onLogout(); }}>
-                  <ExitToApp sx={{ mr: 2 }} />
-                  Déconnexion
+                <MenuItem 
+                  onClick={() => { handleClose(); onLogout(); }}
+                  sx={{ py: 1.5, px: 2.5, color: '#dc2626' }}
+                >
+                  <ExitToApp sx={{ mr: 2, fontSize: 20 }} />
+                  <Typography>Déconnexion</Typography>
                 </MenuItem>
               </Menu>
             </>
           ) : (
-            <Box sx={{ display: 'flex', gap: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1.5 }}>
               <Button 
-                color="inherit" 
-                variant="outlined" 
-                size="small"
+                variant="text"
                 onClick={() => navigate('/login')}
+                sx={{
+                  color: '#1a1a1a',
+                  fontWeight: 500,
+                  textTransform: 'none',
+                  px: 2.5,
+                  borderRadius: 2,
+                  '&:hover': {
+                    backgroundColor: '#f5f5f5'
+                  }
+                }}
               >
                 Connexion
               </Button>
               <Button 
-                color="secondary" 
-                variant="contained" 
-                size="small"
+                variant="contained"
                 onClick={() => navigate('/register')}
+                sx={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  fontWeight: 600,
+                  textTransform: 'none',
+                  px: 3,
+                  py: 1,
+                  borderRadius: 2,
+                  boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)',
+                    boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)',
+                    transform: 'translateY(-2px)'
+                  },
+                  transition: 'all 0.2s'
+                }}
               >
                 Inscription
               </Button>
