@@ -60,9 +60,11 @@ const Navigation = ({ user, onLogout }) => {
           sx={{ display: 'flex', alignItems: 'center', flexGrow: 0, cursor: 'pointer' }}
           onClick={() => navigate('/')}
         >
-          <Typography variant="h5" component="div" sx={{ fontWeight: 'bold', color: 'white' }}>
-            ShareYourSales
-          </Typography>
+          <img 
+            src="/logo.png" 
+            alt="GetYourShare Logo" 
+            style={{ height: 50, marginRight: 10, objectFit: 'contain' }}
+          />
         </Box>
 
         {/* Navigation Items - Desktop */}
