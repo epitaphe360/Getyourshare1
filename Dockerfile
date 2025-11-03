@@ -4,19 +4,20 @@
 
 FROM python:3.11-slim
 
-# Définir le répertoire de travail dans le conteneur
-WORKDIR /app
+# Définir le répertoire de travail pour le backend
+WORKDIR /backend
 
-# Copier tout le contexte de build dans /app
-# Cela inclut le dossier 'backend'
-COPY . .
+# Copier uniquement le fichier des dépendances pour profiter de la mise en cache de Docker
+# Le fichier est copié de ./backend/requirements.txt (dans le contexte de build)
+# vers ./requirements.txt (dans le WORKDIR /backend)
+COPY backend/requirements.txt .
 
-# Installer les dépendances du backend
-# Le fichier est maintenant à /app/backend/requirements.txt
-RUN pip install --no-cache-dir -r /app/backend/requirements.txt
+# Installer les dépendances
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Définir le répertoire de travail final pour l'exécution
-WORKDIR /app/backend
+# Copier le reste du code de l'application
+# Le reste du contenu de ./backend/ est copié dans /backend/
+COPY backend/ .
 
 # Expose port
 EXPOSE 8000
