@@ -184,10 +184,10 @@ function App() {
           <Route path="/pricing" element={<Pricing />} />
           <Route path="/pricing-v3" element={<PricingV3 />} />
           <Route path="/marketplace-4tabs" element={<MarketplaceFourTabs />} />
-          <Route path="/marketplace" element={<MarketplaceGroupon />} />
+          <Route path="/marketplace" element={<PublicLayout><MarketplaceGroupon /></PublicLayout>} />
           
           {/* Product Detail - Public (accessible sans connexion) */}
-          <Route path="/marketplace/product/:productId" element={<ProductDetail />} />
+          <Route path="/marketplace/product/:productId" element={<PublicLayout><ProductDetail /></PublicLayout>} />
           
           {/* Contact Page (Public avec menu homepage) */}
           <Route path="/contact" element={<PublicLayout><Contact /></PublicLayout>} />

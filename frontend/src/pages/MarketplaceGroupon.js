@@ -76,57 +76,92 @@ const MarketplaceGroupon = () => {
 
   // Contenu principal du marketplace
   const marketplaceContent = (
-    <div className="min-h-screen bg-gray-50">
-      {/* Hero Section - Style Groupon */}
-      <div className="bg-gradient-to-r from-green-600 to-teal-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 py-12">
-          <h1 className="text-4xl font-bold mb-4">
-            Marketplace d'Affiliation au Maroc
-          </h1>
-          <p className="text-xl mb-2 opacity-90">
-            Devenez affilié et gagnez des commissions en partageant des produits et services
-          </p>
-          <p className="text-md mb-8 opacity-80">
-            Connectez-vous avec des entreprises et commencez à générer des revenus 💰
-          </p>
-          
-          {/* Barre de recherche */}
-          <div className="flex gap-3 max-w-3xl">
-            <div className="flex-1 relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
-                placeholder="Rechercher des offres..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 rounded-lg text-gray-900 text-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-              />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      {/* Hero Section - Ultra Moderne */}
+      <div className="relative bg-gradient-to-r from-purple-600 via-pink-600 to-red-600 text-white overflow-hidden">
+        {/* Motif de fond animé */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-white rounded-full mix-blend-multiply filter blur-3xl animate-pulse"></div>
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-300 rounded-full mix-blend-multiply filter blur-3xl animate-pulse animation-delay-2000"></div>
+        </div>
+        
+        <div className="relative max-w-7xl mx-auto px-4 py-16 sm:py-20">
+          <div className="text-center">
+            <div className="inline-block mb-4 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full">
+              <span className="text-sm font-semibold">🎉 Nouvelle Marketplace - 100% Maroc</span>
             </div>
-            <button className="px-8 py-4 bg-white text-green-600 rounded-lg font-semibold hover:bg-gray-100 transition">
-              Rechercher
-            </button>
+            <h1 className="text-5xl sm:text-6xl font-extrabold mb-6 leading-tight">
+              Gagnez de l'argent en <br />
+              <span className="bg-clip-text text-transparent bg-gradient-to-r from-yellow-300 to-orange-300">
+                partageant ce que vous aimez
+              </span>
+            </h1>
+            <p className="text-xl sm:text-2xl mb-4 opacity-95 max-w-3xl mx-auto">
+              Des milliers de produits et services à promouvoir
+            </p>
+            <p className="text-lg mb-10 opacity-80 max-w-2xl mx-auto">
+              Inscrivez-vous gratuitement et commencez à générer des revenus aujourd'hui 💸
+            </p>
+            
+            {/* Statistiques */}
+            <div className="flex flex-wrap justify-center gap-8 mb-10">
+              <div className="text-center">
+                <div className="text-4xl font-bold">500+</div>
+                <div className="text-sm opacity-80">Produits</div>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold">15%</div>
+                <div className="text-sm opacity-80">Commission Moyenne</div>
+              </div>
+              <div className="text-center">
+                <div className="text-4xl font-bold">1000+</div>
+                <div className="text-sm opacity-80">Influenceurs Actifs</div>
+              </div>
+            </div>
+            
+            {/* Barre de recherche améliorée */}
+            <div className="flex flex-col sm:flex-row gap-3 max-w-3xl mx-auto">
+              <div className="flex-1 relative group">
+                <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-purple-600 transition" size={22} />
+                <input
+                  type="text"
+                  placeholder="Rechercher des produits, services, marques..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-14 pr-5 py-5 rounded-2xl text-gray-900 text-lg focus:outline-none focus:ring-4 focus:ring-purple-300 shadow-xl"
+                />
+              </div>
+              <button className="px-10 py-5 bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-2xl font-bold hover:shadow-2xl hover:scale-105 transition-all">
+                Rechercher
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="bg-white border-b sticky top-0 z-10 shadow-sm">
+      {/* Navigation Tabs - Design Moderne */}
+      <div className="bg-white/80 backdrop-blur-lg border-b sticky top-0 z-20 shadow-md">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex gap-1">
+          <div className="flex gap-2 overflow-x-auto">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setCurrentTab(tab.id)}
-                  className={`flex items-center gap-2 px-6 py-4 font-semibold transition-all ${
+                  className={`flex items-center gap-2 px-6 py-4 font-semibold transition-all whitespace-nowrap ${
                     currentTab === tab.id
-                      ? 'border-b-3 border-green-600 text-green-600'
-                      : 'text-gray-600 hover:text-gray-900'
+                      ? 'border-b-4 border-purple-600 text-purple-600 bg-purple-50'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                   }`}
                 >
-                  <Icon size={20} />
+                  <Icon size={22} />
                   {tab.name}
+                  {currentTab === tab.id && (
+                    <span className={`ml-1 px-2 py-0.5 ${tab.color} text-white text-xs rounded-full`}>
+                      Nouveau
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -135,20 +170,31 @@ const MarketplaceGroupon = () => {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-10">
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+          <div className="flex flex-col justify-center items-center h-64 space-y-4">
+            <div className="relative">
+              <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-purple-600"></div>
+              <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                <ShoppingBag className="text-purple-600" size={28} />
+              </div>
+            </div>
+            <p className="text-gray-600 font-medium">Chargement des offres...</p>
           </div>
         ) : (
           <>
             {/* Tab 0: Produits */}
             {currentTab === 0 && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <>
+                <div className="mb-8">
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">Produits en Vedette</h2>
+                  <p className="text-gray-600">Découvrez les meilleures offres du moment</p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {products.map((product) => (
                   <div
                     key={product.id}
-                    className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-lg transition-all cursor-pointer group"
+                    className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-2xl transition-all duration-300 cursor-pointer group transform hover:-translate-y-2"
                     onClick={() => handleViewDetails(product, 'product')}
                   >
                     <div className="relative h-48 overflow-hidden">
