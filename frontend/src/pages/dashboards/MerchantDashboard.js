@@ -9,7 +9,8 @@ import SkeletonDashboard from '../../components/common/SkeletonLoader';
 import EmptyState from '../../components/common/EmptyState';
 import {
   DollarSign, ShoppingBag, Users, TrendingUp,
-  Package, Eye, Target, Award, Plus, Search, FileText, Settings, RefreshCw
+  Package, Eye, Target, Award, Plus, Search, FileText, Settings, RefreshCw,
+  UserCheck, Clock, CheckCircle, XCircle, TrendingDown
 } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar,
@@ -26,6 +27,9 @@ const MerchantDashboard = () => {
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [sentRequests, setSentRequests] = useState([]);
+  const [showCounterOfferModal, setShowCounterOfferModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -40,10 +44,11 @@ const MerchantDashboard = () => {
         api.get('/api/products'),
         api.get('/api/analytics/merchant/sales-chart'),
         api.get('/api/analytics/merchant/performance'),
-        api.get('/api/subscriptions/current')
+        api.get('/api/subscriptions/current'),
+        api.get('/api/collaborations/requests/sent')
       ]);
 
-      const [statsRes, productsRes, salesChartRes, performanceRes, subscriptionRes] = results;
+      const [statsRes, productsRes, salesChartRes, performanceRes, subscriptionRes, sentRequestsRes] = results;
 
       // Gérer les statistiques
       if (statsRes.status === 'fulfilled' && performanceRes.status === 'fulfilled') {
@@ -99,12 +104,65 @@ const MerchantDashboard = () => {
         console.error('Error loading sales chart:', salesChartRes.reason);
         setSalesData([]);
       }
+
+      // Gérer les demandes de collaboration envoyées
+      if (sentRequestsRes && sentRequestsRes.status === 'fulfilled') {
+        setSentRequests(sentRequestsRes.value.data.requests || []);
+      } else {
+        setSentRequests([]);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Erreur lors du chargement des données');
     } finally {
       setLoading(false);
     }
+  };
+
+  const acceptCounterOffer = async (requestId) => {
+    try {
+      const request = sentRequests.find(r => r.id === requestId);
+      await api.put(`/api/collaborations/requests/${requestId}/accept`, {
+        commission: request.counter_commission
+      });
+      toast.success('Contre-offre acceptée ! L\'influenceur doit maintenant signer le contrat.');
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error accepting counter offer:', error);
+      toast.error('Erreur lors de l\'acceptation de la contre-offre');
+    }
+  };
+
+  const rejectCounterOffer = async (requestId) => {
+    try {
+      await api.put(`/api/collaborations/requests/${requestId}/reject`, {
+        message: 'Contre-offre refusée'
+      });
+      toast.success('Contre-offre refusée');
+      fetchData(); // Refresh data
+    } catch (error) {
+      console.error('Error rejecting counter offer:', error);
+      toast.error('Erreur lors du refus de la contre-offre');
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const badges = {
+      pending: { color: 'bg-yellow-100 text-yellow-800', icon: <Clock size={14} />, text: 'En attente' },
+      accepted: { color: 'bg-blue-100 text-blue-800', icon: <CheckCircle size={14} />, text: 'Accepté - En attente de signature' },
+      counter_offer: { color: 'bg-orange-100 text-orange-800', icon: <TrendingDown size={14} />, text: 'Contre-offre' },
+      rejected: { color: 'bg-red-100 text-red-800', icon: <XCircle size={14} />, text: 'Refusé' },
+      active: { color: 'bg-green-100 text-green-800', icon: <CheckCircle size={14} />, text: 'Actif' },
+      expired: { color: 'bg-gray-100 text-gray-800', icon: <XCircle size={14} />, text: 'Expiré' }
+    };
+    
+    const badge = badges[status] || badges.pending;
+    return (
+      <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${badge.color}`}>
+        {badge.icon}
+        {badge.text}
+      </span>
+    );
   };
 
   if (loading) {
@@ -290,6 +348,119 @@ const MerchantDashboard = () => {
                 </p>
               </div>
             )}
+          </div>
+        </Card>
+      )}
+
+      {/* Collaboration Requests Section */}
+      {sentRequests && sentRequests.length > 0 && (
+        <Card 
+          title={`Demandes de Collaboration Envoyées (${sentRequests.length})`} 
+          icon={<UserCheck size={20} />}
+          className="border-l-4 border-purple-600"
+        >
+          <div className="space-y-4">
+            {sentRequests.map(request => (
+              <div 
+                key={request.id} 
+                className="border border-gray-200 rounded-lg p-4 hover:border-indigo-300 transition"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h4 className="font-semibold text-gray-900">
+                        Envoyée à: {request.influencer_name || 'Influenceur'}
+                      </h4>
+                      {getStatusBadge(request.status)}
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <span className="text-gray-600">Produits:</span>
+                        <span className="ml-2 font-medium text-gray-900">
+                          {request.products?.length || 0}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Commission proposée:</span>
+                        <span className="ml-2 font-medium text-green-600">
+                          {request.proposed_commission}%
+                        </span>
+                      </div>
+                      {request.counter_commission && (
+                        <div>
+                          <span className="text-gray-600">Contre-offre:</span>
+                          <span className="ml-2 font-medium text-orange-600">
+                            {request.counter_commission}%
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {request.message && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded text-sm text-gray-700">
+                        <strong>Votre message:</strong> {request.message}
+                      </div>
+                    )}
+
+                    {request.counter_message && (
+                      <div className="mt-2 p-3 bg-orange-50 rounded text-sm text-orange-900 border border-orange-200">
+                        <strong>Message de l'influenceur:</strong> {request.counter_message}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Actions for counter-offers */}
+                {request.status === 'counter_offer' && (
+                  <div className="flex gap-2 mt-3 pt-3 border-t">
+                    <button
+                      onClick={() => acceptCounterOffer(request.id)}
+                      className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle size={18} />
+                      Accepter la contre-offre ({request.counter_commission}%)
+                    </button>
+                    <button
+                      onClick={() => rejectCounterOffer(request.id)}
+                      className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center justify-center gap-2"
+                    >
+                      <XCircle size={18} />
+                      Refuser
+                    </button>
+                  </div>
+                )}
+
+                {/* Info for other statuses */}
+                {request.status === 'accepted' && (
+                  <div className="mt-3 p-3 bg-blue-50 rounded text-sm text-blue-800">
+                    ℹ️ En attente de la signature du contrat par l'influenceur
+                  </div>
+                )}
+
+                {request.status === 'active' && request.affiliate_link_id && (
+                  <div className="mt-3 p-3 bg-green-50 rounded text-sm text-green-800">
+                    ✅ Collaboration active ! Lien d'affiliation généré.
+                  </div>
+                )}
+
+                {request.status === 'pending' && (
+                  <div className="mt-3 text-sm text-gray-500">
+                    ⏳ En attente de la réponse de l'influenceur
+                  </div>
+                )}
+
+                <div className="mt-3 text-xs text-gray-500">
+                  Envoyée le: {new Date(request.created_at).toLocaleDateString('fr-FR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
       )}

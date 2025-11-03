@@ -1396,6 +1396,361 @@ async def request_product_affiliation(
         "affiliate_link": affiliate_link
     }
 
+# ============================================
+# COLLABORATION ENDPOINTS (Marchand-Influenceur)
+# ============================================
+
+class CollaborationRequestCreate(BaseModel):
+    influencer_id: str
+    product_id: str
+    commission_rate: float
+    message: Optional[str] = None
+
+class CounterOfferData(BaseModel):
+    counter_commission: float
+    message: Optional[str] = None
+
+class RejectData(BaseModel):
+    reason: Optional[str] = None
+
+class ContractSignatureData(BaseModel):
+    signature: str
+
+@app.post("/api/collaborations/requests")
+async def create_collaboration_request(
+    data: CollaborationRequestCreate,
+    payload: dict = Depends(verify_token)
+):
+    """Créer une demande de collaboration (Marchand → Influenceur)"""
+    merchant_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        result = supabase.rpc(
+            "create_collaboration_request",
+            {
+                "p_merchant_id": merchant_id,
+                "p_influencer_id": data.influencer_id,
+                "p_product_id": data.product_id,
+                "p_commission_rate": data.commission_rate,
+                "p_message": data.message
+            }
+        ).execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=400, detail="Erreur lors de la création")
+        
+        request_data = result.data[0]
+        
+        return {
+            "success": True,
+            "message": "Demande envoyée avec succès",
+            "request_id": request_data["request_id"],
+            "status": request_data["status"],
+            "expires_at": request_data["expires_at"]
+        }
+    except Exception as e:
+        error_msg = str(e)
+        if "existe déjà" in error_msg:
+            raise HTTPException(status_code=409, detail="Une demande existe déjà pour ce produit")
+        elif "Produit non trouvé" in error_msg:
+            raise HTTPException(status_code=404, detail="Produit non trouvé")
+        raise HTTPException(status_code=500, detail=error_msg)
+
+@app.get("/api/collaborations/requests/received")
+async def get_received_collaboration_requests(
+    status: Optional[str] = None,
+    payload: dict = Depends(verify_token)
+):
+    """Demandes reçues (Influenceur)"""
+    influencer_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        query = supabase.table("collaboration_requests") \
+            .select("*") \
+            .eq("influencer_id", influencer_id) \
+            .order("created_at", desc=True)
+        
+        if status:
+            query = query.eq("status", status)
+        
+        result = query.execute()
+        
+        return {
+            "success": True,
+            "requests": result.data,
+            "total": len(result.data)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/collaborations/requests/sent")
+async def get_sent_collaboration_requests(
+    status: Optional[str] = None,
+    payload: dict = Depends(verify_token)
+):
+    """Demandes envoyées (Marchand)"""
+    merchant_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        query = supabase.table("collaboration_requests") \
+            .select("*") \
+            .eq("merchant_id", merchant_id) \
+            .order("created_at", desc=True)
+        
+        if status:
+            query = query.eq("status", status)
+        
+        result = query.execute()
+        
+        return {
+            "success": True,
+            "requests": result.data,
+            "total": len(result.data)
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/collaborations/requests/{request_id}/accept")
+async def accept_collaboration_request(
+    request_id: str,
+    payload: dict = Depends(verify_token)
+):
+    """Accepter une demande (Influenceur)"""
+    influencer_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        result = supabase.rpc(
+            "accept_collaboration_request",
+            {
+                "p_request_id": request_id,
+                "p_influencer_id": influencer_id
+            }
+        ).execute()
+        
+        return {
+            "success": True,
+            "message": "Demande acceptée ! Vous devez maintenant signer le contrat."
+        }
+    except Exception as e:
+        error_msg = str(e)
+        if "non valide" in error_msg or "déjà traitée" in error_msg:
+            raise HTTPException(status_code=400, detail=error_msg)
+        raise HTTPException(status_code=500, detail=error_msg)
+
+@app.put("/api/collaborations/requests/{request_id}/reject")
+async def reject_collaboration_request(
+    request_id: str,
+    data: RejectData,
+    payload: dict = Depends(verify_token)
+):
+    """Refuser une demande (Influenceur)"""
+    influencer_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        result = supabase.rpc(
+            "reject_collaboration_request",
+            {
+                "p_request_id": request_id,
+                "p_influencer_id": influencer_id,
+                "p_reason": data.reason
+            }
+        ).execute()
+        
+        return {
+            "success": True,
+            "message": "Demande refusée"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.put("/api/collaborations/requests/{request_id}/counter-offer")
+async def counter_offer_collaboration(
+    request_id: str,
+    data: CounterOfferData,
+    payload: dict = Depends(verify_token)
+):
+    """Contre-offre (Influenceur)"""
+    influencer_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        result = supabase.rpc(
+            "counter_offer_collaboration",
+            {
+                "p_request_id": request_id,
+                "p_influencer_id": influencer_id,
+                "p_counter_commission": data.counter_commission,
+                "p_message": data.message
+            }
+        ).execute()
+        
+        return {
+            "success": True,
+            "message": "Contre-offre envoyée au marchand"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/collaborations/requests/{request_id}/sign-contract")
+async def sign_collaboration_contract(
+    request_id: str,
+    data: ContractSignatureData,
+    payload: dict = Depends(verify_token)
+):
+    """Signer le contrat"""
+    user_id = payload.get("user_id")
+    user_role = payload.get("role", "merchant")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        result = supabase.rpc(
+            "accept_contract",
+            {
+                "p_request_id": request_id,
+                "p_user_id": user_id,
+                "p_user_role": user_role,
+                "p_signature": data.signature
+            }
+        ).execute()
+        
+        if user_role == "influencer":
+            link_result = supabase.rpc(
+                "generate_affiliate_link_from_collaboration",
+                {"p_request_id": request_id}
+            ).execute()
+            
+            link_id = link_result.data if link_result.data else None
+            
+            return {
+                "success": True,
+                "message": "Contrat signé ! Votre lien d'affiliation a été généré.",
+                "affiliate_link_id": link_id
+            }
+        
+        return {
+            "success": True,
+            "message": "Contrat signé avec succès"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/collaborations/requests/{request_id}")
+async def get_collaboration_request_details(
+    request_id: str,
+    payload: dict = Depends(verify_token)
+):
+    """Détails d'une demande"""
+    user_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        result = supabase.table("collaboration_requests") \
+            .select("*") \
+            .eq("id", request_id) \
+            .single() \
+            .execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Demande non trouvée")
+        
+        request_data = result.data
+        if user_id not in [request_data["merchant_id"], request_data["influencer_id"]]:
+            raise HTTPException(status_code=403, detail="Accès non autorisé")
+        
+        if user_id == request_data["influencer_id"] and not request_data.get("viewed_by_influencer"):
+            supabase.table("collaboration_requests") \
+                .update({
+                    "viewed_by_influencer": True,
+                    "viewed_at": datetime.now().isoformat()
+                }) \
+                .eq("id", request_id) \
+                .execute()
+        
+        history = supabase.table("collaboration_history") \
+            .select("*") \
+            .eq("collaboration_request_id", request_id) \
+            .order("created_at", desc=False) \
+            .execute()
+        
+        return {
+            "success": True,
+            "request": request_data,
+            "history": history.data
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/collaborations/contract-terms")
+async def get_contract_terms():
+    """Termes du contrat de collaboration"""
+    return {
+        "success": True,
+        "contract": {
+            "version": "v1.0",
+            "terms": [
+                {
+                    "title": "1. Respect Éthique",
+                    "content": "L'influenceur s'engage à promouvoir le produit de manière éthique et honnête, sans fausses déclarations."
+                },
+                {
+                    "title": "2. Transparence",
+                    "content": "L'influenceur doit clairement indiquer qu'il s'agit d'un partenariat commercial (#ad, #sponsored)."
+                },
+                {
+                    "title": "3. Commission",
+                    "content": "La commission convenue sera versée pour chaque vente générée via le lien d'affiliation."
+                },
+                {
+                    "title": "4. Durée",
+                    "content": "Le contrat est valable pour 12 mois, renouvelable par accord mutuel."
+                },
+                {
+                    "title": "5. Résiliation",
+                    "content": "Chaque partie peut résilier avec un préavis de 30 jours."
+                },
+                {
+                    "title": "6. Propriété Intellectuelle",
+                    "content": "Le marchand conserve tous les droits sur le produit. L'influenceur conserve ses droits sur son contenu."
+                },
+                {
+                    "title": "7. Confidentialité",
+                    "content": "Les termes financiers de cet accord sont confidentiels."
+                },
+                {
+                    "title": "8. Conformité Légale",
+                    "content": "Les deux parties s'engagent à respecter toutes les lois applicables."
+                }
+            ]
+        }
+    }
+
+# ============================================
+# COMMERCIALS & INFLUENCERS DIRECTORY
+# ============================================
+
 @app.get("/api/commercials/directory")
 async def get_commercials_directory(
     limit: int = Query(20, le=100),
@@ -3039,52 +3394,96 @@ async def delete_admin_social_post(post_id: str, payload: dict = Depends(verify_
 # SUBSCRIPTION DASHBOARD ENDPOINTS
 # ============================================
 
-@app.get("/api/subscriptions/current")
+@subscription_router.get("/current")
 async def get_current_subscription(payload: dict = Depends(verify_token)):
     """
-    Récupérer l'abonnement actuel de l'utilisateur (endpoint pour dashboards)
-    Retourne toujours un abonnement par défaut si aucun n'existe
+    Récupérer l'abonnement actuel de l'utilisateur depuis la DB
+    Retourne un abonnement par défaut si aucun n'existe
     """
     user_id = payload.get("user_id")
     user_role = payload.get("role", "merchant")
     
-    # TODO: Chercher dans la base de données Supabase
-    # Pour l'instant, retourner un abonnement par défaut selon le rôle
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
     
-    if user_role == "merchant":
-        return {
-            "id": f"sub_{user_id}",
+    try:
+        # Utiliser la fonction PostgreSQL pour récupérer l'abonnement actif
+        result = supabase.rpc("get_user_active_subscription", {"p_user_id": user_id}).execute()
+        
+        if result.data and len(result.data) > 0:
+            sub = result.data[0]
+            return {
+                "id": sub["subscription_id"],
+                "user_id": user_id,
+                "plan_name": sub["plan_name"],
+                "plan_code": sub["plan_code"],
+                "status": sub["status"],
+                "max_products": sub["max_products"],
+                "max_campaigns": sub["max_campaigns"],
+                "max_affiliates": sub["max_affiliates"],
+                "commission_rate": float(sub["commission_rate"]) if sub["commission_rate"] else None,
+                "current_period_end": sub["current_period_end"],
+                "cancel_at_period_end": sub["cancel_at_period_end"]
+            }
+        
+        # Si pas d'abonnement, créer un abonnement Freemium/Free par défaut
+        default_plan_code = "merchant_freemium" if user_role == "merchant" else "influencer_free"
+        
+        # Récupérer le plan par défaut
+        plan = supabase.table("subscription_plans").select("*").eq("code", default_plan_code).single().execute()
+        
+        if not plan.data:
+            raise HTTPException(status_code=500, detail="Default plan not found")
+        
+        # Créer l'abonnement
+        new_sub = supabase.table("subscriptions").insert({
             "user_id": user_id,
-            "plan_name": "Freemium",
-            "plan_code": "freemium",
+            "plan_id": plan.data["id"],
             "status": "active",
-            "max_products": 5,
-            "max_campaigns": 1,
-            "max_affiliates": 10,
-            "commission_fee": 0,
-            "current_team_members": 0,
-            "current_domains": 0,
-            "can_add_team_member": True,
-            "can_add_domain": True,
-            "current_period_end": (datetime.now() + timedelta(days=30)).isoformat()
-        }
-    else:  # influencer
-        return {
-            "id": f"sub_{user_id}",
+            "current_period_start": datetime.now().isoformat(),
+            "current_period_end": (datetime.now() + timedelta(days=365*10)).isoformat(),  # 10 ans pour freemium
+            "amount": 0,
+            "billing_cycle": "monthly"
+        }).execute()
+        
+        # Créer l'historique
+        supabase.table("subscription_history").insert({
+            "subscription_id": new_sub.data[0]["id"],
             "user_id": user_id,
-            "plan_name": "Free",
-            "plan_code": "free",
+            "action": "created",
+            "to_plan_id": plan.data["id"],
+            "new_status": "active",
+            "amount": 0
+        }).execute()
+        
+        # Créer le compteur d'usage
+        supabase.table("subscription_usage").insert({
+            "subscription_id": new_sub.data[0]["id"],
+            "user_id": user_id,
+            "products_count": 0,
+            "campaigns_count": 0,
+            "affiliates_count": 0
+        }).execute()
+        
+        return {
+            "id": new_sub.data[0]["id"],
+            "user_id": user_id,
+            "plan_name": plan.data["name"],
+            "plan_code": plan.data["code"],
             "status": "active",
-            "commission_rate": 5,
-            "campaigns_per_month": 3,
-            "instant_payout": False,
-            "analytics_level": "basic",
-            "can_add_team_member": False,
-            "can_add_domain": False,
-            "current_period_end": (datetime.now() + timedelta(days=30)).isoformat()
+            "max_products": plan.data["max_products"],
+            "max_campaigns": plan.data["max_campaigns"],
+            "max_affiliates": plan.data["max_affiliates"],
+            "commission_rate": float(plan.data["commission_rate"]) if plan.data.get("commission_rate") else None,
+            "current_period_end": new_sub.data[0]["current_period_end"],
+            "cancel_at_period_end": False
         }
+        
+    except Exception as e:
+        print(f"❌ Error fetching subscription: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/subscriptions/my-subscription")
+@subscription_router.get("/my-subscription")
 async def get_my_subscription(payload: dict = Depends(verify_token)):
     """Récupérer l'abonnement actuel de l'utilisateur"""
     user_id = payload.get("user_id")
@@ -3108,36 +3507,211 @@ async def get_my_subscription(payload: dict = Depends(verify_token)):
         "billing_cycle": "monthly"
     }
 
-@app.get("/api/subscriptions/usage")
+@subscription_router.get("/usage")
 async def get_subscription_usage(payload: dict = Depends(verify_token)):
-    """Usage de l'abonnement"""
-    return {
-        "team_members": {
-            "current": 3,
-            "limit": 10,
-            "percentage": 30
-        },
-        "domains": {
-            "current": 1,
-            "limit": 3,
-            "percentage": 33
-        },
-        "api_calls": {
-            "current": 4567,
-            "limit": 10000,
-            "percentage": 45
+    """Récupérer l'usage actuel de l'abonnement depuis la DB"""
+    user_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Récupérer l'abonnement actif
+        sub_result = supabase.rpc("get_user_active_subscription", {"p_user_id": user_id}).execute()
+        
+        if not sub_result.data or len(sub_result.data) == 0:
+            raise HTTPException(status_code=404, detail="No active subscription")
+        
+        subscription = sub_result.data[0]
+        
+        # Récupérer l'usage depuis subscription_usage
+        usage = supabase.table("subscription_usage").select("*").eq("user_id", user_id).single().execute()
+        
+        if not usage.data:
+            return {
+                "products": {"current": 0, "limit": subscription["max_products"], "percentage": 0},
+                "campaigns": {"current": 0, "limit": subscription["max_campaigns"], "percentage": 0},
+                "affiliates": {"current": 0, "limit": subscription["max_affiliates"], "percentage": 0}
+            }
+        
+        # Calculer les pourcentages
+        def calc_percentage(current, limit):
+            if limit == -1:
+                return 0  # Illimité
+            if limit == 0:
+                return 100
+            return round((current / limit) * 100)
+        
+        return {
+            "products": {
+                "current": usage.data["products_count"],
+                "limit": subscription["max_products"],
+                "percentage": calc_percentage(usage.data["products_count"], subscription["max_products"])
+            },
+            "campaigns": {
+                "current": usage.data["campaigns_count"],
+                "limit": subscription["max_campaigns"],
+                "percentage": calc_percentage(usage.data["campaigns_count"], subscription["max_campaigns"])
+            },
+            "affiliates": {
+                "current": usage.data["affiliates_count"],
+                "limit": subscription["max_affiliates"],
+                "percentage": calc_percentage(usage.data["affiliates_count"], subscription["max_affiliates"])
+            },
+            "api_calls_this_month": usage.data.get("api_calls_this_month", 0),
+            "campaigns_this_month": usage.data.get("campaigns_this_month", 0)
         }
-    }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error fetching usage: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/api/subscriptions/cancel")
+@subscription_router.post("/cancel")
 async def cancel_subscription(immediate: bool = False, payload: dict = Depends(verify_token)):
-    """Annuler un abonnement"""
-    return {
-        "success": True,
-        "message": "Abonnement annulé. Accès maintenu jusqu'à la fin de la période.",
-        "canceled_at": datetime.now().isoformat(),
-        "access_until": "2024-12-15T00:00:00Z"
-    }
+    """Annuler un abonnement dans la DB"""
+    user_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Récupérer l'abonnement actif
+        sub_result = supabase.rpc("get_user_active_subscription", {"p_user_id": user_id}).execute()
+        
+        if not sub_result.data or len(sub_result.data) == 0:
+            raise HTTPException(status_code=404, detail="No active subscription to cancel")
+        
+        subscription_id = sub_result.data[0]["subscription_id"]
+        
+        if immediate:
+            # Annulation immédiate
+            update_data = {
+                "status": "canceled",
+                "canceled_at": datetime.now().isoformat(),
+                "cancel_at_period_end": False,
+                "current_period_end": datetime.now().isoformat()
+            }
+            access_until = datetime.now().isoformat()
+        else:
+            # Annulation à la fin de la période
+            update_data = {
+                "cancel_at_period_end": True,
+                "canceled_at": datetime.now().isoformat()
+            }
+            access_until = sub_result.data[0]["current_period_end"]
+        
+        # Mettre à jour l'abonnement
+        supabase.table("subscriptions").update(update_data).eq("id", subscription_id).execute()
+        
+        # Enregistrer dans l'historique
+        supabase.table("subscription_history").insert({
+            "subscription_id": subscription_id,
+            "user_id": user_id,
+            "action": "canceled",
+            "old_status": "active",
+            "new_status": "canceled" if immediate else "active",
+            "reason": "User requested cancellation"
+        }).execute()
+        
+        return {
+            "success": True,
+            "message": "Abonnement annulé" if immediate else "Abonnement annulé. Accès maintenu jusqu'à la fin de la période.",
+            "canceled_at": datetime.now().isoformat(),
+            "access_until": access_until,
+            "immediate": immediate
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error canceling subscription: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@subscription_router.post("/upgrade")
+async def upgrade_subscription(
+    new_plan_id: str,
+    billing_cycle: str = "monthly",
+    payload: dict = Depends(verify_token)
+):
+    """Changer de plan d'abonnement (upgrade/downgrade)"""
+    user_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Récupérer l'abonnement actif
+        sub_result = supabase.rpc("get_user_active_subscription", {"p_user_id": user_id}).execute()
+        
+        if not sub_result.data or len(sub_result.data) == 0:
+            raise HTTPException(status_code=404, detail="No active subscription")
+        
+        subscription_id = sub_result.data[0]["subscription_id"]
+        old_plan_code = sub_result.data[0]["plan_code"]
+        
+        # Récupérer le nouveau plan
+        new_plan = supabase.table("subscription_plans").select("*").eq("id", new_plan_id).single().execute()
+        
+        if not new_plan.data:
+            raise HTTPException(status_code=404, detail="Plan not found")
+        
+        # Déterminer le montant selon le cycle
+        amount = new_plan.data["price_monthly"] if billing_cycle == "monthly" else new_plan.data["price_yearly"]
+        
+        # Déterminer si c'est un upgrade ou downgrade
+        plan_hierarchy = ["freemium", "free", "standard", "pro", "premium", "elite", "enterprise"]
+        old_rank = next((i for i, p in enumerate(plan_hierarchy) if p in old_plan_code.lower()), 0)
+        new_rank = next((i for i, p in enumerate(plan_hierarchy) if p in new_plan.data["code"].lower()), 0)
+        action = "upgraded" if new_rank > old_rank else "downgraded"
+        
+        # Mettre à jour l'abonnement
+        new_period_start = datetime.now()
+        new_period_end = new_period_start + (timedelta(days=365) if billing_cycle == "yearly" else timedelta(days=30))
+        
+        supabase.table("subscriptions").update({
+            "plan_id": new_plan_id,
+            "billing_cycle": billing_cycle,
+            "amount": amount,
+            "current_period_start": new_period_start.isoformat(),
+            "current_period_end": new_period_end.isoformat(),
+            "cancel_at_period_end": False
+        }).eq("id", subscription_id).execute()
+        
+        # Enregistrer dans l'historique
+        old_plan = supabase.table("subscription_plans").select("id").eq("code", old_plan_code).single().execute()
+        
+        supabase.table("subscription_history").insert({
+            "subscription_id": subscription_id,
+            "user_id": user_id,
+            "action": action,
+            "from_plan_id": old_plan.data["id"] if old_plan.data else None,
+            "to_plan_id": new_plan_id,
+            "old_status": "active",
+            "new_status": "active",
+            "amount": amount
+        }).execute()
+        
+        return {
+            "success": True,
+            "message": f"Plan changé avec succès vers {new_plan.data['name']}",
+            "action": action,
+            "new_plan": {
+                "id": new_plan.data["id"],
+                "name": new_plan.data["name"],
+                "code": new_plan.data["code"],
+                "amount": float(amount),
+                "billing_cycle": billing_cycle
+            },
+            "current_period_end": new_period_end.isoformat()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error upgrading subscription: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
 # COMPANY LINKS DASHBOARD ENDPOINTS
@@ -3329,48 +3903,328 @@ async def invite_team_member(
     }
 
 # ============================================
+# STRIPE PAYMENT ENDPOINTS
+# ============================================
+
+@app.post("/api/stripe/create-checkout-session")
+async def create_stripe_checkout(
+    plan_id: str,
+    billing_cycle: str = "monthly",
+    payload: dict = Depends(verify_token)
+):
+    """Créer une session Stripe Checkout pour un abonnement"""
+    user_id = payload.get("user_id")
+    user_email = payload.get("email")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Import Stripe service
+        from stripe_service import create_checkout_session
+        
+        # Récupérer le plan
+        plan = supabase.table("subscription_plans").select("*").eq("id", plan_id).single().execute()
+        
+        if not plan.data:
+            raise HTTPException(status_code=404, detail="Plan not found")
+        
+        # Déterminer le prix
+        price = plan.data["price_monthly"] if billing_cycle == "monthly" else plan.data["price_yearly"]
+        
+        # Créer la session Stripe
+        result = await create_checkout_session(
+            user_id=user_id,
+            user_email=user_email,
+            plan_id=plan_id,
+            plan_name=plan.data["name"],
+            price_amount=float(price),
+            billing_cycle=billing_cycle,
+            currency=plan.data["currency"].lower()
+        )
+        
+        if result.get("success"):
+            return {
+                "success": True,
+                "checkout_url": result["checkout_url"],
+                "session_id": result["session_id"]
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get("message", "Stripe error"))
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error creating checkout session: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/stripe/create-portal-session")
+async def create_stripe_portal(
+    return_url: str = "http://localhost:3000/subscription",
+    payload: dict = Depends(verify_token)
+):
+    """Créer une session du portail client Stripe"""
+    user_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        from stripe_service import create_customer_portal_session
+        
+        # Récupérer le stripe_customer_id
+        sub = supabase.table("subscriptions") \
+            .select("stripe_customer_id") \
+            .eq("user_id", user_id) \
+            .order("created_at", desc=True) \
+            .limit(1) \
+            .execute()
+        
+        if not sub.data or not sub.data[0].get("stripe_customer_id"):
+            raise HTTPException(status_code=404, detail="No Stripe customer found")
+        
+        customer_id = sub.data[0]["stripe_customer_id"]
+        
+        result = await create_customer_portal_session(customer_id, return_url)
+        
+        if result.get("success"):
+            return {
+                "success": True,
+                "portal_url": result["portal_url"]
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get("message", "Stripe error"))
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error creating portal session: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/webhooks/stripe")
+async def stripe_webhook(request: Request):
+    """Webhook Stripe pour gérer les événements de paiement"""
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+    
+    if not sig_header:
+        raise HTTPException(status_code=400, detail="Missing Stripe signature")
+    
+    try:
+        from stripe_service import verify_webhook_signature, handle_webhook_event
+        
+        # Vérifier la signature
+        event = verify_webhook_signature(payload, sig_header)
+        
+        if not event:
+            raise HTTPException(status_code=400, detail="Invalid signature")
+        
+        # Traiter l'événement
+        result = await handle_webhook_event(event, supabase)
+        
+        return {"received": True, "status": result}
+    
+    except Exception as e:
+        print(f"❌ Webhook error: {e}")
+        raise HTTPException(status_code=400, detail=str(e))
+
+# ============================================
+# INVOICES & BILLING ENDPOINTS
+# ============================================
+
+@app.get("/api/invoices/history")
+async def get_invoices_history(payload: dict = Depends(verify_token)):
+    """Récupérer l'historique des factures d'un utilisateur"""
+    user_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Récupérer l'abonnement actuel pour obtenir le customer_id Stripe
+        subscription = supabase.rpc(
+            "get_user_active_subscription",
+            {"p_user_id": user_id}
+        ).execute()
+        
+        if not subscription.data:
+            return {
+                "success": True,
+                "invoices": [],
+                "message": "Aucun abonnement trouvé"
+            }
+        
+        stripe_customer_id = subscription.data.get("stripe_customer_id")
+        
+        if not stripe_customer_id:
+            return {
+                "success": True,
+                "invoices": [],
+                "message": "Pas de client Stripe associé"
+            }
+        
+        # Récupérer les factures depuis Stripe
+        from stripe_service import get_customer_invoices
+        invoices = await get_customer_invoices(stripe_customer_id)
+        
+        return {
+            "success": True,
+            "invoices": invoices,
+            "count": len(invoices)
+        }
+        
+    except Exception as e:
+        print(f"❌ Erreur récupération factures: {e}")
+        raise HTTPException(status_code=500, detail=f"Erreur lors de la récupération des factures: {str(e)}")
+
+# ============================================
+# TRIAL MANAGEMENT ENDPOINTS
+# ============================================
+
+@subscription_router.get("/trial-status")
+async def get_trial_status(payload: dict = Depends(verify_token)):
+    """Obtenir le statut du trial pour l'utilisateur"""
+    user_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Récupérer l'abonnement actuel
+        subscription = supabase.rpc(
+            "get_user_active_subscription",
+            {"p_user_id": user_id}
+        ).execute()
+        
+        if not subscription.data:
+            return {
+                "success": True,
+                "has_trial": False,
+                "message": "Aucun abonnement trouvé"
+            }
+        
+        sub = subscription.data
+        
+        # Vérifier si en trial
+        if sub.get("status") == "trialing" and sub.get("trial_end"):
+            from datetime import datetime
+            trial_end = datetime.fromisoformat(sub["trial_end"].replace('Z', '+00:00'))
+            now = datetime.now(trial_end.tzinfo)
+            days_left = (trial_end - now).days
+            
+            return {
+                "success": True,
+                "has_trial": True,
+                "is_active": days_left > 0,
+                "days_left": max(0, days_left),
+                "trial_end": sub["trial_end"],
+                "plan_name": sub.get("plan_name"),
+                "urgency_level": "critical" if days_left <= 3 else "warning" if days_left <= 7 else "info"
+            }
+        
+        return {
+            "success": True,
+            "has_trial": False,
+            "is_active": False,
+            "message": "Pas en période d'essai"
+        }
+        
+    except Exception as e:
+        print(f"❌ Erreur récupération trial status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@subscription_router.post("/convert-trial")
+async def convert_trial_to_paid(
+    stripe_subscription_id: str,
+    payload: dict = Depends(verify_token)
+):
+    """Convertir un trial en abonnement payant après paiement"""
+    user_id = payload.get("user_id")
+    
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Récupérer l'abonnement actuel
+        subscription = supabase.rpc(
+            "get_user_active_subscription",
+            {"p_user_id": user_id}
+        ).execute()
+        
+        if not subscription.data:
+            raise HTTPException(status_code=404, detail="Abonnement non trouvé")
+        
+        sub_id = subscription.data.get("id")
+        
+        # Appeler la fonction SQL pour convertir
+        result = supabase.rpc(
+            "convert_trial_to_paid",
+            {
+                "p_subscription_id": sub_id,
+                "p_stripe_subscription_id": stripe_subscription_id
+            }
+        ).execute()
+        
+        return {
+            "success": True,
+            "message": "Trial converti en abonnement payant",
+            "subscription_id": sub_id
+        }
+        
+    except Exception as e:
+        print(f"❌ Erreur conversion trial: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================
 # ADDITIONAL MISSING ENDPOINTS
 # ============================================
 
-@app.get("/api/subscriptions/plans")
-async def get_subscription_plans():
-    """Liste des plans d'abonnement disponibles"""
-    return {
-        "plans": [
-            {
-                "id": "free",
-                "name": "Gratuit",
-                "price": 0,
-                "currency": "EUR",
-                "interval": "month",
-                "features": ["1 membre", "100 liens", "Support communautaire"]
-            },
-            {
-                "id": "starter",
-                "name": "Starter",
-                "price": 29,
-                "currency": "EUR",
-                "interval": "month",
-                "features": ["5 membres", "1000 liens", "Support email", "Analytics basiques"]
-            },
-            {
-                "id": "business",
-                "name": "Business",
-                "price": 99,
-                "currency": "EUR",
-                "interval": "month",
-                "features": ["10 membres", "Liens illimités", "Support prioritaire", "Analytics avancés", "API"]
-            },
-            {
-                "id": "enterprise",
-                "name": "Enterprise",
-                "price": 299,
-                "currency": "EUR",
-                "interval": "month",
-                "features": ["Membres illimités", "Tout inclus", "Support dédié", "White-label", "SLA"]
-            }
-        ]
-    }
+@subscription_router.get("/plans")
+async def get_subscription_plans(user_type: str = Query(default="merchant")):
+    """Liste des plans d'abonnement disponibles depuis la DB"""
+    if not SUPABASE_ENABLED:
+        raise HTTPException(status_code=503, detail="Database not available")
+    
+    try:
+        # Récupérer les plans actifs pour le type d'utilisateur
+        result = supabase.table("subscription_plans") \
+            .select("*") \
+            .eq("user_type", user_type) \
+            .eq("is_active", True) \
+            .order("display_order") \
+            .execute()
+        
+        plans = []
+        for plan in result.data:
+            plans.append({
+                "id": plan["id"],
+                "code": plan["code"],
+                "name": plan["name"],
+                "description": plan["description"],
+                "price_monthly": float(plan["price_monthly"]),
+                "price_yearly": float(plan["price_yearly"]),
+                "currency": plan["currency"],
+                "features": plan["features"],
+                "max_products": plan["max_products"],
+                "max_campaigns": plan["max_campaigns"],
+                "max_affiliates": plan["max_affiliates"],
+                "commission_rate": float(plan["commission_rate"]) if plan.get("commission_rate") else None,
+                "campaigns_per_month": plan.get("campaigns_per_month"),
+                "instant_payout": plan.get("instant_payout"),
+                "analytics_level": plan.get("analytics_level"),
+                "custom_domain": plan["custom_domain"],
+                "priority_support": plan["priority_support"],
+                "api_access": plan["api_access"],
+                "white_label": plan["white_label"]
+            })
+        
+        return {"plans": plans}
+        
+    except Exception as e:
+        print(f"❌ Error fetching plans: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/settings")
 async def get_settings(payload: dict = Depends(verify_token)):
@@ -4092,25 +4946,8 @@ async def invite_team_member(invite_data: dict, payload: dict = Depends(verify_t
     """Inviter un membre"""
     return {"message": "Invitation envoyée", "invite_id": f"inv_{datetime.now().timestamp()}", "email": invite_data.get("email")}
 
-@app.get("/api/subscriptions/plans")
-async def get_subscription_plans(payload: dict = Depends(verify_token)):
-    """Plans d'abonnement"""
-    return {"plans": [{"id": "plan_starter", "name": "Starter", "price": 0, "features": ["5 liens", "Support email"]}, {"id": "plan_pro", "name": "Pro", "price": 299, "features": ["Liens illimités", "Support prioritaire", "Analytics avancées"]}]}
-
-@app.get("/api/subscriptions/my-subscription")
-async def get_my_subscription(payload: dict = Depends(verify_token)):
-    """Mon abonnement"""
-    return {"plan": "Pro", "status": "active", "next_billing": "2024-12-01", "amount": 299.00}
-
-@app.get("/api/subscriptions/usage")
-async def get_subscription_usage(payload: dict = Depends(verify_token)):
-    """Utilisation abonnement"""
-    return {"links_used": 12, "links_limit": -1, "storage_used": "2.5 GB", "storage_limit": "10 GB"}
-
-@app.post("/api/subscriptions/cancel")
-async def cancel_subscription(cancel_data: dict, payload: dict = Depends(verify_token)):
-    """Annuler abonnement"""
-    return {"message": "Abonnement annulé", "effective_date": "2024-12-01"}
+# Les endpoints d'abonnements sont maintenant dans subscription_router (lignes 3042+)
+# Endpoints en double supprimés pour éviter les conflits
 
 @app.get("/api/subscription-plans")
 async def get_all_subscription_plans():
@@ -4190,6 +5027,237 @@ async def get_merchant_pending_requests(payload: dict = Depends(verify_token)):
     if payload.get("role") not in ["merchant", "admin"]:
         raise HTTPException(status_code=403, detail="Accès merchant requis")
     return {"requests": [{"id": "req_001", "influencer": "Sarah M.", "product": "Huile d'Argan Premium", "message": "Je voudrais promouvoir ce produit", "requested_at": "2024-11-01"}], "total": 1}
+
+# ============================================
+# INVITATION SYSTEM ENDPOINTS
+# ============================================
+
+@app.post("/api/invitations/send")
+async def send_invitation(invitation_data: dict, payload: dict = Depends(verify_token)):
+    """
+    Envoyer une invitation d'affiliation
+    Permet au marchand d'inviter un influenceur/commercial à rejoindre son équipe
+    """
+    try:
+        merchant_id = payload.get("user_id")
+        invitee_id = invitation_data.get("invitee_id")
+        product_ids = invitation_data.get("product_ids", [])  # Liste des produits
+        message = invitation_data.get("message", "")
+        
+        if not invitee_id:
+            raise HTTPException(status_code=400, detail="invitee_id requis")
+        
+        if not product_ids:
+            raise HTTPException(status_code=400, detail="Sélectionnez au moins un produit")
+        
+        # Vérifier que l'utilisateur est bien un marchand
+        if payload.get("role") not in ["merchant", "admin"]:
+            raise HTTPException(status_code=403, detail="Seuls les marchands peuvent envoyer des invitations")
+        
+        # Générer un ID unique pour l'invitation
+        invitation_id = f"inv_{int(datetime.now().timestamp() * 1000)}"
+        
+        # Créer l'invitation (stockage simplifié en mémoire pour le moment)
+        invitation = {
+            "id": invitation_id,
+            "merchant_id": merchant_id,
+            "invitee_id": invitee_id,
+            "product_ids": product_ids,
+            "message": message,
+            "status": "pending",  # pending, accepted, rejected
+            "created_at": datetime.now().isoformat(),
+            "expires_at": (datetime.now() + timedelta(days=7)).isoformat()
+        }
+        
+        # TODO: Stocker dans la base de données
+        # Pour le moment, on simule le succès
+        
+        return {
+            "success": True,
+            "message": "Invitation envoyée avec succès",
+            "invitation": invitation
+        }
+    
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Erreur lors de l'envoi de l'invitation: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur lors de l'envoi de l'invitation")
+
+
+@app.get("/api/invitations/received")
+async def get_received_invitations(payload: dict = Depends(verify_token)):
+    """
+    Récupérer les invitations reçues
+    Pour les influenceurs/commerciaux qui ont reçu des invitations de marchands
+    """
+    try:
+        user_id = payload.get("user_id")
+        role = payload.get("role")
+        
+        # Vérifier que l'utilisateur est un influenceur ou commercial
+        if role not in ["influencer", "commercial", "admin"]:
+            return {"invitations": [], "total": 0}
+        
+        # TODO: Récupérer depuis la base de données
+        # Pour le moment, on retourne des données mockées
+        mock_invitations = [
+            {
+                "id": "inv_001",
+                "merchant": {
+                    "id": "merchant_123",
+                    "name": "BeautyMaroc",
+                    "avatar": None,
+                    "company": "Beauty Maroc SARL"
+                },
+                "products": [
+                    {
+                        "id": "prod_001",
+                        "name": "Huile d'Argan Premium Bio",
+                        "price": 299.00,
+                        "commission_rate": 15.0,
+                        "image_url": None
+                    }
+                ],
+                "message": "Bonjour! Nous aimerions que vous rejoigniez notre équipe d'affiliés pour promouvoir nos produits de beauté naturels.",
+                "status": "pending",
+                "created_at": "2024-11-02T10:30:00",
+                "expires_at": "2024-11-09T10:30:00"
+            }
+        ]
+        
+        return {
+            "invitations": mock_invitations,
+            "total": len(mock_invitations)
+        }
+    
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération des invitations: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la récupération des invitations")
+
+
+@app.post("/api/invitations/respond")
+async def respond_to_invitation(response_data: dict, payload: dict = Depends(verify_token)):
+    """
+    Répondre à une invitation (accepter/refuser)
+    Quand l'influenceur/commercial accepte, génère automatiquement:
+    - Un lien d'affiliation pour chaque produit
+    - Ajoute les produits à sa liste de produits affiliés
+    """
+    try:
+        user_id = payload.get("user_id")
+        invitation_id = response_data.get("invitation_id")
+        action = response_data.get("action")  # "accept" ou "reject"
+        
+        if not invitation_id or not action:
+            raise HTTPException(status_code=400, detail="invitation_id et action requis")
+        
+        if action not in ["accept", "reject"]:
+            raise HTTPException(status_code=400, detail="Action invalide (accept ou reject)")
+        
+        # TODO: Vérifier que l'invitation existe et appartient bien à cet utilisateur
+        
+        if action == "accept":
+            # Générer les liens d'affiliation pour chaque produit
+            # Mock data - en production, récupérer les vrais produits depuis l'invitation
+            mock_products = [
+                {
+                    "id": "prod_001",
+                    "name": "Huile d'Argan Premium Bio"
+                }
+            ]
+            
+            generated_links = []
+            for product in mock_products:
+                # Générer un code d'affiliation unique
+                affiliate_code = f"AFF{user_id[:4]}{product['id'][-3:]}{int(datetime.now().timestamp()) % 10000}"
+                
+                # Générer le lien d'affiliation
+                affiliate_link = f"https://getyourshare.ma/p/{product['id']}?ref={affiliate_code}"
+                
+                generated_links.append({
+                    "product_id": product["id"],
+                    "product_name": product["name"],
+                    "affiliate_code": affiliate_code,
+                    "affiliate_link": affiliate_link,
+                    "created_at": datetime.now().isoformat()
+                })
+            
+            # TODO: Enregistrer dans la base de données:
+            # 1. Mettre à jour le statut de l'invitation à "accepted"
+            # 2. Créer les entrées dans la table affiliate_links
+            # 3. Ajouter les produits à la liste des produits affiliés de l'utilisateur
+            
+            return {
+                "success": True,
+                "message": "Invitation acceptée avec succès",
+                "invitation_id": invitation_id,
+                "status": "accepted",
+                "affiliate_links": generated_links,
+                "products_added": len(generated_links)
+            }
+        
+        else:  # reject
+            # TODO: Mettre à jour le statut de l'invitation à "rejected" dans la DB
+            
+            return {
+                "success": True,
+                "message": "Invitation refusée",
+                "invitation_id": invitation_id,
+                "status": "rejected"
+            }
+    
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Erreur lors de la réponse à l'invitation: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur lors de la réponse à l'invitation")
+
+
+@app.get("/api/invitations/sent")
+async def get_sent_invitations(payload: dict = Depends(verify_token)):
+    """
+    Récupérer les invitations envoyées par le marchand
+    Permet au marchand de suivre l'état de ses invitations
+    """
+    try:
+        merchant_id = payload.get("user_id")
+        
+        if payload.get("role") not in ["merchant", "admin"]:
+            raise HTTPException(status_code=403, detail="Accès marchand requis")
+        
+        # TODO: Récupérer depuis la base de données
+        mock_sent = [
+            {
+                "id": "inv_001",
+                "invitee": {
+                    "id": "user_456",
+                    "name": "Sarah Beauty",
+                    "role": "influencer",
+                    "avatar": None
+                },
+                "products_count": 1,
+                "status": "pending",
+                "created_at": "2024-11-02T10:30:00",
+                "expires_at": "2024-11-09T10:30:00"
+            }
+        ]
+        
+        return {
+            "invitations": mock_sent,
+            "total": len(mock_sent),
+            "stats": {
+                "pending": 1,
+                "accepted": 0,
+                "rejected": 0
+            }
+        }
+    
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        logger.error(f"Erreur lors de la récupération des invitations envoyées: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erreur")
 
 # ============================================
 # MESSAGES ENDPOINTS

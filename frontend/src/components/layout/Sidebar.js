@@ -91,6 +91,11 @@ const Sidebar = () => {
         ],
       },
       {
+        title: 'Abonnement',
+        icon: <Zap size={20} />,
+        path: '/subscription',
+      },
+      {
         title: 'Paramètres',
         icon: <Settings size={20} />,
         submenu: 'settings',
@@ -162,6 +167,11 @@ const Sidebar = () => {
         title: 'Marketplace',
         icon: <ShoppingCart size={20} />,
         path: '/marketplace',
+      },
+      {
+        title: 'Abonnement',
+        icon: <Zap size={20} />,
+        path: '/subscription',
       },
       {
         title: 'Paramètres',
@@ -274,6 +284,11 @@ const Sidebar = () => {
         title: 'Intégrations',
         icon: <Zap size={20} />,
         path: '/integrations',
+      },
+      {
+        title: 'Abonnements Plateforme',
+        icon: <Zap size={20} />,
+        path: '/subscription',
       },
       {
         title: 'Paramètres',

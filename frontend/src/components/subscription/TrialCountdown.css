@@ -1,0 +1,237 @@
+.trial-countdown-banner {
+  position: fixed;
+  top: 70px;
+  left: 0;
+  right: 0;
+  z-index: 999;
+  padding: 1rem 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  animation: slideDown 0.4s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Niveaux d'urgence */
+.trial-countdown-banner.info {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-bottom: 3px solid #3b82f6;
+}
+
+.trial-countdown-banner.warning {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+  border-bottom: 3px solid #f59e0b;
+}
+
+.trial-countdown-banner.critical {
+  background: linear-gradient(135deg, #fecaca 0%, #fca5a5 100%);
+  border-bottom: 3px solid #ef4444;
+  animation: slideDown 0.4s ease-out, pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5);
+  }
+}
+
+.trial-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.trial-icon {
+  font-size: 2.5rem;
+  flex-shrink: 0;
+  animation: bounce 2s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.trial-message {
+  flex: 1;
+}
+
+.trial-title {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.trial-countdown-banner.critical .trial-title {
+  color: #991b1b;
+}
+
+.trial-countdown-banner.warning .trial-title {
+  color: #92400e;
+}
+
+.trial-countdown-banner.info .trial-title {
+  color: #1e40af;
+}
+
+.trial-text {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #374151;
+  line-height: 1.4;
+}
+
+.trial-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-shrink: 0;
+}
+
+.trial-button-upgrade,
+.trial-button-dismiss {
+  padding: 0.625rem 1.25rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.trial-button-upgrade {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+}
+
+.trial-button-upgrade:hover {
+  background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.trial-countdown-banner.critical .trial-button-upgrade {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  animation: pulseButton 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseButton {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+.trial-button-dismiss {
+  background: rgba(255, 255, 255, 0.8);
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+}
+
+.trial-button-dismiss:hover {
+  background: white;
+  color: #374151;
+  border-color: #9ca3af;
+}
+
+/* Countdown Timer (mode critique) */
+.trial-countdown-timer {
+  display: flex;
+  gap: 1rem;
+  padding-left: 1rem;
+  border-left: 2px solid rgba(0, 0, 0, 0.1);
+}
+
+.countdown-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.countdown-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #991b1b;
+  line-height: 1;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.countdown-label {
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .trial-countdown-banner {
+    top: 60px;
+    padding: 0.75rem 1rem;
+  }
+
+  .trial-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .trial-icon {
+    font-size: 2rem;
+  }
+
+  .trial-title {
+    font-size: 1rem;
+  }
+
+  .trial-text {
+    font-size: 0.8125rem;
+  }
+
+  .trial-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .trial-button-upgrade,
+  .trial-button-dismiss {
+    width: 100%;
+  }
+
+  .trial-countdown-timer {
+    width: 100%;
+    justify-content: center;
+    padding-left: 0;
+    padding-top: 0.75rem;
+    border-left: none;
+    border-top: 2px solid rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Animation d'entrée au chargement */
+.trial-countdown-banner {
+  animation-delay: 0.5s;
+  animation-fill-mode: both;
+}

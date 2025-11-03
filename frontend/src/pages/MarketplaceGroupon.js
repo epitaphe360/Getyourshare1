@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 import Layout from '../components/layout/Layout';
+import CollaborationRequestModal from '../components/modals/CollaborationRequestModal';
 import './MarketplaceAnimations.css';
 import {
   Search, MapPin, Star, TrendingUp, Users, 
@@ -13,6 +15,7 @@ const MarketplaceGroupon = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const toast = useToast();
   const [currentTab, setCurrentTab] = useState(0);
   const [searchQuery, setSearchQuery] = useState('');
   const [products, setProducts] = useState([]);
@@ -20,6 +23,9 @@ const MarketplaceGroupon = () => {
   const [commercials, setCommercials] = useState([]);
   const [influencers, setInfluencers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [showCollabModal, setShowCollabModal] = useState(false);
+  const [selectedInfluencer, setSelectedInfluencer] = useState(null);
+  const [merchantProducts, setMerchantProducts] = useState([]);
 
   // Détecter si on vient du dashboard ou de la home
   const fromDashboard = location.state?.fromDashboard || false;
@@ -34,6 +40,48 @@ const MarketplaceGroupon = () => {
   useEffect(() => {
     loadTabData();
   }, [currentTab]);
+
+  useEffect(() => {
+    // Charger les produits du marchand si connecté en tant que merchant
+    if (user && user.role === 'merchant') {
+      loadMerchantProducts();
+    }
+  }, [user]);
+
+  const loadMerchantProducts = async () => {
+    try {
+      const res = await api.get('/api/products');
+      setMerchantProducts(res.data.products || []);
+    } catch (error) {
+      console.error('Error loading merchant products:', error);
+    }
+  };
+
+  const handleCollaborateClick = (influencer) => {
+    // Vérifier si l'utilisateur est connecté
+    if (!user) {
+      toast.error('Veuillez vous connecter pour envoyer une demande de collaboration');
+      navigate('/login', { state: { from: location } });
+      return;
+    }
+
+    // Vérifier que c'est un marchand
+    if (user.role !== 'merchant') {
+      toast.error('Seuls les marchands peuvent envoyer des demandes de collaboration');
+      return;
+    }
+
+    // Vérifier que le marchand a des produits
+    if (!merchantProducts || merchantProducts.length === 0) {
+      toast.error('Vous devez avoir au moins un produit pour envoyer une demande de collaboration');
+      navigate('/products/create');
+      return;
+    }
+
+    // Ouvrir le modal
+    setSelectedInfluencer(influencer);
+    setShowCollabModal(true);
+  };
 
   const loadTabData = async () => {
     setLoading(true);
@@ -547,7 +595,10 @@ const MarketplaceGroupon = () => {
                         <span className="text-gray-500">({influencer.profile?.reviews || 0} avis)</span>
                       </div>
 
-                      <button className="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg font-semibold hover:from-pink-600 hover:to-purple-700 transition flex items-center justify-center gap-2 shadow-md">
+                      <button 
+                        onClick={() => handleCollaborateClick(influencer)}
+                        className="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg font-semibold hover:from-pink-600 hover:to-purple-700 transition flex items-center justify-center gap-2 shadow-md"
+                      >
                         <Instagram size={18} />
                         Collaborer Maintenant
                       </button>
@@ -582,11 +633,33 @@ const MarketplaceGroupon = () => {
 
   // Si on vient du dashboard, afficher avec le Layout (menu)
   if (fromDashboard) {
-    return <Layout>{marketplaceContent}</Layout>;
+    return (
+      <Layout>
+        {marketplaceContent}
+        <CollaborationRequestModal
+          isOpen={showCollabModal}
+          onClose={() => setShowCollabModal(false)}
+          products={merchantProducts}
+          influencerId={selectedInfluencer?.id}
+          influencerName={selectedInfluencer?.name || `${selectedInfluencer?.first_name} ${selectedInfluencer?.last_name}`}
+        />
+      </Layout>
+    );
   }
 
   // Sinon, afficher sans menu (depuis la home)
-  return marketplaceContent;
+  return (
+    <>
+      {marketplaceContent}
+      <CollaborationRequestModal
+        isOpen={showCollabModal}
+        onClose={() => setShowCollabModal(false)}
+        products={merchantProducts}
+        influencerId={selectedInfluencer?.id}
+        influencerName={selectedInfluencer?.name || `${selectedInfluencer?.first_name} ${selectedInfluencer?.last_name}`}
+      />
+    </>
+  );
 };
 
 export default MarketplaceGroupon;

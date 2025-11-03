@@ -50,6 +50,12 @@ import SubscriptionManagement from './pages/subscription/SubscriptionManagement'
 import TeamManagement from './pages/company/TeamManagement';
 import CompanyLinksDashboard from './pages/company/CompanyLinksDashboard';
 
+// Subscription Pages - NEW
+import SubscriptionPlans from './pages/subscription/SubscriptionPlans';
+import BillingHistory from './pages/subscription/BillingHistory';
+import CancelSubscription from './pages/subscription/CancelSubscription';
+import SubscriptionCancelled from './pages/subscription/SubscriptionCancelled';
+
 // Products
 import ProductsListPage from './pages/products/ProductsListPage';
 import CreateProductPage from './pages/products/CreateProductPage';
@@ -196,6 +202,40 @@ function App() {
           <Route path="/privacy" element={<PublicLayout><Privacy /></PublicLayout>} />
           <Route path="/terms" element={<PublicLayout><Terms /></PublicLayout>} />
           <Route path="/about" element={<PublicLayout><About /></PublicLayout>} />
+
+          {/* Subscription Pages (Protected) - NEW */}
+          <Route
+            path="/subscription/plans"
+            element={
+              <ProtectedRoute>
+                <SubscriptionPlans />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/subscription/billing"
+            element={
+              <ProtectedRoute>
+                <BillingHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/subscription/cancel"
+            element={
+              <ProtectedRoute>
+                <CancelSubscription />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/subscription/cancelled"
+            element={
+              <ProtectedRoute>
+                <SubscriptionCancelled />
+              </ProtectedRoute>
+            }
+          />
 
           {/* Protected Routes */}
           <Route

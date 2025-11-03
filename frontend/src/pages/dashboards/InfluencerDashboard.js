@@ -11,8 +11,10 @@ import Modal from '../../components/common/Modal';
 import MobilePaymentWidget from '../../components/payments/MobilePaymentWidget';
 import {
   DollarSign, MousePointer, ShoppingCart, TrendingUp,
-  Eye, Target, Award, Link as LinkIcon, Sparkles, RefreshCw, X, Send, BarChart3, Wallet
+  Eye, Target, Award, Link as LinkIcon, Sparkles, RefreshCw, X, Send, BarChart3, Wallet,
+  MessageSquare, Handshake, CheckCircle
 } from 'lucide-react';
+import CollaborationResponseModal from '../../components/modals/CollaborationResponseModal';
 import {
   LineChart, Line, AreaChart, Area, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -29,6 +31,7 @@ const InfluencerDashboard = () => {
   const [performanceData, setPerformanceData] = useState([]);
   const [productEarnings, setProductEarnings] = useState([]);
   const [subscription, setSubscription] = useState(null);
+  const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showPayoutModal, setShowPayoutModal] = useState(false);
@@ -37,6 +40,9 @@ const InfluencerDashboard = () => {
   const [payoutMethod, setPayoutMethod] = useState('bank_transfer');
   const [payoutSubmitting, setPayoutSubmitting] = useState(false);
   const [minPayoutAmount, setMinPayoutAmount] = useState(50); // Montant minimum de retrait
+  const [collaborationRequests, setCollaborationRequests] = useState([]);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [showResponseModal, setShowResponseModal] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -63,10 +69,12 @@ const InfluencerDashboard = () => {
         api.get('/api/analytics/overview'),
         api.get('/api/affiliate-links'),
         api.get('/api/analytics/influencer/earnings-chart'),
-        api.get('/api/subscriptions/current')
+        api.get('/api/subscriptions/current'),
+        api.get('/api/invitations/received'),
+        api.get('/api/collaborations/requests/received')
       ]);
 
-      const [statsRes, linksRes, earningsRes, subscriptionRes] = results;
+      const [statsRes, linksRes, earningsRes, subscriptionRes, invitationsRes, collabRes] = results;
 
       // Gérer les statistiques
       if (statsRes.status === 'fulfilled') {
@@ -116,6 +124,20 @@ const InfluencerDashboard = () => {
         console.error('Error loading links:', linksRes.reason);
         setLinks([]);
         setProductEarnings([]);
+      }
+
+      // Invitations reçues
+      if (invitationsRes && invitationsRes.status === 'fulfilled') {
+        setInvitations(invitationsRes.value.data.invitations || []);
+      } else {
+        setInvitations([]);
+      }
+
+      // Collaboration requests
+      if (collabRes && collabRes.status === 'fulfilled') {
+        setCollaborationRequests(collabRes.value.data.requests || []);
+      } else {
+        setCollaborationRequests([]);
       }
 
       // Gérer les données de gains
@@ -205,6 +227,34 @@ const InfluencerDashboard = () => {
     toast.error(error || 'Erreur lors du paiement mobile');
   };
 
+  const respondInvitation = async (invitationId, action) => {
+    try {
+      const res = await api.post('/api/invitations/respond', { invitation_id: invitationId, action });
+      if (res.data && res.data.success) {
+        toast.success(res.data.message || 'Réponse enregistrée');
+        // If accepted, add generated links to links list
+        if (action === 'accept' && res.data.affiliate_links) {
+          setLinks(prev => [...(prev || []), ...res.data.affiliate_links.map(l => ({ id: l.product_id + '_' + l.affiliate_code, affiliate_url: l.affiliate_link, product_name: l.product_name, commission_earned: 0 }))]);
+        }
+        // Remove the invitation from local list
+        setInvitations(prev => prev.filter(i => i.id !== invitationId));
+      }
+    } catch (error) {
+      console.error('Error responding to invitation:', error);
+      toast.error('Erreur lors de la réponse');
+    }
+  };
+
+  const handleOpenResponseModal = (request) => {
+    setSelectedRequest(request);
+    setShowResponseModal(true);
+  };
+
+  const handleCollaborationRespond = (response) => {
+    toast.success('Réponse envoyée avec succès');
+    fetchData(); // Refresh data
+  };
+
   const handleCopyLink = (link) => {
     try {
       navigator.clipboard.writeText(link);
@@ -278,7 +328,93 @@ const InfluencerDashboard = () => {
         </div>
       </div>
 
-      {/* Stats Grid */}
+        {/* Invitations (pending) */}
+        {invitations && invitations.length > 0 && (
+          <Card title={`Invitations (${invitations.length})`} icon={<MessageSquare size={20} />}>
+            <div className="space-y-3">
+              {invitations.map(inv => (
+                <div key={inv.id} className="flex items-start justify-between p-3 border rounded-lg">
+                  <div>
+                    <div className="font-semibold">Invitation de {inv.merchant?.name || 'Marchand'}</div>
+                    <div className="text-sm text-gray-500">Produit(s): {inv.products?.map(p => p.name).join(', ')}</div>
+                    <div className="text-sm text-gray-600 mt-2">{inv.message}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => respondInvitation(inv.id, 'reject')} className="px-3 py-1 bg-gray-100 rounded-md">Refuser</button>
+                    <button onClick={() => respondInvitation(inv.id, 'accept')} className="px-3 py-1 bg-indigo-600 text-white rounded-md">Accepter</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Collaboration Requests */}
+        {collaborationRequests && collaborationRequests.length > 0 && (
+          <Card 
+            title={`Demandes de Collaboration (${collaborationRequests.filter(r => r.status === 'pending').length})`} 
+            icon={<Handshake size={20} className="text-purple-600" />}
+          >
+            <div className="space-y-3">
+              {collaborationRequests.map(request => (
+                <div 
+                  key={request.id} 
+                  className="flex items-start justify-between p-4 border border-gray-200 rounded-lg hover:border-purple-300 transition"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="font-semibold text-gray-900">
+                        {request.merchant_name || 'Marchand'}
+                      </span>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        request.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                        request.status === 'accepted' ? 'bg-green-100 text-green-800' :
+                        request.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                        request.status === 'counter_offer' ? 'bg-orange-100 text-orange-800' :
+                        'bg-gray-100 text-gray-800'
+                      }`}>
+                        {request.status === 'pending' ? 'En attente' :
+                         request.status === 'accepted' ? 'Accepté' :
+                         request.status === 'rejected' ? 'Refusé' :
+                         request.status === 'counter_offer' ? 'Contre-offre' :
+                         request.status}
+                      </span>
+                    </div>
+                    <div className="text-sm text-gray-600 mb-1">
+                      {request.products?.length || 0} produit(s) • Commission: {request.proposed_commission}%
+                    </div>
+                    {request.message && (
+                      <div className="text-sm text-gray-500 mt-2 line-clamp-2">
+                        {request.message}
+                      </div>
+                    )}
+                  </div>
+                  {request.status === 'pending' && (
+                    <button 
+                      onClick={() => handleOpenResponseModal(request)}
+                      className="ml-4 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition whitespace-nowrap"
+                    >
+                      Répondre
+                    </button>
+                  )}
+                  {request.status === 'counter_offer' && (
+                    <div className="ml-4 text-sm text-orange-600 font-medium">
+                      En attente de réponse du marchand
+                    </div>
+                  )}
+                  {request.status === 'accepted' && (
+                    <div className="ml-4 text-sm text-green-600 font-medium flex items-center gap-1">
+                      <CheckCircle size={16} />
+                      Collaboration active
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Gains Totaux"
@@ -616,6 +752,14 @@ const InfluencerDashboard = () => {
           onError={handleMobilePaymentError}
         />
       </Modal>
+
+      {/* Collaboration Response Modal */}
+      <CollaborationResponseModal
+        isOpen={showResponseModal}
+        onClose={() => setShowResponseModal(false)}
+        request={selectedRequest}
+        onRespond={handleCollaborationRespond}
+      />
     </div>
   );
 };

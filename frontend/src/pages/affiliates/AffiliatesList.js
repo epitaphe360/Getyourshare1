@@ -4,6 +4,7 @@ import Card from '../../components/common/Card';
 import Table from '../../components/common/Table';
 import Badge from '../../components/common/Badge';
 import Button from '../../components/common/Button';
+import InvitationModal from '../../components/modals/InvitationModal';
 import { formatCurrency, formatNumber, formatDate } from '../../utils/helpers';
 import { Plus, Search } from 'lucide-react';
 
@@ -11,6 +12,7 @@ const AffiliatesList = () => {
   const [affiliates, setAffiliates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   useEffect(() => {
     fetchAffiliates();
@@ -90,11 +92,22 @@ const AffiliatesList = () => {
           <h1 className="text-3xl font-bold text-gray-900">Affiliés</h1>
           <p className="text-gray-600 mt-2">Gérez vos affiliés</p>
         </div>
-        <Button>
+        <Button onClick={() => setShowInviteModal(true)}>
           <Plus size={20} className="mr-2" />
           Nouvel Affilié
         </Button>
       </div>
+
+      {showInviteModal && (
+        <InvitationModal
+          onClose={() => setShowInviteModal(false)}
+          onSent={() => {
+            setShowInviteModal(false);
+            fetchAffiliates();
+            // Optionally show toast from parent if available
+          }}
+        />
+      )}
 
       <Card>
         <div className="mb-4">
