@@ -269,7 +269,7 @@ const HomepageV2 = () => {
             <div className="flex items-center space-x-8">
               <div className="flex items-center cursor-pointer" onClick={() => navigate('/')}>
                 <img 
-                  src="/logo.jpg" 
+                  src="/logo.png" 
                   alt="Logo" 
                   className="h-16 w-auto object-contain"
                   onError={(e) => {
@@ -764,7 +764,7 @@ const HomepageV2 = () => {
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 <img 
-                  src="/logo.jpg" 
+                  src="/logo.png" 
                   alt="ShareYourSales Logo" 
                   className="h-8 w-auto object-contain"
                   onError={(e) => {

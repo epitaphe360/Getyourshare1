@@ -1058,7 +1058,7 @@ const ProductDetail = () => {
                   <div className="bg-gradient-to-br from-green-50 to-emerald-50 border-2 border-green-200 rounded-xl p-4">
                     <div className="flex items-start space-x-4">
                       <img
-                        src={product.image_url || '/logo.jpg'}
+                        src={product.image_url || '/logo.png'}
                         alt={product.name}
                         className="w-20 h-20 object-cover rounded-lg shadow-md"
                         onError={(e) => {
