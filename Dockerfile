@@ -4,9 +4,11 @@ FROM python:3.11-slim
 # Copy the entire project
 COPY . .
 
-# Change to backend directory and install dependencies
+# Install dependencies from backend directory
+RUN pip install --no-cache-dir -r backend/requirements.txt
+
+# Change to backend directory
 WORKDIR /backend
-RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose port
 EXPOSE 8000
