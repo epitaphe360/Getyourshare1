@@ -15,15 +15,18 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Copy backend requirements first to leverage Docker layer caching
+COPY backend/requirements.txt /tmp/requirements.txt
+
+# Install Python dependencies early so later COPY changes don't invalidate the layer
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r /tmp/requirements.txt
+
 # Copy EVERYTHING from repo to /app
 COPY . /app
 
 # Set working directory to backend subfolder
 WORKDIR /app/backend
-
-# Install Python dependencies
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
 
 # Create necessary directories
 RUN mkdir -p uploads logs invoices
