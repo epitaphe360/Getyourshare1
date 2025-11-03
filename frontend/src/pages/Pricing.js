@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Check, X, Zap, TrendingUp, Users, Shield, Sparkles, ArrowRight } from 'lucide-react';
 import axios from 'axios';
-import Layout from '../components/layout/Layout';
+import Navigation from '../components/Navigation';
 import '../pages/MarketplaceAnimations.css';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
@@ -123,16 +123,18 @@ const Pricing = () => {
 
   if (loading) {
     return (
-      <Layout>
+      <>
+        <Navigation />
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-cyan-500 to-teal-500">
           <div className="text-2xl font-bold text-white animate-pulse">Chargement des plans...</div>
         </div>
-      </Layout>
+      </>
     );
   }
 
   return (
-    <Layout>
+    <>
+      <Navigation />
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
         {/* Hero Section - Ultra Dynamique */}
         <div className="relative bg-gradient-to-br from-blue-600 via-cyan-500 to-teal-500 text-white overflow-hidden">
@@ -476,7 +478,7 @@ const Pricing = () => {
         </div>
       </footer>
       </div>
-    </Layout>
+    </>
   );
 };
 
