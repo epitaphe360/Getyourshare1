@@ -10,8 +10,11 @@ COPY . .
 # Change to backend directory for the build
 WORKDIR /backend
 
+# Debug: list contents of backend directory
+RUN ls -la /backend/
+
 # Install dependencies
-RUN pip install --no-cache-dir -r /backend/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose port
 EXPOSE 8000
