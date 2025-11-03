@@ -70,13 +70,13 @@ RUN mkdir -p /app/logs /app/uploads /app/invoices && \
 # Passer à utilisateur non-root
 USER appuser
 
-# Exposer port (Utilisation du port 8001 pour l'environnement Railway)
-EXPOSE 8001
+# Exposer port (Utilisation du port 8000)
+EXPOSE 8000
 
-# Health check (Ajusté pour le port 8001)
+# Health check (Ajusté pour le port 8000)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8001/health || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Commande de démarrage (Ajusté pour le port 8001)
-CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8001", "--workers", "4"]
+# Commande de démarrage (server_complete.py sur port 8000)
+CMD ["uvicorn", "server_complete:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
 
