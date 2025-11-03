@@ -26,7 +26,7 @@ import {
 
 const Sidebar = () => {
   const { logout, user } = useAuth();
-  const { changeLanguage, language, languageNames, languageFlags, languages } = useI18n();
+  const { t, changeLanguage, language, languageNames, languageFlags, languages } = useI18n();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -56,56 +56,56 @@ const Sidebar = () => {
     // Menu pour INFLUENCER - Simplifié et focalisé
     const influencerMenu = [
       {
-        title: 'Getting Started',
+        title: t('nav_getting_started'),
         icon: <Newspaper size={20} />,
         path: '/getting-started',
       },
       {
-        title: 'Dashboard',
+        title: t('nav_dashboard'),
         icon: <LayoutDashboard size={20} />,
         path: '/dashboard',
       },
       {
-        title: 'Messages',
+        title: t('nav_messages'),
         icon: <MessageSquare size={20} />,
         path: '/messages',
       },
       {
-        title: 'Marketplace',
+        title: t('nav_marketplace'),
         icon: <ShoppingCart size={20} />,
         path: '/marketplace',
       },
       {
-        title: 'Mes Campagnes',
+        title: t('nav_my_campaigns'),
         icon: <Target size={20} />,
         path: '/campaigns',
       },
       {
-        title: 'Mes Liens',
+        title: t('nav_links'),
         icon: <LinkIcon size={20} />,
         path: '/tracking-links',
       },
       {
-        title: 'Performance',
+        title: t('nav_performance'),
         icon: <TrendingUp size={20} />,
         submenu: 'performance',
         items: [
-          { title: 'Conversions', path: '/performance/conversions' },
-          { title: 'Rapports', path: '/performance/reports' },
+          { title: t('nav_conversions'), path: '/performance/conversions' },
+          { title: t('nav_reports'), path: '/performance/reports' },
         ],
       },
       {
-        title: 'Abonnement',
+        title: t('nav_subscription'),
         icon: <Zap size={20} />,
         path: '/subscription',
       },
       {
-        title: 'Paramètres',
+        title: t('nav_settings'),
         icon: <Settings size={20} />,
         submenu: 'settings',
         items: [
-          { title: 'Personnel', path: '/settings/personal' },
-          { title: 'Sécurité', path: '/settings/security' },
+          { title: t('nav_personal'), path: '/settings/personal' },
+          { title: t('nav_security'), path: '/settings/security' },
         ],
       },
     ];
@@ -113,81 +113,81 @@ const Sidebar = () => {
     // Menu pour MERCHANT - Adapté à la gestion commerciale
     const merchantMenu = [
       {
-        title: 'Getting Started',
+        title: t('nav_getting_started'),
         icon: <Newspaper size={20} />,
         path: '/getting-started',
       },
       {
-        title: 'Dashboard',
+        title: t('nav_dashboard'),
         icon: <LayoutDashboard size={20} />,
         path: '/dashboard',
       },
       {
-        title: 'Messages',
+        title: t('nav_messages'),
         icon: <MessageSquare size={20} />,
         path: '/messages',
       },
       {
-        title: 'Mes Produits',
+        title: t('nav_my_products'),
         icon: <ShoppingCart size={20} />,
         path: '/products',
       },
       {
-        title: 'Mes Campagnes',
+        title: t('nav_my_campaigns'),
         icon: <Target size={20} />,
         path: '/campaigns',
       },
       {
-        title: 'Mes Affiliés',
+        title: t('nav_my_affiliates'),
         icon: <UserCheck size={20} />,
         submenu: 'affiliates',
         items: [
-          { title: 'Liste', path: '/affiliates' },
-          { title: 'Demandes', path: '/affiliates/applications' },
-          { title: 'Paiements', path: '/affiliates/payouts' },
-          { title: 'Coupons', path: '/affiliates/coupons' },
+          { title: t('nav_list'), path: '/affiliates' },
+          { title: t('nav_applications'), path: '/affiliates/applications' },
+          { title: t('nav_payouts'), path: '/affiliates/payouts' },
+          { title: t('nav_coupons'), path: '/affiliates/coupons' },
         ],
       },
       {
-        title: 'Performance',
+        title: t('nav_performance'),
         icon: <TrendingUp size={20} />,
         submenu: 'performance',
         items: [
-          { title: 'Conversions', path: '/performance/conversions' },
-          { title: 'Commissions MLM', path: '/performance/mlm-commissions' },
-          { title: 'Rapports', path: '/performance/reports' },
+          { title: t('nav_conversions'), path: '/performance/conversions' },
+          { title: t('nav_mlm_commissions'), path: '/performance/mlm-commissions' },
+          { title: t('nav_reports'), path: '/performance/reports' },
         ],
       },
       {
-        title: 'Suivi',
+        title: t('nav_tracking'),
         icon: <FileText size={20} />,
         submenu: 'logs',
         items: [
-          { title: 'Clics', path: '/logs/clicks' },
-          { title: 'Postback', path: '/logs/postback' },
+          { title: t('nav_clicks'), path: '/logs/clicks' },
+          { title: t('nav_postback'), path: '/logs/postback' },
         ],
       },
       {
-        title: 'Marketplace',
+        title: t('nav_marketplace'),
         icon: <ShoppingCart size={20} />,
         path: '/marketplace',
       },
       {
-        title: 'Abonnement',
+        title: t('nav_subscription'),
         icon: <Zap size={20} />,
         path: '/subscription',
       },
       {
-        title: 'Paramètres',
+        title: t('nav_settings'),
         icon: <Settings size={20} />,
         submenu: 'settings',
         items: [
-          { title: 'Personnel', path: '/settings/personal' },
-          { title: 'Sécurité', path: '/settings/security' },
-          { title: 'Entreprise', path: '/settings/company' },
-          { title: 'Affiliés', path: '/settings/affiliates' },
-          { title: 'SMTP', path: '/settings/smtp' },
-          { title: 'Emails', path: '/settings/emails' },
+          { title: t('nav_personal'), path: '/settings/personal' },
+          { title: t('nav_security'), path: '/settings/security' },
+          { title: t('nav_company'), path: '/settings/company' },
+          { title: t('nav_affiliates'), path: '/settings/affiliates' },
+          { title: t('nav_smtp'), path: '/settings/smtp' },
+          { title: t('nav_emails'), path: '/settings/emails' },
         ],
       },
     ];
@@ -195,123 +195,123 @@ const Sidebar = () => {
     // Menu pour ADMIN - Complet avec toutes les fonctionnalités
     const adminMenu = [
       {
-        title: 'Getting Started',
+        title: t('nav_getting_started'),
         icon: <Newspaper size={20} />,
         path: '/getting-started',
       },
       {
-        title: 'Dashboard',
+        title: t('nav_dashboard'),
         icon: <LayoutDashboard size={20} />,
         path: '/dashboard',
       },
       {
-        title: 'Messages',
+        title: t('nav_messages'),
         icon: <MessageSquare size={20} />,
         path: '/messages',
       },
       {
-        title: 'News & Newsletter',
+        title: t('nav_news'),
         icon: <Newspaper size={20} />,
         path: '/news',
       },
       {
-        title: 'Annonceurs',
+        title: t('nav_advertisers'),
         icon: <Users size={20} />,
         submenu: 'advertisers',
         items: [
-          { title: 'Liste', path: '/advertisers' },
-          { title: 'Inscriptions', path: '/advertisers/registrations' },
-          { title: 'Facturation', path: '/advertisers/billing' },
+          { title: t('nav_list'), path: '/advertisers' },
+          { title: t('nav_registrations'), path: '/advertisers/registrations' },
+          { title: t('nav_billing'), path: '/advertisers/billing' },
         ],
       },
       {
-        title: 'Campagnes/Offres',
+        title: t('nav_campaigns'),
         icon: <Target size={20} />,
         path: '/campaigns',
       },
       {
-        title: 'Produits',
+        title: t('nav_products'),
         icon: <ShoppingCart size={20} />,
         path: '/products',
       },
       {
-        title: 'Modération IA',
+        title: t('nav_moderation'),
         icon: <Shield size={20} />,
         path: '/admin/moderation',
       },
       {
-        title: 'Performance',
+        title: t('nav_performance'),
         icon: <TrendingUp size={20} />,
         submenu: 'performance',
         items: [
-          { title: 'Conversions', path: '/performance/conversions' },
-          { title: 'Commissions MLM', path: '/performance/mlm-commissions' },
-          { title: 'Leads', path: '/performance/leads' },
-          { title: 'Rapports', path: '/performance/reports' },
+          { title: t('nav_conversions'), path: '/performance/conversions' },
+          { title: t('nav_mlm_commissions'), path: '/performance/mlm-commissions' },
+          { title: t('nav_leads'), path: '/performance/leads' },
+          { title: t('nav_reports'), path: '/performance/reports' },
         ],
       },
       {
-        title: 'Affiliés',
+        title: t('nav_affiliates'),
         icon: <UserCheck size={20} />,
         submenu: 'affiliates',
         items: [
-          { title: 'Liste', path: '/affiliates' },
-          { title: 'Demandes', path: '/affiliates/applications' },
-          { title: 'Paiements', path: '/affiliates/payouts' },
-          { title: 'Coupons', path: '/affiliates/coupons' },
-          { title: 'Commandes Perdues', path: '/affiliates/lost-orders' },
-          { title: 'Rapport de Solde', path: '/affiliates/balance-report' },
+          { title: t('nav_list'), path: '/affiliates' },
+          { title: t('nav_applications'), path: '/affiliates/applications' },
+          { title: t('nav_payouts'), path: '/affiliates/payouts' },
+          { title: t('nav_coupons'), path: '/affiliates/coupons' },
+          { title: t('nav_lost_orders'), path: '/affiliates/lost-orders' },
+          { title: t('nav_balance_report'), path: '/affiliates/balance-report' },
         ],
       },
       {
-        title: 'Logs',
+        title: t('nav_logs'),
         icon: <FileText size={20} />,
         submenu: 'logs',
         items: [
-          { title: 'Clics', path: '/logs/clicks' },
-          { title: 'Postback', path: '/logs/postback' },
-          { title: 'Audit', path: '/logs/audit' },
-          { title: 'Webhooks', path: '/logs/webhooks' },
+          { title: t('nav_clicks'), path: '/logs/clicks' },
+          { title: t('nav_postback'), path: '/logs/postback' },
+          { title: t('nav_audit'), path: '/logs/audit' },
+          { title: t('nav_webhooks'), path: '/logs/webhooks' },
         ],
       },
       {
-        title: 'Marketplace',
+        title: t('nav_marketplace'),
         icon: <ShoppingCart size={20} />,
         path: '/marketplace',
       },
       {
-        title: 'Liens de Tracking',
+        title: t('nav_tracking_links'),
         icon: <LinkIcon size={20} />,
         path: '/tracking-links',
       },
       {
-        title: 'Intégrations',
+        title: t('nav_integrations'),
         icon: <Zap size={20} />,
         path: '/integrations',
       },
       {
-        title: 'Abonnements Plateforme',
+        title: t('nav_platform_subscriptions'),
         icon: <Zap size={20} />,
         path: '/subscription',
       },
       {
-        title: 'Paramètres',
+        title: t('nav_settings'),
         icon: <Settings size={20} />,
         submenu: 'settings',
         items: [
-          { title: 'Personnel', path: '/settings/personal' },
-          { title: 'Sécurité', path: '/settings/security' },
-          { title: 'Entreprise', path: '/settings/company' },
-          { title: 'Plateforme', path: '/settings/platform' },
-          { title: 'Affiliés', path: '/settings/affiliates' },
-          { title: 'Inscription', path: '/settings/registration' },
-          { title: 'MLM', path: '/settings/mlm' },
-          { title: 'Sources de Trafic', path: '/settings/traffic-sources' },
-          { title: 'Permissions', path: '/settings/permissions' },
-          { title: 'Utilisateurs', path: '/settings/users' },
-          { title: 'SMTP', path: '/settings/smtp' },
-          { title: 'Emails', path: '/settings/emails' },
-          { title: 'White Label', path: '/settings/white-label' },
+          { title: t('nav_personal'), path: '/settings/personal' },
+          { title: t('nav_security'), path: '/settings/security' },
+          { title: t('nav_company'), path: '/settings/company' },
+          { title: t('nav_platform'), path: '/settings/platform' },
+          { title: t('nav_affiliates'), path: '/settings/affiliates' },
+          { title: t('nav_registration'), path: '/settings/registration' },
+          { title: t('nav_mlm'), path: '/settings/mlm' },
+          { title: t('nav_traffic_sources'), path: '/settings/traffic-sources' },
+          { title: t('nav_permissions'), path: '/settings/permissions' },
+          { title: t('nav_users'), path: '/settings/users' },
+          { title: t('nav_smtp'), path: '/settings/smtp' },
+          { title: t('nav_emails'), path: '/settings/emails' },
+          { title: t('nav_white_label'), path: '/settings/white-label' },
         ],
       },
     ];
@@ -481,7 +481,7 @@ const Sidebar = () => {
             className="w-full flex items-center space-x-3 px-4 py-3 mt-4 text-gray-300 hover:bg-red-600 hover:text-white rounded-lg transition-all"
           >
             <LogOut size={20} />
-            <span className={collapsed ? 'hidden' : 'block'}>Déconnexion</span>
+            <span className={collapsed ? 'hidden' : 'block'}>{t('logout')}</span>
           </button>
         </div>
       </aside>
