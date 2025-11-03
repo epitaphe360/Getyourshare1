@@ -2939,6 +2939,51 @@ async def delete_admin_social_post(post_id: str, payload: dict = Depends(verify_
 # SUBSCRIPTION DASHBOARD ENDPOINTS
 # ============================================
 
+@app.get("/api/subscriptions/current")
+async def get_current_subscription(payload: dict = Depends(verify_token)):
+    """
+    Récupérer l'abonnement actuel de l'utilisateur (endpoint pour dashboards)
+    Retourne toujours un abonnement par défaut si aucun n'existe
+    """
+    user_id = payload.get("user_id")
+    user_role = payload.get("role", "merchant")
+    
+    # TODO: Chercher dans la base de données Supabase
+    # Pour l'instant, retourner un abonnement par défaut selon le rôle
+    
+    if user_role == "merchant":
+        return {
+            "id": f"sub_{user_id}",
+            "user_id": user_id,
+            "plan_name": "Freemium",
+            "plan_code": "freemium",
+            "status": "active",
+            "max_products": 5,
+            "max_campaigns": 1,
+            "max_affiliates": 10,
+            "commission_fee": 0,
+            "current_team_members": 0,
+            "current_domains": 0,
+            "can_add_team_member": True,
+            "can_add_domain": True,
+            "current_period_end": (datetime.now() + timedelta(days=30)).isoformat()
+        }
+    else:  # influencer
+        return {
+            "id": f"sub_{user_id}",
+            "user_id": user_id,
+            "plan_name": "Free",
+            "plan_code": "free",
+            "status": "active",
+            "commission_rate": 5,
+            "campaigns_per_month": 3,
+            "instant_payout": False,
+            "analytics_level": "basic",
+            "can_add_team_member": False,
+            "can_add_domain": False,
+            "current_period_end": (datetime.now() + timedelta(days=30)).isoformat()
+        }
+
 @app.get("/api/subscriptions/my-subscription")
 async def get_my_subscription(payload: dict = Depends(verify_token)):
     """Récupérer l'abonnement actuel de l'utilisateur"""
