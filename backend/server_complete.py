@@ -173,9 +173,13 @@ app = FastAPI(
 # MIDDLEWARE
 # ============================================
 
+# Récupérer CORS origins depuis les variables d'environnement
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:8000").split(",")
+print(f"🔐 CORS Origins configurés: {cors_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8000", "https://*.shareyoursales.ma"],
+    allow_origins=[origin.strip() for origin in cors_origins],  # strip() pour enlever les espaces
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
