@@ -17,19 +17,16 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy backend directory
-COPY ./backend /app/backend
+# Copy ONLY the backend directory contents (not the folder itself)
+COPY backend/ /app/
 
-# Move to backend directory
-WORKDIR /app/backend
-
-# Install Python dependencies
-RUN ls -l
-RUN pip install --no-cache-dir --upgrade pip && \
+# Install Python dependencies from /app (where requirements.txt now is)
+RUN ls -la && \
+    pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Create necessary directories
-RUN mkdir -p uploads logs
+RUN mkdir -p uploads logs invoices
 
 # Set environment variables
 ENV PYTHONUNBUFFERED=1 \
@@ -45,3 +42,4 @@ EXPOSE 8000
 
 # Start command with shell form to properly expand PORT variable
 CMD ["sh", "-c", "uvicorn server_complete:app --host 0.0.0.0 --port ${PORT:-8000}"]
+
