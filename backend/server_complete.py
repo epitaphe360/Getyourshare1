@@ -5073,8 +5073,95 @@ async def invite_team_member(invite_data: dict, payload: dict = Depends(verify_t
 
 @app.get("/api/subscription-plans")
 async def get_all_subscription_plans():
-    """Tous les plans (public)"""
-    return {"plans": [{"id": "plan_starter", "name": "Starter", "price": 0}, {"id": "plan_pro", "name": "Pro", "price": 299}, {"id": "plan_enterprise", "name": "Enterprise", "price": 999}]}
+    """Tous les plans (public) - Format pour page Pricing"""
+    return {
+        "merchants": [
+            {
+                "id": 1,
+                "name": "Starter",
+                "price": 0,
+                "commission_rate": 20,
+                "features": {
+                    "user_accounts": 1,
+                    "trackable_links_per_month": 50,
+                    "reports": "basiques",
+                    "ai_tools": False,
+                    "dedicated_manager": False,
+                    "support": "email"
+                }
+            },
+            {
+                "id": 2,
+                "name": "Pro",
+                "price": 299,
+                "commission_rate": 15,
+                "features": {
+                    "user_accounts": 3,
+                    "trackable_links_per_month": 500,
+                    "reports": "avancés",
+                    "ai_tools": True,
+                    "dedicated_manager": False,
+                    "support": "prioritaire"
+                }
+            },
+            {
+                "id": 3,
+                "name": "Business",
+                "price": 699,
+                "commission_rate": 10,
+                "features": {
+                    "user_accounts": 10,
+                    "trackable_links_per_month": 2000,
+                    "reports": "complets",
+                    "ai_tools": True,
+                    "dedicated_manager": False,
+                    "support": "24/7"
+                }
+            },
+            {
+                "id": 4,
+                "name": "Enterprise",
+                "price": None,
+                "commission_rate": 5,
+                "features": {
+                    "user_accounts": "Illimité",
+                    "trackable_links_per_month": "Illimité",
+                    "reports": "personnalisés",
+                    "ai_tools": True,
+                    "dedicated_manager": True,
+                    "support": "dédié"
+                }
+            }
+        ],
+        "influencers": [
+            {
+                "id": 5,
+                "name": "Free",
+                "price": 0,
+                "platform_fee_rate": 25,
+                "features": {
+                    "ai_tools": "limités",
+                    "campaigns_per_month": 5,
+                    "payments": "mensuels",
+                    "analytics": "basiques",
+                    "priority_support": False
+                }
+            },
+            {
+                "id": 6,
+                "name": "Creator Pro",
+                "price": 99,
+                "platform_fee_rate": 15,
+                "features": {
+                    "ai_tools": "complets",
+                    "campaigns_per_month": "Illimité",
+                    "payments": "instantanés",
+                    "analytics": "avancés",
+                    "priority_support": True
+                }
+            }
+        ]
+    }
 
 # ============================================
 # MARKETPLACE ENDPOINTS
