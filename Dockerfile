@@ -2,31 +2,23 @@
 # Root Dockerfile for Railway - Monorepo setup - Force rebuild
 # ============================================
 
-# ÉTAPE 1 : Build (pour installer les dépendances)
-FROM python:3.11-slim as builder
-
-# Définir le répertoire de travail
-WORKDIR /app
-
-# Copier uniquement le fichier des dépendances
-COPY backend/requirements.txt .
-
-# Installer les dépendances dans un dossier temporaire
-RUN pip install --no-cache-dir -r requirements.txt --target=/usr/local/lib/python3.11/site-packages/
-
-# ============================================
-# ÉTAPE 2 : Final (pour le runtime)
-# ============================================
 FROM python:3.11-slim
 
-# Définir le répertoire de travail pour le backend
-WORKDIR /backend
+# Définir le répertoire de travail temporaire
+WORKDIR /tmp/app
 
-# Copier les dépendances installées depuis l'étape 'builder'
-COPY --from=builder /usr/local/lib/python3.11/site-packages/ /usr/local/lib/python3.11/site-packages/
+# Copier TOUT le contexte de build dans le répertoire temporaire
+COPY . .
 
-# Copier le reste du code de l'application
-COPY backend/ .
+# Déplacer le contenu du backend vers le répertoire de travail final
+# Nous supposons que le Dockerfile est à la racine et que le dossier backend existe
+RUN mv backend/* . && rm -rf backend
+
+# Installer les dépendances (le fichier est maintenant à /tmp/app/requirements.txt)
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Définir le répertoire de travail final
+WORKDIR /tmp/app
 
 # Expose port
 EXPOSE 8000
