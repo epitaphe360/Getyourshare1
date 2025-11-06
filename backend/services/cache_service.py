@@ -13,7 +13,7 @@ Features:
 
 import redis
 import json
-import pickle
+# import pickle # Remplacé par une sérialisation JSON plus robuste
 import hashlib
 from typing import Optional, Any, Callable, List
 from functools import wraps
@@ -76,7 +76,9 @@ class RedisCache:
             try:
                 return json.loads(value)
             except (json.JSONDecodeError, TypeError):
-                return pickle.loads(value)
+                # return pickle.loads(value) # Remplacé par une erreur pour éviter B301
+                logger.error("cache_deserialization_error", key=key, error="Failed to deserialize with JSON. Data is not JSON-serializable, which is not supported.")
+                return None
 
         except Exception as e:
             logger.error("cache_get_error", key=key, error=str(e))
@@ -107,8 +109,10 @@ class RedisCache:
             # Sérialiser (JSON si possible, sinon pickle)
             try:
                 serialized = json.dumps(value)
-            except (TypeError, ValueError):
-                serialized = pickle.dumps(value)
+            except (TypeError, ValueError) as e:
+                # Si la sérialisation JSON échoue, on lève une erreur au lieu d'utiliser pickle
+                logger.error("cache_serialization_error", key=key, error=str(e), value_type=type(value).__name__)
+                raise ValueError("Value is not JSON serializable and pickle is disabled for security reasons.") from e
 
             # Stocker avec TTL
             self.redis.setex(cache_key, ttl, serialized)
