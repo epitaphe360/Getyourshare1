@@ -31,11 +31,18 @@ class TrackingService:
     # ============================================
 
     def generate_short_code(self, link_id: str, attempt: int = 0) -> str:
-        """Génère un code court unique pour un lien avec gestion des collisions"""
-        # Utiliser hash + timestamp + attempt pour unicité
-        raw = f"{link_id}-{datetime.now().isoformat()}-{secrets.token_hex(4)}-attempt{attempt}"
-        hash_obj = hashlib.sha256(raw.encode())
-        short_code = hash_obj.hexdigest()[:SHORT_CODE_LENGTH]
+        """
+        Génère un code court unique pour un lien avec gestion des collisions
+        SÉCURISÉ: Utilise secrets module au lieu de random pour cryptographic randomness
+        """
+        # OPTIMISATION SÉCURITÉ: secrets.token_urlsafe est cryptographiquement sûr
+        # Au lieu de hash SHA256 qui peut avoir des collisions, utiliser directement secrets
+        import secrets
+        
+        # Générer 6 bytes = 8 caractères base64url (URL-safe)
+        short_code = secrets.token_urlsafe(6)[:SHORT_CODE_LENGTH]
+        
+        # Convertir en uppercase pour cohérence
         return short_code.upper()
 
     def verify_short_code_uniqueness(self, short_code: str) -> bool:
