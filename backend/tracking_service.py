@@ -30,13 +30,34 @@ class TrackingService:
     # 1. GÉNÉRATION DE LIENS TRACKÉS
     # ============================================
 
-    def generate_short_code(self, link_id: str) -> str:
-        """Génère un code court unique pour un lien"""
-        # Utiliser hash + timestamp pour unicité
-        raw = f"{link_id}-{datetime.now().isoformat()}-{secrets.token_hex(4)}"
+    def generate_short_code(self, link_id: str, attempt: int = 0) -> str:
+        """Génère un code court unique pour un lien avec gestion des collisions"""
+        # Utiliser hash + timestamp + attempt pour unicité
+        raw = f"{link_id}-{datetime.now().isoformat()}-{secrets.token_hex(4)}-attempt{attempt}"
         hash_obj = hashlib.sha256(raw.encode())
         short_code = hash_obj.hexdigest()[:SHORT_CODE_LENGTH]
         return short_code.upper()
+
+    def verify_short_code_uniqueness(self, short_code: str) -> bool:
+        """Vérifie qu'un code court n'existe pas déjà"""
+        try:
+            result = self.supabase.table("tracking_links").select("id").eq("short_code", short_code).execute()
+            return len(result.data) == 0  # True si aucun lien trouvé
+        except Exception as e:
+            logger.error(f"Erreur vérification unicité: {e}")
+            return False
+
+    def generate_unique_short_code(self, link_id: str, max_attempts: int = 10) -> str:
+        """Génère un code court unique avec retry logic"""
+        for attempt in range(max_attempts):
+            short_code = self.generate_short_code(link_id, attempt)
+            if self.verify_short_code_uniqueness(short_code):
+                logger.info(f"✅ Code unique généré: {short_code} (tentative {attempt + 1})")
+                return short_code
+            logger.warning(f"⚠️ Collision détectée pour {short_code}, retry {attempt + 1}/{max_attempts}")
+        
+        # Si toutes les tentatives échouent, utiliser un code plus long
+        raise Exception(f"Impossible de générer un code unique après {max_attempts} tentatives")
 
     async def create_tracking_link(
         self,
@@ -79,8 +100,8 @@ class TrackingService:
             result = supabase.table("tracking_links").insert(link_data).execute()
             link_id = result.data[0]["id"]
 
-            # 2. Générer un code court unique
-            short_code = self.generate_short_code(link_id)
+            # 2. Générer un code court unique avec retry logic
+            short_code = self.generate_unique_short_code(link_id)
 
             # 3. Mettre à jour avec le short_code
             supabase.table("tracking_links").update({"short_code": short_code}).eq(

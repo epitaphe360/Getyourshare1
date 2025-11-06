@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
+import { useNavigateProtection, useClickProtection } from '../../hooks/useDebounce';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
@@ -18,6 +19,7 @@ import {
 
 const MerchantDashboard = () => {
   const navigate = useNavigate();
+  const safeNavigate = useNavigateProtection(navigate);
   const { user } = useAuth();
   const toast = useToast();
   const [stats, setStats] = useState(null);
@@ -25,6 +27,9 @@ const MerchantDashboard = () => {
   const [salesData, setSalesData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Protection contre double-clic
+  const { execute: handleRefresh, isExecuting: isRefreshing } = useClickProtection(fetchData);
 
   useEffect(() => {
     fetchData();
@@ -127,29 +132,34 @@ const MerchantDashboard = () => {
         </div>
         <div className="flex space-x-3">
           <button
-            onClick={() => fetchData()}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition flex items-center gap-2"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition flex items-center gap-2 disabled:opacity-50"
             title="Rafraîchir les données"
+            aria-label="Rafraîchir les données"
           >
-            <RefreshCw size={18} />
+            <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
           </button>
           <button
-            onClick={() => navigate('/campaigns/create')}
+            onClick={() => safeNavigate('/campaigns/create')}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
+            aria-label="Créer une nouvelle campagne"
           >
             <Plus size={18} />
             Créer Campagne
           </button>
           <button
-            onClick={() => navigate('/influencers/search')}
+            onClick={() => safeNavigate('/influencers/search')}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
+            aria-label="Rechercher des influenceurs"
           >
             <Search size={18} />
             Rechercher Influenceurs
           </button>
           <button
-            onClick={() => navigate('/products/create')}
+            onClick={() => safeNavigate('/products/create')}
             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+            aria-label="Ajouter un nouveau produit"
           >
             <Plus size={18} />
             Ajouter Produit
@@ -279,7 +289,7 @@ const MerchantDashboard = () => {
             description="Ajoutez vos premiers produits pour commencer"
             action={{
               label: "Ajouter un Produit",
-              onClick: () => navigate('/products/create')
+              onClick: () => safeNavigate('/products/create')
             }}
           />
         ) : (
@@ -337,8 +347,9 @@ const MerchantDashboard = () => {
         {products.length > 5 && (
           <div className="mt-4 text-right">
             <button
-              onClick={() => navigate('/products')}
+              onClick={() => safeNavigate('/products')}
               className="text-sm font-medium text-indigo-600 hover:text-indigo-900"
+              aria-label="Voir tous les produits"
             >
               Voir tous les produits →
             </button>

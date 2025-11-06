@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
+import { useNavigateProtection, useClickProtection } from '../../hooks/useDebounce';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
@@ -17,6 +18,7 @@ import {
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
+  const safeNavigate = useNavigateProtection(navigate);
   const toast = useToast();
   const [stats, setStats] = useState(null);
   const [merchants, setMerchants] = useState([]);
@@ -26,6 +28,17 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [exportingPDF, setExportingPDF] = useState(false);
+
+  // Protection contre double-clic pour actions critiques
+  const { execute: handleRefresh, isExecuting: isRefreshing } = useClickProtection(fetchData);
+  const { execute: handleExportPDFProtected, isExecuting: isExporting } = useClickProtection(async () => {
+    setExportingPDF(true);
+    try {
+      await handleExportPDF();
+    } finally {
+      setExportingPDF(false);
+    }
+  });
 
   useEffect(() => {
     fetchData();
@@ -214,31 +227,36 @@ Généré par ShareYourSales
         </div>
         <div className="flex space-x-3">
           <button
-            onClick={() => fetchData()}
-            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition flex items-center gap-2"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition flex items-center gap-2 disabled:opacity-50"
             title="Rafraîchir les données"
+            aria-label="Rafraîchir les données"
           >
-            <RefreshCw size={18} />
-            Actualiser
+            <RefreshCw size={18} className={isRefreshing ? 'animate-spin' : ''} />
+            {isRefreshing ? 'Actualisation...' : 'Actualiser'}
           </button>
           <button
-            onClick={handleExportPDF}
-            disabled={exportingPDF}
+            onClick={handleExportPDFProtected}
+            disabled={isExporting || exportingPDF}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2 disabled:opacity-50"
+            aria-label="Exporter le rapport PDF"
           >
             <Download size={18} />
-            {exportingPDF ? 'Export...' : 'Export Rapport'}
+            {(isExporting || exportingPDF) ? 'Export...' : 'Export Rapport'}
           </button>
           <button 
-            onClick={() => navigate('/admin/users/create')}
+            onClick={() => safeNavigate('/admin/users/create')}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition flex items-center gap-2"
+            aria-label="Créer un nouvel utilisateur"
           >
             <Users size={18} />
             Ajouter Utilisateur
           </button>
           <button 
-            onClick={() => navigate('/admin/reports')}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition flex items-center gap-2"
+            onClick={() => safeNavigate('/admin/reports')}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center gap-2"
+            aria-label="Voir les rapports détaillés"
           >
             <BarChart3 size={18} />
             Générer Rapport

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useI18n } from '../../i18n/i18n';
+import { useNavigateProtection, useClickProtection } from '../../hooks/useDebounce';
 import api from '../../utils/api';
 import StatCard from '../../components/common/StatCard';
 import Card from '../../components/common/Card';
@@ -20,6 +21,7 @@ import {
 
 const InfluencerDashboard = () => {
   const navigate = useNavigate();
+  const safeNavigate = useNavigateProtection(navigate);
   const { user } = useAuth();
   const toast = useToast();
   const { t } = useI18n();
@@ -35,6 +37,12 @@ const InfluencerDashboard = () => {
   const [payoutAmount, setPayoutAmount] = useState('');
   const [payoutMethod, setPayoutMethod] = useState('bank_transfer');
   const [payoutSubmitting, setPayoutSubmitting] = useState(false);
+
+  // Protection contre double-clic
+  const { execute: handleRefresh, isExecuting: isRefreshing } = useClickProtection(fetchData);
+  const { execute: handlePayoutRequest, isExecuting: isRequestingPayout } = useClickProtection(async () => {
+    await submitPayout();
+  });
 
   useEffect(() => {
     fetchData();

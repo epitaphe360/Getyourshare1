@@ -13,6 +13,9 @@ from datetime import datetime, timedelta
 import jwt
 import os
 from dotenv import load_dotenv
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 # Importer les helpers Supabase
 from db_helpers import *
@@ -20,6 +23,9 @@ from supabase_client import supabase
 
 # Charger les variables d'environnement
 load_dotenv()
+
+# Initialiser le rate limiter
+limiter = Limiter(key_func=get_remote_address)
 
 # ============================================
 # API METADATA & DOCUMENTATION
@@ -201,6 +207,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Ajouter le rate limiter à l'app
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
 # ============================================
 # INCLUDE ROUTERS (Modular Endpoints)
 # ============================================
@@ -375,19 +385,21 @@ async def health_check():
     }
 
 @app.post("/api/auth/login")
-async def login(login_data: LoginRequest):
-    """Login avec email et mot de passe"""
+@limiter.limit("5/minute")
+async def login(request: Request, login_data: LoginRequest):
+    """Login avec email et mot de passe - Rate limited à 5 tentatives/minute"""
     # Trouver l'utilisateur dans Supabase
     user = get_user_by_email(login_data.email)
 
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email ou mot de passe incorrect"
-        )
+    # Hash dummy pour éviter timing attack (permet énumération emails)
+    # Toujours vérifier le password même si user n'existe pas
+    dummy_hash = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYzS7sFCe4W"
+    password_hash = user["password_hash"] if user else dummy_hash
+    
+    # Vérification constant-time
+    is_password_valid = verify_password(login_data.password, password_hash)
 
-    # Vérifier le mot de passe
-    if not verify_password(login_data.password, user["password_hash"]):
+    if not user or not is_password_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email ou mot de passe incorrect"
@@ -1801,7 +1813,7 @@ async def get_platform_revenue(
         }
         
     except Exception as e:
-        logger.error(f"Error getting platform revenue: {e}")
+        print(f"❌ Error getting platform revenue: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
