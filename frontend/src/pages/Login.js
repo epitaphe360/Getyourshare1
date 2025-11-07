@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, Sparkles, AlertCircle, Shield } from 'lucide-react';
 import Button from '../components/common/Button';
+import { validateEmail, validateRequired } from '../utils/validation';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -11,6 +12,7 @@ const Login = () => {
   const [tempToken, setTempToken] = useState('');
   const [requires2FA, setRequires2FA] = useState(false);
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -18,6 +20,27 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setValidationErrors({});
+    
+    // VALIDATION côté client
+    const errors = {};
+    
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.valid) {
+      errors.email = emailValidation.error;
+    }
+    
+    const passwordValidation = validateRequired(password, "Le mot de passe");
+    if (!passwordValidation.valid) {
+      errors.password = passwordValidation.error;
+    }
+    
+    // Si erreurs de validation, arrêter
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+    
     setLoading(true);
 
     const result = await login(email, password);
@@ -130,13 +153,21 @@ const Login = () => {
                     <input
                       type="email"
                       value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        setValidationErrors(prev => ({...prev, email: ''}));
+                      }}
+                      className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                        validationErrors.email ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       placeholder="votre@email.com"
                       required
                       data-testid="email-input"
                     />
                   </div>
+                  {validationErrors.email && (
+                    <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+                  )}
                 </div>
 
                 <div>
@@ -148,13 +179,21 @@ const Login = () => {
                     <input
                       type="password"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        setValidationErrors(prev => ({...prev, password: ''}));
+                      }}
+                      className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                        validationErrors.password ? 'border-red-500' : 'border-gray-300'
+                      }`}
                       placeholder="••••••••"
                       required
                       data-testid="password-input"
                     />
                   </div>
+                  {validationErrors.password && (
+                    <p className="mt-1 text-sm text-red-600">{validationErrors.password}</p>
+                  )}
                 </div>
 
                 <button

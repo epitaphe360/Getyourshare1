@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, Phone, Building, Sparkles, AlertCircle, CheckCircle } from 'lucide-react';
 import axios from 'axios';
+import { validateEmail, validatePassword, validatePhone, validateRequired, validatePasswordMatch } from '../utils/validation';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:8001';
 
@@ -11,6 +12,7 @@ const Register = () => {
   const [role, setRole] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [validationErrors, setValidationErrors] = useState({});
   const [success, setSuccess] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -32,6 +34,7 @@ const Register = () => {
       [e.target.name]: e.target.value
     });
     setError('');
+    setValidationErrors(prev => ({...prev, [e.target.name]: ''}));
   };
 
   const handleRoleSelection = (selectedRole) => {
@@ -42,17 +45,58 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setValidationErrors({});
     setLoading(true);
 
-    // Validation
-    if (formData.password !== formData.confirmPassword) {
-      setError('Les mots de passe ne correspondent pas');
-      setLoading(false);
-      return;
+    // VALIDATION côté client
+    const errors = {};
+    
+    // Email
+    const emailValidation = validateEmail(formData.email);
+    if (!emailValidation.valid) errors.email = emailValidation.error;
+    
+    // Password
+    const passwordValidation = validatePassword(formData.password, { 
+      minLength: 8, 
+      requireUppercase: true, 
+      requireLowercase: true, 
+      requireNumber: true 
+    });
+    if (!passwordValidation.valid) errors.password = passwordValidation.error;
+    
+    // Password Match
+    const matchValidation = validatePasswordMatch(formData.password, formData.confirmPassword);
+    if (!matchValidation.valid) errors.confirmPassword = matchValidation.error;
+    
+    // First Name
+    const firstNameValidation = validateRequired(formData.first_name, "Le prénom");
+    if (!firstNameValidation.valid) errors.first_name = firstNameValidation.error;
+    
+    // Last Name
+    const lastNameValidation = validateRequired(formData.last_name, "Le nom");
+    if (!lastNameValidation.valid) errors.last_name = lastNameValidation.error;
+    
+    // Phone (facultatif mais validé si fourni)
+    if (formData.phone) {
+      const phoneValidation = validatePhone(formData.phone);
+      if (!phoneValidation.valid) errors.phone = phoneValidation.error;
     }
-
-    if (formData.password.length < 6) {
-      setError('Le mot de passe doit contenir au moins 6 caractères');
+    
+    // Company Name (si merchant)
+    if (role === 'merchant') {
+      const companyValidation = validateRequired(formData.company_name, "Le nom de l'entreprise");
+      if (!companyValidation.valid) errors.company_name = companyValidation.error;
+    }
+    
+    // Username (si influencer)
+    if (role === 'influencer') {
+      const usernameValidation = validateRequired(formData.username, "Le nom d'utilisateur");
+      if (!usernameValidation.valid) errors.username = usernameValidation.error;
+    }
+    
+    // Si erreurs de validation, arrêter
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
       setLoading(false);
       return;
     }
@@ -221,11 +265,16 @@ const Register = () => {
                           name="first_name"
                           value={formData.first_name}
                           onChange={handleChange}
-                          className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                            validationErrors.first_name ? 'border-red-500' : 'border-gray-300'
+                          }`}
                           placeholder="Jean"
                           required
                         />
                       </div>
+                      {validationErrors.first_name && (
+                        <p className="mt-1 text-sm text-red-600">{validationErrors.first_name}</p>
+                      )}
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -236,10 +285,15 @@ const Register = () => {
                         name="last_name"
                         value={formData.last_name}
                         onChange={handleChange}
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                          validationErrors.last_name ? 'border-red-500' : 'border-gray-300'
+                        }`}
                         placeholder="Dupont"
                         required
                       />
+                      {validationErrors.last_name && (
+                        <p className="mt-1 text-sm text-red-600">{validationErrors.last_name}</p>
+                      )}
                     </div>
                   </div>
 
@@ -256,11 +310,16 @@ const Register = () => {
                           name="company_name"
                           value={formData.company_name}
                           onChange={handleChange}
-                          className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                            validationErrors.company_name ? 'border-red-500' : 'border-gray-300'
+                          }`}
                           placeholder="Mon Entreprise SAS"
                           required
                         />
                       </div>
+                      {validationErrors.company_name && (
+                        <p className="mt-1 text-sm text-red-600">{validationErrors.company_name}</p>
+                      )}
                     </div>
                   )}
 
@@ -277,11 +336,16 @@ const Register = () => {
                           name="username"
                           value={formData.username}
                           onChange={handleChange}
-                          className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                          className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                            validationErrors.username ? 'border-red-500' : 'border-gray-300'
+                          }`}
                           placeholder="mon_username"
                           required
                         />
                       </div>
+                      {validationErrors.username && (
+                        <p className="mt-1 text-sm text-red-600">{validationErrors.username}</p>
+                      )}
                     </div>
                   )}
 
@@ -297,11 +361,16 @@ const Register = () => {
                         name="email"
                         value={formData.email}
                         onChange={handleChange}
-                        className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                          validationErrors.email ? 'border-red-500' : 'border-gray-300'
+                        }`}
                         placeholder="email@exemple.com"
                         required
                       />
                     </div>
+                    {validationErrors.email && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+                    )}
                   </div>
 
                   {/* Phone */}
@@ -316,11 +385,15 @@ const Register = () => {
                         name="phone"
                         value={formData.phone}
                         onChange={handleChange}
-                        className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                        placeholder="+33612345678"
-                        required
+                        className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                          validationErrors.phone ? 'border-red-500' : 'border-gray-300'
+                        }`}
+                        placeholder="+212600000000"
                       />
                     </div>
+                    {validationErrors.phone && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
+                    )}
                   </div>
 
                   {/* Password */}
@@ -335,11 +408,16 @@ const Register = () => {
                         name="password"
                         value={formData.password}
                         onChange={handleChange}
-                        className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                          validationErrors.password ? 'border-red-500' : 'border-gray-300'
+                        }`}
                         placeholder="••••••••"
                         required
                       />
                     </div>
+                    {validationErrors.password && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.password}</p>
+                    )}
                   </div>
 
                   {/* Confirm Password */}
@@ -354,11 +432,16 @@ const Register = () => {
                         name="confirmPassword"
                         value={formData.confirmPassword}
                         onChange={handleChange}
-                        className="pl-10 w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        className={`pl-10 w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent ${
+                          validationErrors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                        }`}
                         placeholder="••••••••"
                         required
                       />
                     </div>
+                    {validationErrors.confirmPassword && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.confirmPassword}</p>
+                    )}
                   </div>
 
                   {/* Terms */}

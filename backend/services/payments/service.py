@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 class PaymentsService:
     """Service pour gérer les commissions et appeler approve_payout_transaction."""
 
-    def __init__(self):
-        self.supabase = get_supabase_client()
+    def __init__(self, supabase_client=None):
+        self.supabase = supabase_client or get_supabase_client()
 
     async def approve_commission(self, commission_id: UUID, new_status: str = "approved") -> bool:
         """

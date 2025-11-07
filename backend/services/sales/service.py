@@ -16,8 +16,8 @@ logger = logging.getLogger(__name__)
 class SalesService:
     """Service pour gérer les ventes et appeler les fonctions transactionnelles."""
 
-    def __init__(self):
-        self.supabase = get_supabase_client()
+    def __init__(self, supabase_client=None):
+        self.supabase = supabase_client or get_supabase_client()
 
     async def create_sale(
         self,
@@ -30,6 +30,7 @@ class SalesService:
         quantity: int = 1,
         customer_email: Optional[str] = None,
         customer_name: Optional[str] = None,
+        order_id: Optional[str] = None,
         payment_status: str = "pending",
         status: str = "completed",
     ) -> dict:
@@ -56,26 +57,36 @@ class SalesService:
             ValueError: Si les paramètres sont invalides
             RuntimeError: Si l'appel à la fonction PL/pgSQL échoue
         """
+        # Validations
+        if amount <= 0:
+            raise ValueError("Amount must be positive")
+        if quantity <= 0:
+            raise ValueError("Quantity must be positive")
+        
         try:
             logger.info(f"Création vente: product={product_id}, amount={amount}")
 
+            # Préparer params RPC (sans order_id si la fonction ne le supporte pas)
+            rpc_params = {
+                "p_link_id": str(link_id),
+                "p_product_id": str(product_id),
+                "p_influencer_id": str(influencer_id),
+                "p_merchant_id": str(merchant_id),
+                "p_amount": amount,
+                "p_currency": currency,
+                "p_quantity": quantity,
+                "p_customer_email": customer_email,
+                "p_customer_name": customer_name,
+                "p_payment_status": payment_status,
+                "p_status": status,
+            }
+            
+            # Ajouter order_id seulement si fourni (fonction RPC peut ne pas le supporter)
+            if order_id:
+                rpc_params["p_order_id"] = order_id
+
             # Appel de la fonction PL/pgSQL create_sale_transaction via RPC
-            result = self.supabase.rpc(
-                "create_sale_transaction",
-                {
-                    "p_link_id": str(link_id),
-                    "p_product_id": str(product_id),
-                    "p_influencer_id": str(influencer_id),
-                    "p_merchant_id": str(merchant_id),
-                    "p_amount": amount,
-                    "p_currency": currency,
-                    "p_quantity": quantity,
-                    "p_customer_email": customer_email,
-                    "p_customer_name": customer_name,
-                    "p_payment_status": payment_status,
-                    "p_status": status,
-                },
-            ).execute()
+            result = self.supabase.rpc("create_sale_transaction", rpc_params).execute()
 
             if not result.data:
                 raise RuntimeError("La fonction create_sale_transaction n'a retourné aucune donnée")
@@ -101,6 +112,12 @@ class SalesService:
                 raise RuntimeError(f"Erreur lors de la création de la vente: {error_msg}")
 
     async def get_sale_by_id(self, sale_id: UUID) -> Optional[dict]:
+        """Récupère une vente par ID"""
+        try:
+            str(sale_id)  # Valide UUID
+        except (ValueError, AttributeError):
+            raise ValueError("Invalid UUID format")
+        
         """
         Récupère une vente par son ID.
 
@@ -118,13 +135,14 @@ class SalesService:
             return None
 
     async def get_sales_by_influencer(
-        self, influencer_id: UUID, limit: int = 50, offset: int = 0
+        self, influencer_id: UUID, status: Optional[str] = None, limit: int = 50, offset: int = 0
     ) -> list[dict]:
         """
         Récupère les ventes d'un influenceur.
 
         Args:
             influencer_id: ID de l'influenceur
+            status: Filtre par statut (optionnel)
             limit: Nombre max de résultats
             offset: Offset pour la pagination
 
@@ -132,14 +150,16 @@ class SalesService:
             list[dict]: Liste des ventes
         """
         try:
-            result = (
+            query = (
                 self.supabase.table("sales")
                 .select("*")
                 .eq("influencer_id", str(influencer_id))
-                .order("created_at", desc=True)
-                .range(offset, offset + limit - 1)
-                .execute()
             )
+            
+            if status:
+                query = query.eq("status", status)
+            
+            result = query.order("created_at", desc=True).range(offset, offset + limit - 1).execute()
             return result.data
         except Exception as e:
             logger.error(f"Erreur lors de la récupération des ventes: {str(e)}")

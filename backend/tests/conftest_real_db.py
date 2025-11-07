@@ -1,6 +1,6 @@
-﻿"""
-Fixtures pytest avec VRAIE base de donnes Supabase
-AUCUN MOCK - Tous les tests utilisent des donnes relles
+"""
+Fixtures pytest avec VRAIE base de données Supabase
+AUCUN MOCK - Tous les tests utilisent des données réelles
 """
 
 import pytest
@@ -9,10 +9,6 @@ from datetime import datetime, timedelta
 from uuid import uuid4
 
 # Import du setup de la vraie DB
-import sys
-import os
-sys.path.insert(0, os.path.dirname(__file__))
-
 from test_database_setup import (
     setup_test_database,
     get_test_data,
@@ -35,18 +31,18 @@ def event_loop():
 
 @pytest.fixture(scope="session", autouse=True)
 async def setup_database():
-    """Setup de la base de donnes AVANT tous les tests"""
+    """Setup de la base de données AVANT tous les tests"""
     print("\n" + "="*60)
-    print(" INITIALISATION BASE DE DONNES DE TEST")
+    print("🚀 INITIALISATION BASE DE DONNÉES DE TEST")
     print("="*60)
     
     test_data = await setup_test_database()
     
     yield test_data
     
-    # Cleanup aprs tous les tests
+    # Cleanup après tous les tests
     print("\n" + "="*60)
-    print(" NETTOYAGE BASE DE DONNES DE TEST")
+    print("🧹 NETTOYAGE BASE DE DONNÉES DE TEST")
     print("="*60)
     await test_db.cleanup()
 
@@ -67,41 +63,31 @@ def real_supabase():
     return get_supabase_for_tests()
 
 
-@pytest.fixture
-def mock_supabase():
-    """
-    ANCIEN NOM POUR COMPATIBILITÉ
-    Mais maintenant retourne le VRAI client Supabase!
-    Plus de mocks - vraies données!
-    """
-    return get_supabase_for_tests()
-
-
 # ============================================================================
-# FIXTURES DONNES DE TEST RELLES
+# FIXTURES DONNÉES DE TEST RÉELLES
 # ============================================================================
 
 @pytest.fixture
 def test_data():
-    """Toutes les donnes de test de la vraie DB"""
+    """Toutes les données de test de la vraie DB"""
     return get_test_data()
 
 
 @pytest.fixture
 def sample_user_influencer(test_data):
-    """Influenceur de test REL"""
+    """Influenceur de test RÉEL"""
     return test_data.get("user_influencer")
 
 
 @pytest.fixture
 def sample_user_merchant(test_data):
-    """Marchand de test REL"""
+    """Marchand de test RÉEL"""
     return test_data.get("user_merchant")
 
 
 @pytest.fixture
 def sample_user_admin(test_data):
-    """Admin de test REL"""
+    """Admin de test RÉEL"""
     return test_data.get("user_admin")
 
 
@@ -125,7 +111,7 @@ def sample_merchant_id(sample_user_merchant):
 
 @pytest.fixture
 def sample_product(test_data):
-    """Produit de test REL"""
+    """Produit de test RÉEL"""
     return test_data.get("product_premium")
 
 
@@ -137,7 +123,7 @@ def sample_product_id(sample_product):
 
 @pytest.fixture
 def sample_tracking_link(test_data):
-    """Lien de tracking de test REL"""
+    """Lien de tracking de test RÉEL"""
     return test_data.get("tracking_link")
 
 
@@ -149,7 +135,7 @@ def sample_tracking_link_id(sample_tracking_link):
 
 @pytest.fixture
 def sample_sale(test_data):
-    """Vente de test RELLE"""
+    """Vente de test RÉELLE"""
     return test_data.get("sale_completed")
 
 
@@ -161,7 +147,7 @@ def sample_sale_id(sample_sale):
 
 @pytest.fixture
 def sample_commission(test_data):
-    """Commission de test RELLE"""
+    """Commission de test RÉELLE"""
     return test_data.get("commission_paid")
 
 
@@ -172,12 +158,12 @@ def sample_commission_id(sample_commission):
 
 
 # ============================================================================
-# FIXTURES POUR CRATION DE DONNES
+# FIXTURES POUR CRÉATION DE DONNÉES
 # ============================================================================
 
 @pytest.fixture
 def sample_sale_request(sample_influencer_id, sample_merchant_id, sample_product_id, sample_tracking_link_id):
-    """Requte de cration de vente"""
+    """Requête de création de vente"""
     return {
         "amount": 99.99,
         "quantity": 1,
@@ -192,7 +178,7 @@ def sample_sale_request(sample_influencer_id, sample_merchant_id, sample_product
 
 @pytest.fixture
 def sample_commission_request(sample_influencer_id, sample_sale_id):
-    """Requte de cration de commission"""
+    """Requête de création de commission"""
     return {
         "amount": 14.99,
         "influencer_id": sample_influencer_id,
@@ -202,12 +188,12 @@ def sample_commission_request(sample_influencer_id, sample_sale_id):
 
 
 # ============================================================================
-# FIXTURES POUR ERREURS (conserves pour compatibilit)
+# FIXTURES POUR ERREURS (conservées pour compatibilité)
 # ============================================================================
 
 @pytest.fixture
 def mock_postgres_error():
-    """Factory pour crer des erreurs PostgreSQL mockes"""
+    """Factory pour créer des erreurs PostgreSQL mockées"""
     class PostgresError:
         def __init__(self, code: str, message: str):
             self.code = code
@@ -224,7 +210,7 @@ def mock_postgres_error():
 # ============================================================================
 
 def create_test_user(supabase_client, **kwargs):
-    """Helper pour crer un utilisateur de test supplmentaire"""
+    """Helper pour créer un utilisateur de test supplémentaire"""
     user_data = {
         "id": str(uuid4()),
         "email": f"test_{uuid4().hex[:8]}@example.com",
@@ -240,7 +226,7 @@ def create_test_user(supabase_client, **kwargs):
 
 
 def create_test_product(supabase_client, merchant_id, **kwargs):
-    """Helper pour crer un produit de test supplmentaire"""
+    """Helper pour créer un produit de test supplémentaire"""
     product_data = {
         "id": str(uuid4()),
         "name": f"TEST Product {uuid4().hex[:8]}",
@@ -257,7 +243,7 @@ def create_test_product(supabase_client, merchant_id, **kwargs):
 
 
 def create_test_sale(supabase_client, **kwargs):
-    """Helper pour crer une vente de test supplmentaire"""
+    """Helper pour créer une vente de test supplémentaire"""
     sale_data = {
         "id": str(uuid4()),
         "amount": kwargs.get("amount", 99.99),
@@ -273,7 +259,7 @@ def create_test_sale(supabase_client, **kwargs):
 
 
 def create_test_commission(supabase_client, **kwargs):
-    """Helper pour crer une commission de test supplmentaire"""
+    """Helper pour créer une commission de test supplémentaire"""
     commission_data = {
         "id": str(uuid4()),
         "amount": kwargs.get("amount", 14.99),
